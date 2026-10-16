@@ -1,3 +1,6 @@
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
 const isDev = process.env.NODE_ENV !== "production";
 const apiUrl = process.env.NEXT_PUBLIC_STARK_API_URL || "http://127.0.0.1:8000";
 
@@ -20,6 +23,8 @@ const csp = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // pin the project root (a stray package-lock.json in a parent folder otherwise confuses Next.js)
+  outputFileTracingRoot: dirname(fileURLToPath(import.meta.url)),
   poweredByHeader: false,
   async headers() {
     return [
