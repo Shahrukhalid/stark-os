@@ -44,7 +44,7 @@ Exact status: **[docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md)**
 Requirements: Python 3.11+, Node.js 20+, and a free [OpenRouter key](https://openrouter.ai/keys).
 
 ```bash
-git clone https://github.com/<you>/stark-os.git && cd stark-os
+git clone https://github.com/Shahrukhalid/stark-os.git && cd stark-os
 make setup        # Python venv + deps, npm install, creates .env with a random API token, seeds ./sandbox
 ```
 
@@ -112,4 +112,6 @@ STARK OS is an independent, non-commercial, fan-made engineering project. It is 
 
 ## License
 
-[MIT](LICENSE) — covers the code and original text only; grants no rights in any third-party trademark or character.
+[MIT](LICENSE). Use it, fork it, modify it. The license covers the code and original text only and grants no rights in any Marvel, Disney or other third-party trademark, character or copyrighted work.
+
+If STARK OS is useful to you, please ⭐ star the repo and share what you build with it.
