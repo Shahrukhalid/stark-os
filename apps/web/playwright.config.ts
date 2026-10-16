@@ -21,6 +21,8 @@ export default defineConfig({
   testDir: "./e2e",
   timeout: 60_000,
   workers: 1,
+  // on GitHub Actions, failures also show up as annotations on the run
+  reporter: process.env.CI ? [["github"], ["list"]] : "list",
   use: { baseURL: "http://127.0.0.1:3100", screenshot: "only-on-failure", viewport: { width: 1440, height: 950 } },
   webServer: [
     { command: `${py} e2e/mock_llm.py 8799`, url: "http://127.0.0.1:8799/api/v1/models", reuseExistingServer: false },
