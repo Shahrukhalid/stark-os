@@ -15,7 +15,7 @@ Each entry: decision, why, trade-off, and when to revisit.
 ### D3. Free OpenRouter models only, through one small adapter
 - **Why:** the project must run at zero cost. OpenRouter offers many free models behind one OpenAI-compatible API, so a single httpx adapter (`providers/openrouter.py` on top of `openai_compat.py`) covers everything; no vendor SDKs.
 - **Trade-off:** free models are rate-limited (50 requests/day on a free key) and weaker at long multi-step tool use than frontier paid models. Mitigated by tier preferences, automatic failover with cooldowns, and per-task step/token limits.
-- **Removed:** the Anthropic Claude, Ollama and generic OpenAI-compatible providers (2026-10-16, at the owner's request).
+- **Removed:** paid and local model providers (2026-10-16), to keep the project free to run.
 
 ### D4. Internal message format = content blocks
 Text / tool_use / tool_result blocks are converted to OpenAI chat messages (`to_openai_messages`). Keeping the internal format provider-neutral makes it cheap to add providers later.

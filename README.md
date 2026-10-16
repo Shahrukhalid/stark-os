@@ -111,6 +111,10 @@ docs/                   ARCHITECTURE, DECISIONS, IMPLEMENTATION_STATUS, TASKS
 - Secrets live only in `.env` (git-ignored) and are redacted from logs. The API binds to 127.0.0.1 and requires a random token.
 - Report vulnerabilities privately: see [SECURITY.md](SECURITY.md).
 
+## Contributing
+
+Issues, ideas and pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md), the [Code of Conduct](CODE_OF_CONDUCT.md) and [ACCESSIBILITY.md](ACCESSIBILITY.md). Questions go to [Discussions](https://github.com/Shahrukhalid/stark-os/discussions).
+
 ## Disclaimer
 
 STARK OS is an independent, non-commercial, fan-made engineering project. It is not affiliated with, endorsed by, or sponsored by Marvel Entertainment, The Walt Disney Company, or any performer. Character names are used descriptively; canon notes in each `agent.toml` say what is established, what comes from VisionQuest (with the source) and what is a design decision. Do not use this project to impersonate any character, brand or real person, or to clone anyone's voice.

@@ -1,0 +1,47 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! **Never paste API keys, passwords, tokens or your `.env` file.**
+        Security issues: use Security → Report a vulnerability instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run make dev
+        2. Ask EDITH to ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error messages or logs
+      description: Copy the relevant lines from the Terminal or the browser console (remove anything private).
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: STARK OS version
+      placeholder: "0.4.0 (shown in Settings / /api/health)"
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [macOS, Linux, Windows (WSL), Other]
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Setup / install, Dashboard, Agents / chat, Social accounts / publishing, Scheduling, Models (OpenRouter), Docker, Other]

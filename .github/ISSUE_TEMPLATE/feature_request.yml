@@ -1,0 +1,31 @@
+name: Feature request
+description: Suggest an idea or improvement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      placeholder: "When I plan a campaign I have to ..."
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: What should STARK OS do? Which agent would handle it?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+  - type: checkboxes
+    id: rules
+    attributes:
+      label: Fits the project rules
+      options:
+        - label: It keeps a human approval before anything is posted or sent
+          required: true
+        - label: It doesn't involve fake engagement, impersonation or tracking people
+          required: true
