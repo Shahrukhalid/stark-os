@@ -56,8 +56,11 @@ test("EDITH drafts; you publish from Content with one click, and the simulation 
 test("an approved scheduled post goes out by itself at its time", async ({ page }) => {
   test.setTimeout(180_000);
   await connect(page);
+  const drafts = page.getByText(/Drafted (cnt_[0-9a-f]{16})/);
+  await page.waitForTimeout(500);
+  const before = await drafts.count();
   await send(page, "EDITH, draft a launch post for Bluesky");
-  await expect(page.getByText(/Drafted (cnt_[0-9a-f]{16})/).last()).toBeVisible({ timeout: 20_000 });
+  await expect(drafts).toHaveCount(before + 1, { timeout: 20_000 });
   await page.getByRole("button", { name: "Content", exact: true }).click();
   const item = page.getByTestId("content-item").filter({ hasText: "Draft" }).first();
   const id = (await item.innerText()).match(/cnt_[0-9a-f]{16}/)![0];
@@ -84,16 +87,18 @@ test("connecting Bluesky refuses a main password and explains app passwords", as
 
 test("DUM-E publishes from chat only after the approval card", async ({ page }) => {
   await connect(page);
+  const drafts = page.getByText(/Drafted (cnt_[0-9a-f]{16})/);
+  await page.waitForTimeout(500); // let an earlier EDITH conversation finish rendering
+  const before = await drafts.count();
   await send(page, "EDITH, draft a launch post for Bluesky");
-  const drafted = page.getByText(/Drafted (cnt_[0-9a-f]{16})/).last();
-  await expect(drafted).toBeVisible({ timeout: 20_000 });
-  const id = (await drafted.innerText()).match(/cnt_[0-9a-f]{16}/)![0];
+  await expect(drafts).toHaveCount(before + 1, { timeout: 20_000 }); // wait for *this* draft, not an older one
+  const id = (await drafts.last().innerText()).match(/cnt_[0-9a-f]{16}/)![0];
   await send(page, `DUM-E, publish ${id}`);
   const approve = page.getByRole("button", { name: "Approve once" });
   await expect(approve).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText(/SIMULATION ONLY - nothing will be sent to Bluesky/).first()).toBeVisible();
   await approve.click();
-  await expect(page.getByText(/whirr\* SIMULATED publish to Bluesky: nothing was sent/)).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/whirr\* SIMULATED publish to Bluesky: nothing was sent/).last()).toBeVisible({ timeout: 20_000 });
 });
 
 test("FRIDAY triages the inbox and labels sample mentions as simulated", async ({ page }) => {
