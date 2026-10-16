@@ -2,8 +2,13 @@
 PY ?= services/api/.venv/bin/python
 
 .PHONY: setup api web dev test test-api test-web e2e docker
+# first Python >= 3.11 found (macOS ships 3.9 as python3, which is too old)
+PYTHON ?= $(shell for p in python3.13 python3.12 python3.11 python3; do command -v $$p >/dev/null 2>&1 && $$p -c 'import sys; sys.exit(sys.version_info < (3, 11))' 2>/dev/null && command -v $$p && break; done)
+
 setup:
-	cd services/api && (uv venv .venv --python 3.12 || python3 -m venv .venv) && \
+	@test -n "$(PYTHON)" || { echo "Python 3.11+ not found. Install it: brew install python@3.12"; exit 1; }
+	@test -x services/api/.venv/bin/python && services/api/.venv/bin/python -c 'import sys; sys.exit(sys.version_info < (3, 11))' 2>/dev/null || rm -rf services/api/.venv
+	cd services/api && (uv venv .venv --python 3.12 2>/dev/null || $(PYTHON) -m venv .venv) && \
 	  (uv pip install --python .venv/bin/python --require-hashes -r requirements.lock || .venv/bin/pip install --require-hashes -r requirements.lock) && \
 	  (uv pip install --python .venv/bin/python --no-deps -e . || .venv/bin/pip install --no-deps -e .) && \
 	  (uv pip install --python .venv/bin/python "pytest>=8" "pytest-asyncio>=0.23" "playwright>=1.45" || .venv/bin/pip install "pytest>=8" "pytest-asyncio>=0.23" "playwright>=1.45")
