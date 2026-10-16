@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 
+import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
@@ -20,8 +21,18 @@ from . import __version__
 from .config import REPO_ROOT, Settings, load_dotenv
 from .core.addressing import parse_address
 from .core.agent_registry import AgentRegistry
-from .core.db import (Approval, AuditEntry, ContentItem, Conversation, Database, Grant, Task, Turn,
-                      UsageRecord, to_dict)
+from .core.db import (
+    Approval,
+    AuditEntry,
+    ContentItem,
+    Conversation,
+    Database,
+    Grant,
+    Task,
+    Turn,
+    UsageRecord,
+    to_dict,
+)
 from .core.events import EventBus
 from .core.model_router import ModelRouter
 from .core.observability import configure_logging, log
@@ -93,6 +104,25 @@ class PingIn(BaseModel):
     limit: int = Field(20, ge=1, le=50)
 
 
+class BlueskyIn(BaseModel):
+    handle: str = Field(..., min_length=3, max_length=253)
+    app_password: str = Field(..., min_length=8, max_length=64)
+
+
+class MastodonIn(BaseModel):
+    base_url: str = Field(..., min_length=4, max_length=300)
+    access_token: str = Field(..., min_length=8, max_length=300)
+
+
+class ItemActionIn(BaseModel):
+    fingerprint: str = Field(..., min_length=64, max_length=64, description="from the queue: the text you saw")
+
+
+class ScheduleIn(ItemActionIn):
+    when: datetime
+    auto: bool = False
+
+
 class GrantIn(BaseModel):
     agent_id: str
     tool_id: str
@@ -119,12 +149,25 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         holder["k"] = build_kernel(settings, providers)
+        app.state.kernel = holder["k"]
         await holder["k"].router.prepare()
         log.info("STARK OS API ready", extra={"ctx": {"agents": holder["k"].registry.ids(),
                                                       "providers": holder["k"].router.configured_providers()}})
+        scheduler = asyncio.create_task(_scheduler_loop(holder["k"]))
         yield
+        scheduler.cancel()
         for job in list(holder["k"]._running.values()):
             job.cancel()
+
+    async def _scheduler_loop(k: Kernel) -> None:
+        """Publishes posts you approved for a time ("publish automatically"). Nothing else runs unattended."""
+        social = k.tools.get("social.publish").social
+        while True:
+            await asyncio.sleep(max(1.0, settings.scheduler_interval_s))
+            try:
+                await social_tools.run_scheduler_once(k, social, settings)
+            except Exception as exc:  # never let the loop die
+                log.warning(f"scheduler error: {exc}")
 
     app = FastAPI(title="STARK OS API", version=__version__, lifespan=lifespan)
     app.add_middleware(CORSMiddleware, allow_origins=[settings.web_origin], allow_methods=["*"],
@@ -263,6 +306,104 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         tool = k.tools.get("social.accounts")
         return {"accounts": tool.social.accounts()}
 
+    def _social(k: Kernel):
+        return k.tools.get("social.publish").social
+
+    @app.post("/api/social/accounts/bluesky", dependencies=[api])
+    async def connect_bluesky(body: BlueskyIn, k: Kernel = Depends(kernel)):
+        try:
+            who = await _social(k).connect_bluesky(body.handle, body.app_password)
+        except (social_tools.AdapterError, httpx.HTTPError) as exc:
+            k.obs.audit("user", "social.connect", "error", target="bluesky")
+            raise HTTPException(400, str(exc) if isinstance(exc, social_tools.AdapterError)
+                                else "Could not reach Bluesky. Check your internet connection.")
+        k.obs.audit("user", "social.connect", "ok", target=f"bluesky {who}")
+        return {"connected_as": who, "accounts": _social(k).accounts()}
+
+    @app.post("/api/social/accounts/mastodon", dependencies=[api])
+    async def connect_mastodon(body: MastodonIn, k: Kernel = Depends(kernel)):
+        try:
+            who = await _social(k).connect_mastodon(body.base_url, body.access_token)
+        except (social_tools.AdapterError, httpx.HTTPError) as exc:
+            k.obs.audit("user", "social.connect", "error", target="mastodon")
+            raise HTTPException(400, str(exc) if isinstance(exc, social_tools.AdapterError)
+                                else "Could not reach that Mastodon server. Check the address.")
+        k.obs.audit("user", "social.connect", "ok", target=f"mastodon {who}")
+        return {"connected_as": who, "accounts": _social(k).accounts()}
+
+    @app.delete("/api/social/accounts/{platform}", dependencies=[api])
+    async def disconnect(platform: str, k: Kernel = Depends(kernel)):
+        social = _social(k)
+        if platform not in social_tools.ACCOUNT_FIELDS:
+            raise HTTPException(404, "unknown platform")
+        if social.store.from_env.get(platform):
+            raise HTTPException(409, "This account is set in your .env file; remove it there.")
+        social.store.remove(platform)
+        k.obs.audit("user", "social.disconnect", "ok", target=platform)
+        return {"accounts": social.accounts()}
+
+    def _item_or_404(k: Kernel, item_id: str, fp: str) -> dict:
+        item = social_tools._item(k, item_id)
+        if item is None:
+            raise HTTPException(404, "no such content item")
+        if social_tools.fingerprint(item) != fp:
+            raise HTTPException(409, "This post changed since you looked at it. Refresh and check it again.")
+        return item
+
+    @app.post("/api/social/items/{item_id}/publish", dependencies=[api])
+    async def publish_now(item_id: str, body: ItemActionIn, k: Kernel = Depends(kernel)):
+        """You clicked Publish on the exact text shown: that click is the approval."""
+        _item_or_404(k, item_id, body.fingerprint)
+        res = await social_tools.publish_item(k, _social(k), settings, item_id, approved_fp=body.fingerprint,
+                                              actor="user")
+        k.obs.audit("user", "social.publish", "ok" if res.ok else "error", target=item_id,
+                    detail={"summary": res.summary[:300], "simulated": res.simulated})
+        return {"ok": res.ok, "summary": res.summary, "simulated": res.simulated, "error": res.error}
+
+    @app.post("/api/social/items/{item_id}/schedule", dependencies=[api])
+    async def schedule_item(item_id: str, body: ScheduleIn, k: Kernel = Depends(kernel)):
+        item = _item_or_404(k, item_id, body.fingerprint)
+        when = (body.when if body.when.tzinfo else body.when.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
+        if when <= datetime.now(timezone.utc):
+            raise HTTPException(400, "Pick a time in the future.")
+        if item["status"] not in ("draft", "scheduled", "failed"):
+            raise HTTPException(409, f"This post is {item['status']}.")
+        if social_tools._run_check(settings, item)["verdict"] == "fail":
+            raise HTTPException(409, "Fix the problems the check found before scheduling.")
+        social_tools._update(k, item_id, status="scheduled", scheduled_for=when, auto_publish=body.auto,
+                             approved_fp=body.fingerprint if body.auto else None,
+                             approved_at=datetime.now(timezone.utc) if body.auto else None, error=None)
+        k.obs.audit("user", "social.schedule", "ok", target=item_id,
+                    detail={"when": when.isoformat(), "auto_publish": body.auto})
+        return {"ok": True, "scheduled_for": when.isoformat(), "auto_publish": body.auto}
+
+    @app.post("/api/social/items/{item_id}/unschedule", dependencies=[api])
+    async def unschedule_item(item_id: str, k: Kernel = Depends(kernel)):
+        item = social_tools._item(k, item_id)
+        if item is None:
+            raise HTTPException(404, "no such content item")
+        if item["status"] == "scheduled":
+            social_tools._update(k, item_id, status="draft", scheduled_for=None, auto_publish=False, approved_fp=None)
+        k.obs.audit("user", "social.unschedule", "ok", target=item_id)
+        return {"ok": True}
+
+    @app.post("/api/social/items/{item_id}/discard", dependencies=[api])
+    async def discard_item(item_id: str, k: Kernel = Depends(kernel)):
+        item = social_tools._item(k, item_id)
+        if item is None:
+            raise HTTPException(404, "no such content item")
+        if item["status"] in ("published", "publishing"):
+            raise HTTPException(409, "Already published: delete it on the platform itself.")
+        social_tools._update(k, item_id, status="rejected", auto_publish=False, approved_fp=None)
+        k.obs.audit("user", "social.discard", "ok", target=item_id)
+        return {"ok": True}
+
+    @app.post("/api/social/queue/pause", dependencies=[api])
+    async def pause_all(paused: bool = True, k: Kernel = Depends(kernel)):
+        n = social_tools.pause_queue(k, paused)
+        k.obs.audit("user", "social.pause" if paused else "social.resume", "ok", detail={"items": n})
+        return {"paused": paused, "items": n}
+
     @app.get("/api/social/queue", dependencies=[api])
     async def social_queue(status: str = "all", platform: str | None = None, limit: int = Query(100, ge=1, le=500),
                            k: Kernel = Depends(kernel)):
@@ -270,7 +411,8 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
             raise HTTPException(400, "bad status")
         if platform and platform not in social_tools.PLATFORMS:
             raise HTTPException(400, "unknown platform")
-        return {"items": social_tools.list_queue(k, status, platform, None, max(1, min(limit, 500)))}
+        return {"items": social_tools.list_queue(k, status, platform, None, max(1, min(limit, 500))),
+                "paused": social_tools.queue_paused(k)}
 
     # ---------------------------------------------------------- agents
     def _metrics(k: Kernel) -> dict[str, dict[str, Any]]:

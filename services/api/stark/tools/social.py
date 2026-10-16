@@ -425,11 +425,73 @@ SAMPLE_INBOX = [
 ]
 
 
+APP_PASSWORD_RE = re.compile(r"^[a-z0-9]{4}(-[a-z0-9]{4}){3}$")
+ACCOUNT_FIELDS = {"bluesky": ("bluesky_handle", "bluesky_app_password"),
+                  "mastodon": ("mastodon_base_url", "mastodon_access_token")}
+
+
+class AccountStore:
+    """Social logins entered in the dashboard. Stored only on this computer, in <data>/social_accounts.json
+    (file mode 600, git-ignored), never returned by the API. Values from .env take precedence."""
+
+    def __init__(self, settings) -> None:
+        self.settings = settings
+        self.path = settings.data_dir / "social_accounts.json"
+        self.from_env = {pid: all(getattr(settings, f) for f in fields) for pid, fields in ACCOUNT_FIELDS.items()}
+        self.data: dict[str, dict[str, str]] = {}
+        try:
+            import json
+
+            self.data = json.loads(self.path.read_text()) if self.path.is_file() else {}
+        except (OSError, ValueError):
+            self.data = {}
+        for pid, values in self.data.items():
+            if pid in ACCOUNT_FIELDS and not self.from_env[pid]:
+                self._apply(pid, values)
+
+    def _apply(self, pid: str, values: dict[str, str]) -> None:
+        from ..core.observability import register_secret
+
+        for f in ACCOUNT_FIELDS[pid]:
+            setattr(self.settings, f, values.get(f, ""))
+        register_secret(values.get(ACCOUNT_FIELDS[pid][1], ""))
+
+    def _write(self) -> None:
+        import json
+        import os
+
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.path.with_suffix(".tmp")
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as fh:
+            json.dump(self.data, fh)
+        os.replace(tmp, self.path)
+        os.chmod(self.path, 0o600)
+
+    def save(self, pid: str, values: dict[str, str], connected_as: str) -> None:
+        self.data[pid] = {**values, "connected_as": connected_as}
+        self._apply(pid, values)
+        self._write()
+
+    def remove(self, pid: str) -> None:
+        self.data.pop(pid, None)
+        for f in ACCOUNT_FIELDS[pid]:
+            setattr(self.settings, f, "")
+        self._write()
+
+    def connected_as(self, pid: str) -> str | None:
+        if self.from_env.get(pid):
+            return self.settings.bluesky_handle if pid == "bluesky" else self.settings.mastodon_base_url
+        return (self.data.get(pid) or {}).get("connected_as")
+
+
 class Social:
-    """Shared state for the social tools: adapters and queue access."""
+    """Shared state for the social tools: adapters, the account store and queue access."""
 
     def __init__(self, settings, transport: httpx.AsyncBaseTransport | None = None) -> None:
         self.settings = settings
+        self.transport = transport
+        self.store = AccountStore(settings)
         self.adapters = {"bluesky": BlueskyAdapter(settings, transport),
                          "mastodon": MastodonAdapter(settings, transport)}
 
@@ -443,13 +505,60 @@ class Social:
             real = self.adapter(pid) is not None
             mode = "connected" if real else "simulation"
             if pid in self.adapters and not real:
-                why = {"bluesky": "set BLUESKY_HANDLE + BLUESKY_APP_PASSWORD to post for real",
-                       "mastodon": "set MASTODON_BASE_URL (https) + MASTODON_ACCESS_TOKEN to post for real"}[pid]
+                why = "Connect your account to post for real (free)."
             else:
                 why = spec.get("why_simulated", spec.get("adapter", ""))
             out.append({"platform": pid, "name": spec["name"], "mode": mode, "char_limit": spec["limit"],
-                        "detail": spec.get("adapter") if real else why})
+                        "detail": spec.get("adapter") if real else why,
+                        "can_connect": pid in self.adapters,
+                        "connected_as": self.store.connected_as(pid) if real else None,
+                        "source": ("env" if self.store.from_env.get(pid) else "dashboard") if real else None})
         return out
+
+    async def connect_bluesky(self, handle: str, app_password: str) -> str:
+        """Verify the login with Bluesky, then store it. Returns the handle."""
+        from types import SimpleNamespace
+
+        handle = handle.strip().lstrip("@")
+        app_password = app_password.strip()
+        if not APP_PASSWORD_RE.match(app_password):
+            raise AdapterError("That doesn't look like a Bluesky app password (xxxx-xxxx-xxxx-xxxx). Never use your "
+                               "main password: create one in Bluesky under Settings > Privacy and security > App "
+                               "passwords.")
+        probe = BlueskyAdapter(SimpleNamespace(bluesky_handle=handle, bluesky_app_password=app_password,
+                                               bluesky_service=self.settings.bluesky_service), self.transport)
+        async with probe._client() as client:
+            sess = await probe._auth(client)
+        connected = sess.get("handle", handle)
+        self.store.save("bluesky", {"bluesky_handle": handle, "bluesky_app_password": app_password}, connected)
+        self.adapters["bluesky"]._session = None  # log in again with the new account
+        return connected
+
+    async def connect_mastodon(self, base_url: str, access_token: str) -> str:
+        from types import SimpleNamespace
+
+        from .web import FetchBlocked, check_url
+
+        base_url = base_url.strip().rstrip("/")
+        if not base_url.startswith("http"):
+            base_url = "https://" + base_url
+        if not base_url.startswith("https://") and not self.settings.allow_private_fetch:
+            raise AdapterError("The server address must start with https://")
+        try:
+            await check_url(base_url, self.settings.allow_private_fetch)
+        except FetchBlocked as exc:
+            raise AdapterError(f"Server address refused: {exc}") from exc
+        probe = MastodonAdapter(SimpleNamespace(mastodon_base_url=base_url, mastodon_access_token=access_token.strip(),
+                                                allow_private_fetch=self.settings.allow_private_fetch), self.transport)
+        async with probe._client() as client:
+            r = await client.get("/api/v1/accounts/verify_credentials")
+        if r.status_code != 200:
+            raise AdapterError(f"Mastodon refused the token ({r.status_code}). Check that it has read and "
+                               "write:statuses permissions.")
+        acct = "@" + r.json().get("acct", "?") + "@" + base_url.split("//", 1)[-1]
+        self.store.save("mastodon", {"mastodon_base_url": base_url, "mastodon_access_token": access_token.strip()},
+                        acct)
+        return acct
 
 
 def _item(kernel, item_id: str) -> dict[str, Any] | None:
@@ -492,6 +601,8 @@ def summarize(item: dict[str, Any]) -> dict[str, Any]:
     out["check"] = {"verdict": (item.get("check") or {}).get("verdict"),
                     "issues": (item.get("check") or {}).get("issues", [])}
     out["review"] = item.get("review") or None
+    out["fingerprint"] = fingerprint(item)
+    out["auto_publish"] = bool(item.get("auto_publish") and item.get("approved_fp") == out["fingerprint"])
     return out
 
 
@@ -596,6 +707,8 @@ class SocialEdit(Tool):
         changes["check"] = _run_check(ctx.settings, merged)
         changes["review"] = {}
         changes["error"] = None
+        changes["auto_publish"] = False  # an approval only ever covers the exact text that was approved
+        changes["approved_fp"] = None
         data = _update(ctx.kernel, args.item_id, **changes)
         return ToolResult(True, f"Edited {args.item_id}; check: {data['check']['verdict'].upper()}", summarize(data))
 
@@ -706,8 +819,9 @@ class ScheduleInput(BaseModel):
 class SocialSchedule(Tool):
     id = "social.schedule"
     category = "social"
-    description = ("Put a checked draft on the content calendar for a future time. Scheduling does NOT publish: "
-                   "when it is due, D.U.M.-E. publishes it with your approval (unattended posting is not built).")
+    description = ("Put a checked draft on the content calendar for a future time. It goes out automatically only "
+                   "if the owner approves it for auto-publishing in the Content page; otherwise D.U.M.-E. publishes "
+                   "it with approval when due.")
     Input = ScheduleInput
     risk = Risk.MEMORY
 
@@ -842,71 +956,108 @@ class SocialPublish(Tool):
         return args.item_id
 
     async def run(self, args: PublishInput, ctx) -> ToolResult:
-        if ctx.kernel.perms.emergency_stop:
-            return ToolResult(False, "Emergency stop engaged", error="emergency_stop")
-        item = _item(ctx.kernel, args.item_id)
-        if item is None:
-            return ToolResult(False, "No such content item", error="not_found")
-        if item["status"] not in PUBLISHABLE:
-            return ToolResult(False, f"Item is {item['status']}; nothing to publish", error="not_publishable")
-        if item["paused"] or queue_paused(ctx.kernel):
-            return ToolResult(False, "Queue is paused (fire suppression). Resume it first.", error="paused")
         shown = self._shown.pop((ctx.task_id, args.item_id), None)
-        if shown is not None and shown != fingerprint(item):
-            return ToolResult(False, "The item changed after you approved it; nothing was published. Ask again so "
-                                     "you can approve the current text.", error="changed_after_approval")
-        check = _run_check(ctx.settings, item)  # re-check at publish time: rules may have changed
-        if check["verdict"] == "fail":
-            _update(ctx.kernel, args.item_id, check=check)
-            return ToolResult(False, "Policy check fails; not published", check, error="check_failed")
-        if (item.get("review") or {}).get("verdict") == "block":
-            return ToolResult(False, "Blocked by J.A.R.V.I.S.'s review; edit it first", item["review"],
-                              error="blocked")
-        # Claim the item atomically: a second publish of the same item, or an edit, can't run concurrently.
-        with ctx.kernel.db.session() as s:
-            claimed = s.execute(update(ContentItem).where(
-                ContentItem.id == args.item_id, ContentItem.status == item["status"], ContentItem.paused.is_(False),
-                ContentItem.text == item["text"]).values(status="publishing", updated_at=utcnow())).rowcount
-        if claimed != 1:
-            return ToolResult(False, "Item changed or is already being published; nothing was sent",
-                              error="not_publishable")
-        name = PLATFORMS[item["platform"]]["name"]
-        adapter = self.social.adapter(item["platform"])
-        if adapter is None:
-            data = _update(ctx.kernel, args.item_id, status="published", simulated=True, check=check,
-                           external_id=f"sim-{item['id']}", external_url=None, published_at=utcnow(), error=None)
-            return ToolResult(True, f"SIMULATED publish to {name}: nothing was sent", summarize(data), simulated=True)
+        return await publish_item(ctx.kernel, self.social, ctx.settings, args.item_id, approved_fp=shown,
+                                  actor=ctx.actor)
 
-        posted: dict[str, Any] = {}
 
-        def on_part(n: int, ref: dict[str, Any]) -> None:
-            if n == 0 and not posted:  # record the public post immediately, before anything else can fail
-                posted.update(ref)
-                _update(ctx.kernel, args.item_id, external_id=ref["external_id"], external_url=ref.get("url"),
-                        published_at=utcnow())
+async def publish_item(kernel, social: "Social", settings, item_id: str, *, approved_fp: str | None,
+                       actor: str) -> ToolResult:
+    """Publish one queued item. ``approved_fp``: fingerprint of the content the human approved (None = no
+    approval to compare, only used by direct tool calls in tests). Everything is re-checked here."""
+    if kernel.perms.emergency_stop:
+        return ToolResult(False, "Emergency stop engaged", error="emergency_stop")
+    item = _item(kernel, item_id)
+    if item is None:
+        return ToolResult(False, "No such content item", error="not_found")
+    if item["status"] not in PUBLISHABLE:
+        return ToolResult(False, f"Item is {item['status']}; nothing to publish", error="not_publishable")
+    if item["paused"] or queue_paused(kernel):
+        return ToolResult(False, "Queue is paused (fire suppression). Resume it first.", error="paused")
+    if approved_fp is not None and approved_fp != fingerprint(item):
+        return ToolResult(False, "The item changed after you approved it; nothing was published. Ask again so "
+                                 "you can approve the current text.", error="changed_after_approval")
+    check = _run_check(settings, item)  # re-check at publish time: rules may have changed
+    if check["verdict"] == "fail":
+        _update(kernel, item_id, check=check)
+        return ToolResult(False, "Policy check fails; not published", check, error="check_failed")
+    if (item.get("review") or {}).get("verdict") == "block":
+        return ToolResult(False, "Blocked by J.A.R.V.I.S.'s review; edit it first", item["review"],
+                          error="blocked")
+    # Claim the item atomically: a second publish of the same item, or an edit, can't run concurrently.
+    with kernel.db.session() as s:
+        claimed = s.execute(update(ContentItem).where(
+            ContentItem.id == item_id, ContentItem.status == item["status"], ContentItem.paused.is_(False),
+            ContentItem.text == item["text"]).values(status="publishing", updated_at=utcnow())).rowcount
+    if claimed != 1:
+        return ToolResult(False, "Item changed or is already being published; nothing was sent",
+                          error="not_publishable")
+    name = PLATFORMS[item["platform"]]["name"]
+    adapter = social.adapter(item["platform"])
+    if adapter is None:
+        data = _update(kernel, item_id, status="published", simulated=True, check=check, auto_publish=False,
+                       external_id=f"sim-{item['id']}", external_url=None, published_at=utcnow(), error=None)
+        return ToolResult(True, f"SIMULATED publish to {name}: nothing was sent", summarize(data), simulated=True)
 
-        try:
-            ref = await adapter.publish(item, on_part)
-        except BaseException as exc:  # noqa: BLE001 - includes cancellation/timeout: state must be recorded
-            interrupted = isinstance(exc, asyncio.CancelledError)
-            reason = "interrupted (cancelled or timed out)" if interrupted else str(exc)[:400]
-            if posted:  # the first post is public: never retryable as a fresh post
-                data = _update(ctx.kernel, args.item_id, status="published", simulated=False, check=check,
-                               error=f"thread incomplete: {reason}")
-                result = ToolResult(False, f"Only part of the thread was published ({posted.get('url')}): {reason}",
-                                    summarize(data), error="partial_publish")
-            else:
-                _update(ctx.kernel, args.item_id, status="failed",
-                        error=f"{reason}. No post was confirmed; retrying is safe (requests are idempotent).")
-                result = ToolResult(False, f"Publishing failed: {reason}", error="platform_error")
-            if interrupted or not isinstance(exc, Exception):
-                raise
-            return result
-        data = _update(ctx.kernel, args.item_id, status="published", simulated=False, check=check,
-                       external_id=ref["external_id"], external_url=ref.get("url"), published_at=utcnow(),
-                       error=None)
-        return ToolResult(True, f"Published to {name}: {ref.get('url')}", summarize(data),
-                          sources=[{"url": ref["url"], "title": "published post"}] if ref.get("url") else [])
+    posted: dict[str, Any] = {}
+
+    def on_part(n: int, ref: dict[str, Any]) -> None:
+        if n == 0 and not posted:  # record the public post immediately, before anything else can fail
+            posted.update(ref)
+            _update(kernel, item_id, external_id=ref["external_id"], external_url=ref.get("url"),
+                    published_at=utcnow())
+
+    try:
+        ref = await adapter.publish(item, on_part)
+    except BaseException as exc:  # noqa: BLE001 - includes cancellation/timeout: state must be recorded
+        interrupted = isinstance(exc, asyncio.CancelledError)
+        reason = "interrupted (cancelled or timed out)" if interrupted else str(exc)[:400]
+        if posted:  # the first post is public: never retryable as a fresh post
+            data = _update(kernel, item_id, status="published", simulated=False, check=check,
+                           error=f"thread incomplete: {reason}")
+            result = ToolResult(False, f"Only part of the thread was published ({posted.get('url')}): {reason}",
+                                summarize(data), error="partial_publish")
+        else:
+            _update(kernel, item_id, status="failed",
+                    error=f"{reason}. No post was confirmed; retrying is safe (requests are idempotent).")
+            result = ToolResult(False, f"Publishing failed: {reason}", error="platform_error")
+        if interrupted or not isinstance(exc, Exception):
+            raise
+        return result
+    data = _update(kernel, item_id, status="published", simulated=False, check=check,
+                   external_id=ref["external_id"], external_url=ref.get("url"), published_at=utcnow(),
+                   error=None)
+    return ToolResult(True, f"Published to {name}: {ref.get('url')}", summarize(data),
+                      sources=[{"url": ref["url"], "title": "published post"}] if ref.get("url") else [])
+
+
+
+async def run_scheduler_once(kernel, social: "Social", settings) -> list[dict[str, Any]]:
+    """Publish due posts the owner approved for auto-publishing. Returns what happened (for logs/tests)."""
+    if kernel.perms.emergency_stop or queue_paused(kernel):
+        return []
+    now = datetime.now(timezone.utc)
+    with kernel.db.session() as s:
+        rows = [to_dict(r) for r in s.scalars(select(ContentItem).where(
+            ContentItem.status == "scheduled", ContentItem.auto_publish.is_(True),
+            ContentItem.paused.is_(False))).all()]
+    done = []
+    for item in rows:
+        when = datetime.fromisoformat(item["scheduled_for"]) if item["scheduled_for"] else None
+        if when is None or when > now:
+            continue
+        if (now - when).total_seconds() > settings.scheduler_grace_h * 3600:
+            _update(kernel, item["id"], auto_publish=False, approved_fp=None,
+                    error="Missed its time while STARK OS was off. Approve it again to publish.")
+            kernel.obs.audit("scheduler", "social.auto_publish", "missed", target=item["id"])
+            done.append({"id": item["id"], "outcome": "missed"})
+            continue
+        res = await publish_item(kernel, social, settings, item["id"], approved_fp=item["approved_fp"],
+                                 actor="scheduler")
+        kernel.obs.audit("scheduler", "social.auto_publish", "ok" if res.ok else "error", target=item["id"],
+                         detail={"summary": res.summary[:300], "simulated": res.simulated})
+        done.append({"id": item["id"], "outcome": "published" if res.ok else res.error, "summary": res.summary})
+    return done
 
 
 class InboxInput(BaseModel):

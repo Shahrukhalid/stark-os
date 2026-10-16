@@ -66,7 +66,7 @@ def test_agents_and_status(client):
     assert status["tools"]["social.inbox"] == "simulated"
     accounts = client.get("/api/social/accounts").json()["accounts"]
     assert {a["platform"]: a["mode"] for a in accounts}["bluesky"] == "simulation"
-    assert client.get("/api/social/queue").json() == {"items": []}
+    assert client.get("/api/social/queue").json() == {"items": [], "paused": False}
     assert client.get("/api/social/queue?status=bogus").status_code == 400
 
 

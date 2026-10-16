@@ -1,6 +1,6 @@
 # Implementation status
 
-_Last updated: 2026-10-16 · release 0.3.1 (deep audit round 3: security, frontend, accessibility, infrastructure)_
+_Last updated: 2026-10-16 · release 0.4.0 (connect accounts in the dashboard, approved auto-publishing, Start page)_
 
 Legend: ✅ **Implemented & tested** · 🟡 **Implemented, not fully live-tested** · 🔑 **Requires credentials** · 🧪 **Simulated** · 📋 **Planned** · ⛔ **Unsupported by design**
 
@@ -8,9 +8,9 @@ Legend: ✅ **Implemented & tested** · 🟡 **Implemented, not fully live-teste
 
 | Suite | Result |
 |---|---|
-| Backend `pytest` (runtime, social tools & adapters, tools, permissions, memory, free-model pool, API, security regressions) | **147 passed** on Python 3.12 with PostgreSQL 16 and real Chromium (142 passed, 5 skipped on 3.11 without those) |
+| Backend `pytest` (runtime, social tools & adapters, tools, permissions, memory, free-model pool, API, security regressions) | **153 passed** on Python 3.12 with PostgreSQL 16 and real Chromium (148 passed, 5 skipped on 3.11 without those) |
 | Frontend type-check + `vitest` | **18 passed** |
-| End-to-end (Playwright: real dashboard + real API + a test-only scripted server speaking the OpenRouter protocol) | **11 passed** (incl. draft → approval → simulated publish, inbox triage, no sideways scroll at 360 px, safe markdown) |
+| End-to-end (Playwright: real dashboard + real API + a test-only scripted server speaking the OpenRouter protocol) | **15 passed** (incl. one-click publish, approved auto-publish at a time, account-connect checks, chat approval card, inbox triage, 360 px layout, safe markdown) |
 | `next build` | passed · `npm audit`: **0 vulnerabilities** · `pip-audit`: **0 known vulnerabilities** |
 | Secret scan (gitleaks) on the publishable tree | no leaks |
 | Live OpenRouter check (2026-10-16, from the owner's machine) | key valid (free tier, 50 free requests/day); **10 of 15** chat-capable free models answered with a correct tool call; 4 were temporarily rate-limited upstream (429); 2 are restricted to agentic harnesses (403, excluded) |
@@ -88,7 +88,9 @@ Three independent reviews (backend security, dashboard/CSS/accessibility, infras
 | Approval for every publish, D.U.M.-E. only, no grants; J.A.R.V.I.S. block; re-check at publish time | ✅ |
 | E-STOP pauses the queue (fire suppression); resume needs approval | ✅ |
 | Content-claim check (no "it's posted" without a published item) | ✅ |
-| Automatic posting at the scheduled time (unattended) | 📋 (scheduled items are published with one approval when due) |
+| Automatic posting at the scheduled time, for posts you approved (exact-text approval; edits cancel it; missed >6 h asks again; E-STOP/pause stop it) | ✅ |
+| Connect Bluesky / Mastodon from the dashboard (verified on save; stored only locally, mode 600; app-password check) | ✅ (tested with recorded API shapes) |
+| Start page (how it works, setup checklist, quick actions); one-click Publish / Schedule / Copy / Discard in Content | ✅ |
 | Image / video generation and upload | ⛔ STARK OS writes briefs only |
 | Delegation limits, parallel team review + Ultron challenge, retries, cancellation, E-STOP | ✅ |
 | Free-model pool: catalogue, tier preferences, failover with cooldowns, quota display, ping | ✅ |

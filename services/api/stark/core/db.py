@@ -202,6 +202,10 @@ class ContentItem(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Auto-publish: the owner approved this exact content (fingerprint) to go out at scheduled_for, unattended.
+    auto_publish: Mapped[bool] = mapped_column(Boolean, default=False)
+    approved_fp: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Setting(Base):
@@ -225,6 +229,32 @@ class Database:
 
     def create_all(self) -> None:
         Base.metadata.create_all(self.engine)
+        self._add_missing_columns()
+
+    def _add_missing_columns(self) -> None:
+        """Tiny forward-only migration: add columns introduced by newer releases to existing tables."""
+        from sqlalchemy import inspect, text
+
+        insp = inspect(self.engine)
+        with self.engine.begin() as conn:
+            for table in Base.metadata.sorted_tables:
+                if not insp.has_table(table.name):
+                    continue
+                have = {c["name"] for c in insp.get_columns(table.name)}
+                for col in table.columns:
+                    if col.name in have:
+                        continue
+                    q = self.engine.dialect.identifier_preparer.quote
+                    ddl = f"ALTER TABLE {q(table.name)} ADD COLUMN {q(col.name)} {col.type.compile(self.engine.dialect)}"
+                    default = getattr(col.default, "arg", None)
+                    if isinstance(default, bool):
+                        ddl += f" DEFAULT {'true' if default else 'false'}" if self.engine.dialect.name == "postgresql" \
+                            else f" DEFAULT {int(default)}"
+                    elif isinstance(default, (int, float)):
+                        ddl += f" DEFAULT {default}"
+                    elif isinstance(default, str):
+                        ddl += " DEFAULT '" + default.replace("'", "''") + "'"
+                    conn.execute(text(ddl))
 
     @contextmanager
     def session(self) -> Iterator[Session]:

@@ -31,7 +31,9 @@ The agents are modelled on the AI personas in Vision's Mindspace from Marvel's *
 - **Content queue**: drafts, threads, replies and video posts for Bluesky, Mastodon, X, Threads, LinkedIn, Instagram, Facebook, TikTok and YouTube, with a calendar, statuses and a dashboard view.
 - **Policy check on every draft** (code, not a prompt): platform length limits (X counts links as 23), leaked keys, personal data, missing #ad disclosure, giveaway rules, engagement bait, bought engagement, hashtag limits, insecure or shortened links, missing alt text, all-caps.
 - **Real publishing** on **Bluesky** and **Mastodon** (both free APIs), including threads and replies. Other platforms need paid or reviewed API access, so publishing there is a clearly labelled **SIMULATION**.
-- **Approval for every publish**, showing the exact text and whether it is real or simulated. No standing grant can cover publishing.
+- **You approve every post**: one click to publish, or schedule it and tick *Publish automatically* to approve that exact text for that time. Edits cancel the approval. Agents can't publish on their own.
+- **Connect accounts in the dashboard** (Bluesky app password, Mastodon token), stored only on your computer.
+- **Start page** with how it works, a setup checklist and one-click starting points.
 - **Inbox** with triage (escalate, abuse, spam, complaint, question, praise), from real Bluesky/Mastodon notifications or labelled sample mentions.
 - **Analytics** from the platforms for real posts; simulated posts never get invented numbers.
 - **E-STOP = fire suppression**: cancels all work and pauses the whole queue; resuming needs approval.
@@ -39,7 +41,7 @@ The agents are modelled on the AI personas in Vision's Mindspace from Marvel's *
 - A platform check stops any agent from claiming a post went out when it didn't.
 - Free-model pool with per-agent preferences, failover, a Models panel and your remaining free requests; voice (push-to-talk, per-agent voices; U is mute).
 
-Exact status: **[docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md)**.
+New here? Read the **[user guide](docs/USER_GUIDE.md)**. Exact status: **[docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md)**.
 
 ## Quick start (macOS / Linux)
 
@@ -50,15 +52,13 @@ git clone https://github.com/Shahrukhalid/stark-os.git && cd stark-os
 make setup        # Python venv + deps, npm install, creates .env with a random API token, seeds ./sandbox
 ```
 
-Edit `.env`:
+Edit `.env` and add your free OpenRouter key:
 
 ```bash
-OPENROUTER_API_KEY=sk-or-v1-...            # required (free)
-BLUESKY_HANDLE=yourbrand.bsky.social       # optional: real Bluesky posting
-BLUESKY_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx   #   use an App Password, never your main password
-MASTODON_BASE_URL=https://mastodon.social  # optional: real Mastodon posting
-MASTODON_ACCESS_TOKEN=...
+OPENROUTER_API_KEY=sk-or-v1-...
 ```
+
+Connect Bluesky or Mastodon later from the dashboard (**Content → Your accounts → Connect**): logins stay on your computer and are never uploaded.
 
 A free OpenRouter key allows **50 free-model requests per day** (each agent step is one request). STARK OS never calls paid models unless you set `OPENROUTER_ALLOW_PAID=true`. Optional: `TAVILY_API_KEY` or `BRAVE_API_KEY` for Jocasta's web search.
 
@@ -83,6 +83,7 @@ Ports 3000 or 8000 already used by another project? Add `STARK_WEB_PORT=3737` an
 | `DUM-E, publish cnt_…` | Pre-flight checks → approval card with the exact text → real post (Bluesky/Mastodon) or SIMULATED |
 | `JARVIS, have the team review the giveaway campaign` | Parallel reviews, Ultron's challenge, combined report |
 
+![Start](docs/screenshots/start.png)
 ![Content](docs/screenshots/content.png)
 ![Collaboration](docs/screenshots/collaboration.png)
 

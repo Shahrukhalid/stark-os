@@ -221,6 +221,8 @@ export interface ContentItem {
   check: { verdict: "pass" | "warn" | "fail" | null; issues: CheckIssue[] };
   review: { verdict: string; notes: string; by: string } | null;
   due: boolean;
+  fingerprint: string;
+  auto_publish: boolean;
 }
 
 export interface SocialAccount {
@@ -229,4 +231,7 @@ export interface SocialAccount {
   mode: "connected" | "simulation";
   char_limit: number;
   detail: string;
+  can_connect: boolean;
+  connected_as: string | null;
+  source: "env" | "dashboard" | null;
 }

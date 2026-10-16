@@ -89,6 +89,8 @@ class Settings:
     mastodon_base_url: str = ""
     mastodon_access_token: str = ""
     brand_blocked_terms: list[str] = field(default_factory=list)
+    scheduler_interval_s: float = 30.0  # how often approved scheduled posts are checked
+    scheduler_grace_h: float = 6.0  # an approved post more than this late (STARK OS was off) needs re-approval
     allow_private_fetch: bool = False  # tests only; never enable in production
 
     @classmethod
@@ -126,6 +128,8 @@ class Settings:
             mastodon_base_url=_env("MASTODON_BASE_URL"),
             mastodon_access_token=_env("MASTODON_ACCESS_TOKEN"),
             brand_blocked_terms=_env_list("STARK_BRAND_BLOCKED_TERMS", []),
+            scheduler_interval_s=_env_float("STARK_SCHEDULER_INTERVAL_S", 30.0),
+            scheduler_grace_h=_env_float("STARK_SCHEDULER_GRACE_H", 6.0),
             allow_private_fetch=_env_bool("STARK_ALLOW_PRIVATE_FETCH", False),
         )
 

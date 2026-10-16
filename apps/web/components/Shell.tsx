@@ -1,12 +1,13 @@
 "use client";
 
-import { Activity, Brain, CalendarClock, Cpu, Gauge, LogOut, MessageSquare, Network, OctagonX, ScrollText, Settings, ShieldCheck, Users, Wrench, X } from "lucide-react";
+import { Activity, Brain, CalendarClock, Cpu, Home, Gauge, LogOut, MessageSquare, Network, OctagonX, ScrollText, Settings, ShieldCheck, Users, Wrench, X } from "lucide-react";
 import { useState } from "react";
 import { useStark } from "@/lib/store";
 import { ActivityView } from "./ActivityView";
 import { ApprovalsView } from "./ApprovalsView";
 import { CommandView } from "./CommandView";
 import { ContentView } from "./ContentView";
+import { HomeView } from "./HomeView";
 import { DiagnosticsView } from "./DiagnosticsView";
 import { MemoryView } from "./MemoryView";
 import { ModelsView } from "./ModelsView";
@@ -17,9 +18,10 @@ import { ToolsView } from "./ToolsView";
 import { UsageView } from "./UsageView";
 import { AgentGlyph } from "./ui";
 
-export type View = "command" | "content" | "team" | "tasks" | "approvals" | "memory" | "models" | "tools" | "diagnostics" | "usage" | "activity" | "settings";
+export type View = "home" | "command" | "content" | "team" | "tasks" | "approvals" | "memory" | "models" | "tools" | "diagnostics" | "usage" | "activity" | "settings";
 
 const NAV: { id: View; label: string; icon: React.ElementType }[] = [
+  { id: "home", label: "Start", icon: Home },
   { id: "command", label: "Command", icon: MessageSquare },
   { id: "content", label: "Content", icon: CalendarClock },
   { id: "team", label: "Agents", icon: Users },
@@ -42,7 +44,7 @@ const MODES = [
 
 export function Shell({ onSignOut }: { onSignOut: () => void }) {
   const { status, approvals, sseConnected, client, notify, toasts, dismiss, error } = useStark();
-  const [view, setView] = useState<View>("command");
+  const [view, setView] = useState<View>("home");
   const [focusAgent, setFocusAgent] = useState<string>("jarvis");
   const [focusTask, setFocusTask] = useState<string | null>(null);
   const estop = status?.emergency_stop;
@@ -115,7 +117,7 @@ export function Shell({ onSignOut }: { onSignOut: () => void }) {
             <OctagonX size={16} />
             {estop ? "Reset E-Stop" : "E-STOP"}
           </button>
-          <button className="btn" onClick={onSignOut} title="Disconnect">
+          <button className="btn" onClick={onSignOut} title="Sign out" aria-label="Sign out">
             <LogOut size={14} />
           </button>
         </div>
@@ -157,6 +159,7 @@ export function Shell({ onSignOut }: { onSignOut: () => void }) {
         </nav>
         <main className="grid-bg min-w-0 flex-1 p-3 md:p-5">
           {view === "command" && <CommandView agentId={focusAgent} setAgentId={setFocusAgent} openTask={openTask} prefill={prefill} />}
+          {view === "home" && <HomeView talkTo={talkTo} go={setView} />}
           {view === "content" && <ContentView talkTo={talkTo} />}
           {view === "team" && <TeamView talkTo={talkTo} openTask={openTask} />}
           {view === "tasks" && <TasksView focus={focusTask} setFocus={setFocusTask} />}

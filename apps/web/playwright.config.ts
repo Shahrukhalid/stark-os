@@ -37,6 +37,7 @@ export default defineConfig({
         STARK_WORKSPACE_ROOTS: sandbox,
         OPENROUTER_API_KEY: "e2e-test-key-not-real",
         OPENROUTER_BASE_URL: "http://127.0.0.1:8799/api/v1",
+        STARK_SCHEDULER_INTERVAL_S: "1",
       },
     },
     { command: "npx next start -p 3100 -H 127.0.0.1", url: "http://127.0.0.1:3100", reuseExistingServer: false, env: { NEXT_PUBLIC_STARK_API_URL: "http://127.0.0.1:8100" } },
