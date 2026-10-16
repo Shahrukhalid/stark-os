@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { detectWake, parseAddress } from "@/lib/addressing";
 import { useStark } from "@/lib/store";
 import type { Agent, Task, Turn } from "@/lib/types";
+import { Markdown } from "./Markdown";
 import { createRecognizer, speak, stopSpeaking, sttSupported, ttsSupported, type Recognizer } from "@/lib/voice";
 import { ApprovalCard } from "./ApprovalCard";
 import { AgentGlyph, StateBadge, STATE_META, TaskStatus } from "./ui";
@@ -159,6 +160,12 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
     [agentId, client, conversationId, conversations, notify, setAgentId],
   );
 
+  // always call the latest send (with the current agent and conversation) from long-lived recognizers
+  const sendRef = useRef(send);
+  useEffect(() => {
+    sendRef.current = send;
+  }, [send]);
+
   // ---------------- voice ----------------
   const startPtt = useCallback(() => {
     if (!sttSupported()) return notify("warn", "Speech recognition is not supported in this browser (try Chrome, Edge or Safari).");
@@ -195,7 +202,7 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
       onPartial: (t) => detectWake(t) && setPartial(t),
       onFinal: (t) => {
         setPartial("");
-        if (detectWake(t)) send(t); // only utterances that start with an agent name are sent
+        if (detectWake(t)) sendRef.current(t); // only utterances that start with an agent name are sent
       },
       onState: (on) => setListeningAgent(on ? "wake" : null),
       onError: (m) => notify("error", m),
@@ -210,7 +217,7 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
   const liveState = listeningAgent === agentId || (listeningAgent === "wake" && !ACTIVE.has(agent?.live.status || "idle")) ? "listening" : agent?.live.status || "idle";
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[340px_1fr]">
+    <div className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-[340px_1fr]">
       <div className="flex flex-col gap-4">
         <div className="panel p-5">
           <CoreOrb agent={agent} state={liveState} />
@@ -251,17 +258,32 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
               onMouseLeave={() => pttActive && stopPtt()}
               onTouchStart={startPtt}
               onTouchEnd={stopPtt}
+              onKeyDown={(e) => {
+                if ((e.key === " " || e.key === "Enter") && !e.repeat) {
+                  e.preventDefault();
+                  startPtt();
+                }
+              }}
+              onKeyUp={(e) => {
+                if (e.key === " " || e.key === "Enter") {
+                  e.preventDefault();
+                  stopPtt();
+                }
+              }}
+              onBlur={() => pttActive && stopPtt()}
               disabled={!sttSupported()}
-              title="Hold to talk"
+              title="Hold to talk (mouse, touch, or hold Space/Enter)"
+              aria-pressed={pttActive}
             >
               <Mic size={14} /> {pttActive ? "Listening…" : "Hold to talk"}
             </button>
-            <button className={`btn ${wakeMode ? "btn-primary" : ""}`} onClick={() => setWakeMode(!wakeMode)} disabled={!sttSupported()} title='Always listen for "Hey JARVIS", "Friday, …"'>
+            <button className={`btn ${wakeMode ? "btn-primary" : ""}`} onClick={() => setWakeMode(!wakeMode)} disabled={!sttSupported()} title='Always listen for "Hey JARVIS", "Friday, …"' aria-pressed={wakeMode}>
               {wakeMode ? <Mic size={14} /> : <MicOff size={14} />} Wake word
             </button>
             <button
               className={`btn ${speakReplies ? "btn-primary" : ""}`}
               disabled={!ttsSupported()}
+              aria-pressed={speakReplies}
               onClick={() => {
                 writePref("stark.speak", !speakReplies);
                 setSpeakReplies(!speakReplies);
@@ -313,7 +335,7 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
           {turns.map((t) => {
             const a = agents.find((x) => x.id === t.agent_id);
             return t.role === "user" ? (
-              <div key={t.id} className="ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-cyan-400/10 px-4 py-2.5 text-sm ring-1 ring-cyan-400/20">
+              <div key={t.id} className="break-anywhere ml-auto max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-cyan-400/10 px-4 py-2.5 text-sm ring-1 ring-cyan-400/20">
                 {t.content}
               </div>
             ) : (
@@ -326,13 +348,13 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
                     </button>
                   )}
                   {a && ttsSupported() && (
-                    <button className="text-[var(--color-mute)] hover:text-white" onClick={() => speak(t.content, a.voice)} title="Read aloud">
+                    <button className="text-[var(--color-mute)] hover:text-white" onClick={() => speak(t.content, a.voice)} title="Read aloud" aria-label={`Read ${a.name}'s reply aloud`}>
                       <Volume2 size={12} />
                     </button>
                   )}
                 </div>
-                <div className={`prose-stark rounded-2xl rounded-tl-sm px-4 py-2.5 ${t.content.startsWith("[task failed]") ? "bg-red-400/10 text-red-100 ring-1 ring-red-400/30" : "bg-white/[0.03] ring-1 ring-white/5"}`}>
-                  {t.content}
+                <div className={`rounded-2xl rounded-tl-sm px-4 py-2.5 ${t.content.startsWith("[task failed]") ? "bg-red-400/10 text-red-100 ring-1 ring-red-400/30" : "bg-white/[0.03] ring-1 ring-white/5"}`}>
+                  <Markdown text={t.content} />
                 </div>
               </div>
             );
@@ -404,7 +426,7 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
           }}
         >
           <input
-            className="input"
+            className="input min-w-0"
             placeholder={status?.emergency_stop ? "Emergency stop engaged" : `Message ${agent?.name || "an agent"}…  (e.g. "Friday, check our mentions")`}
             value={input}
             onChange={(e) => setInput(e.target.value)}

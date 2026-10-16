@@ -1,4 +1,4 @@
-# GitHub Actions workflow. Copy to .github/workflows/ci.yml in your repository.
+# GitHub Actions: backend tests (incl. PostgreSQL + real Chromium), dashboard type-check/unit/E2E, secret scan.
 name: CI
 on:
   push: { branches: [main] }

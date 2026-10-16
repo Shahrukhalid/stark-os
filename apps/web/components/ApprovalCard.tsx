@@ -40,7 +40,7 @@ export function ApprovalCard({ approval, compact = false, openTask }: { approval
           </div>
           <div className="mt-1 text-sm font-medium">{approval.action}</div>
         </div>
-        <button className="text-[var(--color-mute)]" onClick={() => setOpen(!open)} aria-label="Review details">
+        <button className="text-[var(--color-mute)]" onClick={() => setOpen(!open)} aria-label="Review details" aria-expanded={open}>
           {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
       </div>

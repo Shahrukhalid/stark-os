@@ -38,11 +38,13 @@ export function ConnectScreen({ onConnect }: { onConnect: (c: Connection) => voi
             <p className="hud-label text-[var(--color-mute)]">Project Genesis · secure link</p>
           </div>
         </div>
-        <label className="hud-label mb-1 block text-[var(--color-mute)]">API address</label>
-        <input className="input mb-4" value={url} onChange={(e) => setUrl(e.target.value)} />
-        <label className="hud-label mb-1 block text-[var(--color-mute)]">Access token</label>
+        <label htmlFor="stark-api-url" className="hud-label mb-1 block text-[var(--color-mute)]">API address</label>
+        <input id="stark-api-url" className="input mb-4" value={url} onChange={(e) => setUrl(e.target.value)} autoComplete="url" />
+        <label htmlFor="stark-api-token" className="hud-label mb-1 block text-[var(--color-mute)]">Access token</label>
         <input
+          id="stark-api-token"
           className="input mb-2 font-mono"
+          autoComplete="off"
           type="password"
           placeholder="STARK_API_TOKEN from your .env"
           value={token}

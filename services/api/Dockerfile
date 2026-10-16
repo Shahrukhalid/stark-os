@@ -4,8 +4,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app/services/api
 COPY services/api/pyproject.toml services/api/requirements.lock ./
 COPY services/api/stark ./stark
+# STARK_UID should match your user on Linux so the bind-mounted ./sandbox is writable (compose passes $UID)
+ARG STARK_UID=10001
 RUN pip install --require-hashes -r requirements.lock && pip install --no-deps . \
-    && useradd --create-home --uid 10001 stark
+    && useradd --create-home --uid ${STARK_UID} stark
 COPY agents /app/agents
 RUN mkdir -p /app/data /app/sandbox && chown -R stark:stark /app/data /app/sandbox
 USER stark

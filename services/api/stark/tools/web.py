@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from html.parser import HTMLParser
 from io import BytesIO
 from pathlib import Path
+from typing import Any
 from urllib.parse import urljoin, urlsplit
 from urllib.request import getproxies
 from urllib.robotparser import RobotFileParser
@@ -69,34 +70,80 @@ async def check_url(url: str, allow_private: bool) -> str | None:
     return str(ips[0])
 
 
-async def pinned_get(client: httpx.AsyncClient, url: str, ip: str | None, **kw) -> httpx.Response:
+async def pinned_get(client: httpx.AsyncClient, url: str, ip: str | None, *, limit: int = MAX_BYTES,
+                     timeout: float | None = None) -> httpx.Response:
     """GET ``url`` but connect to the already-vetted ``ip`` (defeats DNS rebinding between check and connect).
-    TLS still verifies the certificate against the original host name via SNI."""
+    TLS still verifies the certificate against the original host name via SNI. The body is streamed and
+    cut at ``limit`` bytes, so a hostile server cannot exhaust memory."""
     parts = urlsplit(url)
-    if ip is None or getproxies().get(parts.scheme):
-        # Behind an HTTP proxy the proxy resolves names, so pinning is impossible (and unnecessary locally).
-        return await client.get(url, **kw)
-    host = parts.hostname or ""
-    ip_host = f"[{ip}]" if ":" in ip else ip
-    netloc = ip_host + (f":{parts.port}" if parts.port else "")
-    target = parts._replace(netloc=netloc).geturl()
-    headers = dict(kw.pop("headers", {}) or {})
-    headers["Host"] = host + (f":{parts.port}" if parts.port else "")
-    extensions = {"sni_hostname": host} if parts.scheme == "https" else {}
-    return await client.get(target, headers=headers, extensions=extensions, **kw)
+    headers: dict[str, str] = {"Accept-Encoding": "gzip, deflate"}  # only encodings we can decode bounded
+    extensions: dict[str, Any] = {}
+    target = url
+    if ip is not None and not getproxies().get(parts.scheme):
+        # (Behind an HTTP proxy the proxy resolves names, so pinning is impossible and unnecessary.)
+        host = parts.hostname or ""
+        ip_host = f"[{ip}]" if ":" in ip else ip
+        target = parts._replace(netloc=ip_host + (f":{parts.port}" if parts.port else "")).geturl()
+        headers["Host"] = host + (f":{parts.port}" if parts.port else "")
+        if parts.scheme == "https":
+            extensions["sni_hostname"] = host
+    if timeout is not None:
+        extensions["timeout"] = httpx.Timeout(timeout).as_dict()
+    request = client.build_request("GET", target, headers=headers, extensions=extensions)
+    resp = await client.send(request, stream=True)
+    try:
+        chunks, size = [], 0
+        try:
+            async for chunk in resp.aiter_raw():
+                chunks.append(chunk)
+                size += len(chunk)
+                if size >= limit:
+                    break
+            raw = b"".join(chunks)[:limit]
+        except httpx.StreamConsumed:  # transports that hand back an already-read body (tests)
+            raw = resp.content[:limit]
+    finally:
+        await resp.aclose()
+    # rebuild a complete, decoded response object from the bounded body
+    out = httpx.Response(resp.status_code, headers=resp.headers, content=_decode(raw, resp.headers), request=request)
+    out.headers.pop("content-encoding", None)
+    return out
+
+
+def _decode(raw: bytes, headers: httpx.Headers) -> bytes:
+    enc = headers.get("content-encoding", "").lower()
+    try:
+        if enc == "gzip":
+            import zlib
+
+            return zlib.decompressobj(16 + zlib.MAX_WBITS).decompress(raw, MAX_BYTES)
+        if enc == "deflate":
+            import zlib
+
+            return zlib.decompressobj().decompress(raw, MAX_BYTES)
+    except Exception:
+        return b""
+    return raw
 
 
 def outbound_needs_approval(url: str, ctx) -> bool:
-    """Exfiltration guard. Fetching is read-only, but the URL itself can carry data out.
-    Requires approval when the URL has a long query, or when the task tree has already read
-    workspace files and the URL was not returned by a web search in the same tree."""
+    """Exfiltration guard. Fetching is read-only, but the URL itself can carry data out: an injected
+    instruction can make an agent put anything it has seen (files, memories, earlier chat turns) into a URL.
+    A URL runs without approval only if a web search in this task tree returned it, or the user typed it
+    in this request. Everything else, and any URL with a long query, needs approval."""
     parts = urlsplit(url)
     if len(parts.query) > 200 or len(url) > 1000:
         return True
-    flags = ctx.kernel.tree_flags(ctx.root_id) if getattr(ctx, "kernel", None) else None
-    if flags and flags["files_read"] and url.rstrip("/") not in flags["search_urls"]:
+    kernel = getattr(ctx, "kernel", None)
+    if kernel is None:
         return True
-    return False
+    normalized = url.rstrip("/")
+    if normalized in kernel.tree_flags(ctx.root_id)["search_urls"]:
+        return False
+    root = kernel.get_task(ctx.root_id) or {}
+    if root.get("requested_by", "user") == "user" and normalized in (root.get("instruction") or ""):
+        return False
+    return True
 
 
 class _TextExtractor(HTMLParser):
@@ -160,7 +207,7 @@ async def robots_allows(client: httpx.AsyncClient, url: str, ip: str | None = No
     parts = urlsplit(url)
     robots_url = f"{parts.scheme}://{parts.netloc}/robots.txt"
     try:
-        resp = await pinned_get(client, robots_url, ip, timeout=8)
+        resp = await pinned_get(client, robots_url, ip, timeout=8, limit=500_000)
     except httpx.HTTPError:
         return True  # unreachable robots.txt: treat as no restrictions (RFC 9309 §2.3.1.4 for 4xx)
     if resp.status_code >= 500:
@@ -194,9 +241,8 @@ class WebFetch(Tool):
 
     def describe(self, args, ctx):
         return ApprovalText(f"Fetch {args.url}", args.url, "Downloads a public page.",
-                            "This task has read workspace files and this URL did not come from a web search: "
-                            "an injected instruction could be smuggling file contents out inside the URL. "
-                            "Check the full URL before approving.")
+                            "This URL did not come from a web search and you didn't type it: an injected "
+                            "instruction could be smuggling data out inside the URL. Check the full URL first.")
 
     async def run(self, args: FetchInput, ctx) -> ToolResult:
         allow_private = ctx.settings.allow_private_fetch
@@ -222,7 +268,7 @@ class WebFetch(Tool):
                 return ToolResult(False, "Too many redirects", error="redirects")
         if resp.status_code >= 400:
             return ToolResult(False, f"HTTP {resp.status_code} for {url}", error=f"http_{resp.status_code}")
-        body = resp.content[:MAX_BYTES]
+        body = resp.content
         ctype = resp.headers.get("content-type", "")
         title, links = "", []
         if "pdf" in ctype or url.lower().endswith(".pdf"):
@@ -313,12 +359,14 @@ class BrowserRender(Tool):
     timeout_s = 60
 
     def needs_approval(self, args, ctx) -> bool:
-        return outbound_needs_approval(args.url, ctx)
+        return args.screenshot or outbound_needs_approval(args.url, ctx)  # screenshots write into the workspace
 
     def describe(self, args, ctx):
-        return ApprovalText(f"Open {args.url} in a headless browser", args.url, "Loads a public page.",
-                            "This task has read workspace files and this URL did not come from a web search: "
-                            "check the full URL before approving.")
+        return ApprovalText(f"Open {args.url} in a headless browser", args.url,
+                            "Loads a public page." + (" Saves a screenshot into the workspace." if args.screenshot
+                                                      else ""),
+                            "Check the full URL: if it didn't come from a web search or from you, an injected "
+                            "instruction could be smuggling data out inside it.")
 
     def availability(self, ctx=None):
         try:
@@ -345,9 +393,21 @@ class BrowserRender(Tool):
                     page = await browser.new_page(user_agent=USER_AGENT)
 
                     async def guard(route):
+                        url = route.request.url
                         try:
-                            if not route.request.url.startswith(("data:", "blob:")):
-                                await check_url(route.request.url, ctx.settings.allow_private_fetch)
+                            if url.startswith(("data:", "blob:")):
+                                await route.continue_()
+                                return
+                            await check_url(url, ctx.settings.allow_private_fetch)
+                            if route.request.is_navigation_request():
+                                # Fetch navigations ourselves without following redirects, so every hop
+                                # (each new request comes back through this guard) is checked.
+                                resp = await route.fetch(max_redirects=0)
+                                location = resp.headers.get("location")
+                                if 300 <= resp.status < 400 and location:
+                                    await check_url(urljoin(url, location), ctx.settings.allow_private_fetch)
+                                await route.fulfill(response=resp)
+                                return
                             await route.continue_()
                         except FetchBlocked:
                             await route.abort()

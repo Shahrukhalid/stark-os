@@ -1,13 +1,17 @@
 # STARK OS - local deployment. Ports are bound to 127.0.0.1 only.
-#   cp .env.example .env   (or: python3 scripts/setup.py)
-#   docker compose up --build
+#   python3 scripts/setup.py      (creates .env with a random STARK_API_TOKEN; then add OPENROUTER_API_KEY)
+#   UID=$(id -u) docker compose up --build   (UID lets the container write to ./sandbox on Linux)
 # Optional PostgreSQL:  docker compose --profile postgres up --build
 #   and set DATABASE_URL=postgresql+psycopg://stark:${POSTGRES_PASSWORD}@postgres:5432/stark in .env
 services:
   api:
-    build: { context: ., dockerfile: services/api/Dockerfile }
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+      args: { STARK_UID: "${UID:-1000}" }
     env_file: .env
     environment:
+      STARK_API_TOKEN: ${STARK_API_TOKEN:?run python3 scripts/setup.py first to create .env}
       STARK_WEB_ORIGIN: http://localhost:3000
       STARK_WORKSPACE_ROOTS: /app/sandbox
     volumes:
@@ -21,8 +25,14 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args: { NEXT_PUBLIC_STARK_API_URL: "http://localhost:8000" }
-    depends_on: [api]
+    depends_on:
+      api: { condition: service_healthy }
     ports: ["127.0.0.1:3000:3000"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     restart: unless-stopped
 
   postgres:

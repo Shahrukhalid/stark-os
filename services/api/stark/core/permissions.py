@@ -34,7 +34,7 @@ class Mode(str, Enum):
 
 
 _RANK = {Mode.OBSERVE: 0, Mode.ASSIST: 1, Mode.SCHEDULED: 1, Mode.EXECUTE_APPROVED: 2}
-ALWAYS_APPROVE = {Risk.EXTERNAL, Risk.SENSITIVE, Risk.PHYSICAL, Risk.DESTRUCTIVE}
+ALWAYS_APPROVE = {Risk.EXTERNAL, Risk.SENSITIVE, Risk.DESTRUCTIVE}
 
 
 class Verdict(str, Enum):

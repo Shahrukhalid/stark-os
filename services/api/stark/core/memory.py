@@ -101,7 +101,8 @@ class MemoryService:
         return data
 
     def search(self, *, actor: "AgentConfig | None", query: str, namespaces: list[str] | None = None,
-               layers: list[str] | None = None, limit: int = 8) -> list[dict[str, Any]]:
+               layers: list[str] | None = None, limit: int = 8, root_id: str | None = None) -> list[dict[str, Any]]:
+        """``root_id``: only that task tree's project memory is visible (other trees' notes can't leak in)."""
         if not self.enabled:
             return []
         self.purge_expired()
@@ -115,6 +116,8 @@ class MemoryService:
         scored = []
         for row in rows:
             if not can_access(allowed, row.namespace):
+                continue
+            if root_id and row.namespace.startswith("shared:project:") and row.namespace != f"shared:project:{root_id}":
                 continue
             if namespaces and not any(fnmatch.fnmatchcase(row.namespace, n) for n in namespaces):
                 continue

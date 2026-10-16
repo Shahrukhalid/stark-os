@@ -1,11 +1,12 @@
 "use client";
 
 import { Ban, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useStark } from "@/lib/store";
 import type { AgentMessage, Approval, AuditEntry, Task } from "@/lib/types";
 import { ApprovalCard } from "./ApprovalCard";
 import { CollabGraph } from "./CollabGraph";
+import { Markdown } from "./Markdown";
 import { AgentGlyph, duration, Empty, Section, TaskStatus, timeAgo } from "./ui";
 
 interface Detail {
@@ -22,10 +23,13 @@ export function TasksView({ focus, setFocus }: { focus: string | null; setFocus:
   const [filter, setFilter] = useState("all");
   const roots = tasks.filter((t) => !t.parent_id && (filter === "all" || t.agent_id === filter));
 
+  const reqId = useRef(0); // ignore responses that arrive after a newer request (fast clicking)
   const load = useCallback(async () => {
+    const id = ++reqId.current;
     if (!focus) return setDetail(null);
     try {
-      setDetail(await client.get<Detail>(`/api/tasks/${focus}`));
+      const d = await client.get<Detail>(`/api/tasks/${focus}`);
+      if (id === reqId.current) setDetail(d);
     } catch (e: any) {
       notify("error", e.message);
     }
@@ -50,11 +54,11 @@ export function TasksView({ focus, setFocus }: { focus: string | null; setFocus:
   const root = detail?.tree.find((t) => !t.parent_id) || detail?.task;
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[380px_1fr]">
+    <div className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-[380px_1fr]">
       <Section
         title="Task history"
         right={
-          <select className="input !w-auto !py-1 text-xs" value={filter} onChange={(e) => setFilter(e.target.value)}>
+          <select className="input !w-auto !py-1 text-xs" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Filter tasks by agent">
             <option value="all">All agents</option>
             {agents.map((a) => (
               <option key={a.id} value={a.id}>
@@ -76,7 +80,7 @@ export function TasksView({ focus, setFocus }: { focus: string | null; setFocus:
                 onClick={() => setFocus(t.id)}
                 className={`w-full rounded-lg border p-2.5 text-left text-sm transition hover:bg-white/5 ${focus === t.id ? "border-cyan-400/50 bg-cyan-400/5" : "border-[var(--color-line)]"}`}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 items-center gap-2">
                   {a ? <AgentGlyph icon={a.icon} color={a.color} size={16} /> : <span className="chip">user</span>}
                   <span className="truncate font-medium">{t.instruction.slice(0, 70)}</span>
                 </div>
@@ -101,7 +105,7 @@ export function TasksView({ focus, setFocus }: { focus: string | null; setFocus:
             title={`Task ${root.id}`}
             right={
               <div className="flex gap-2">
-                <button className="btn" onClick={load}>
+                <button className="btn" onClick={load} aria-label="Refresh task" title="Refresh">
                   <RefreshCw size={13} />
                 </button>
                 {!["completed", "failed", "cancelled"].includes(root.status) && (
@@ -126,7 +130,7 @@ export function TasksView({ focus, setFocus }: { focus: string | null; setFocus:
 
           {detail.approvals.filter((a) => a.status === "pending").map((a) => <ApprovalCard key={a.id} approval={a} />)}
 
-          <div className="grid gap-4 2xl:grid-cols-2">
+          <div className="grid gap-4 [&>*]:min-w-0 2xl:grid-cols-2">
             <Section title="Collaboration">
               <CollabGraph agents={agents} messages={detail.messages} tree={detail.tree} />
               <div className="mt-2 space-y-1">
@@ -166,7 +170,7 @@ export function TasksView({ focus, setFocus }: { focus: string | null; setFocus:
 
           {detail.tree.map((t) => (
             <Section key={t.id} title={`${agentOf(t.agent_id)?.name || t.agent_id} · ${t.kind} result`}>
-              {t.result ? <div className="prose-stark max-h-[480px] overflow-auto text-sm">{t.result}</div> : <Empty>{t.error || "No result yet."}</Empty>}
+              {t.result ? <div className="max-h-[480px] overflow-auto text-sm"><Markdown text={t.result} /></div> : <Empty>{t.error || "No result yet."}</Empty>}
               {t.sources.length > 0 && (
                 <div className="mt-3">
                   <div className="panel-title mb-1">Retrieved sources</div>

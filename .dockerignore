@@ -14,3 +14,8 @@
 **/*.sqlite*
 **/*.log
 .git
+**/*.egg-info
+**/.pytest_cache
+**/.ruff_cache
+**/*.tsbuildinfo
+apps/web/e2e/screenshots

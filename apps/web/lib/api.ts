@@ -115,18 +115,41 @@ export class StarkClient {
     return this.req<T>(path, { method: "DELETE" });
   }
 
-  /** Server-sent events. EventSource cannot set headers, so the token travels as a query parameter. */
+  /** Server-sent events. EventSource cannot set headers, so the token travels as a query parameter
+   * (the API never writes access logs). The browser retries dropped connections itself; if the server
+   * answers with an error status the stream closes for good, so we reopen it with backoff. */
   events(onEvent: (e: StarkEvent) => void, onState: (connected: boolean) => void): () => void {
-    const es = new EventSource(`${this.url}/api/events?token=${encodeURIComponent(this.conn.token)}`);
-    es.onopen = () => onState(true);
-    es.onerror = () => onState(false);
-    es.onmessage = (m) => {
-      try {
-        onEvent(JSON.parse(m.data));
-      } catch {
-        /* ignore malformed */
-      }
+    let es: EventSource | null = null;
+    let stopped = false;
+    let retry: ReturnType<typeof setTimeout> | null = null;
+    let delay = 1000;
+    const open = () => {
+      if (stopped) return;
+      es = new EventSource(`${this.url}/api/events?token=${encodeURIComponent(this.conn.token)}`);
+      es.onopen = () => {
+        delay = 1000;
+        onState(true);
+      };
+      es.onerror = () => {
+        onState(false);
+        if (es && es.readyState === EventSource.CLOSED && !stopped) {
+          retry = setTimeout(open, delay);
+          delay = Math.min(delay * 2, 30_000);
+        }
+      };
+      es.onmessage = (m) => {
+        try {
+          onEvent(JSON.parse(m.data));
+        } catch {
+          /* ignore malformed */
+        }
+      };
     };
-    return () => es.close();
+    open();
+    return () => {
+      stopped = true;
+      if (retry) clearTimeout(retry);
+      es?.close();
+    };
   }
 }

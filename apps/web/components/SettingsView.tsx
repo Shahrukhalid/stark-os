@@ -7,9 +7,9 @@ import { pickVoice, ttsSupported } from "@/lib/voice";
 import { AgentGlyph, Section } from "./ui";
 
 const MODES = [
-  { id: "observe", title: "Observe", text: "Read-only. Every write, external, physical or memory-write action is denied." },
+  { id: "observe", title: "Observe", text: "Read-only. Every write, publish or memory-write action is denied." },
   { id: "assist", title: "Assist (default)", text: "Agents read freely and draft changes; every change waits in the approval queue." },
-  { id: "execute_approved", title: "Execute approved", text: "Reversible file changes inside scopes you grant below run without asking. Physical, external, sensitive and destructive actions still always need approval." },
+  { id: "execute_approved", title: "Execute approved", text: "Reversible file changes inside scopes you grant below run without asking. Publishing, sensitive and destructive actions still always need approval." },
   { id: "scheduled", title: "Scheduled automation (planned)", text: "The scheduler is not implemented yet; selecting it behaves like Assist." },
 ];
 
@@ -25,14 +25,15 @@ export function SettingsView({ onSignOut }: { onSignOut: () => void }) {
     if (ttsSupported()) {
       const load = () => setVoices(window.speechSynthesis.getVoices());
       load();
-      window.speechSynthesis.onvoiceschanged = load;
+      window.speechSynthesis.addEventListener("voiceschanged", load);
+      return () => window.speechSynthesis.removeEventListener("voiceschanged", load);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const writeTools = agents.find((a) => a.id === g.agent_id)?.tool_details.filter((t) => t.risk === "write") || [];
 
   return (
-    <div className="grid gap-4 xl:grid-cols-2">
+    <div className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-2">
       <Section title="Execution mode">
         <div className="space-y-2">
           {MODES.map((m) => (
@@ -74,7 +75,7 @@ export function SettingsView({ onSignOut }: { onSignOut: () => void }) {
               </option>
             ))}
           </select>
-          <input className="input" placeholder="scope (path prefix)" value={g.scope} onChange={(e) => setG({ ...g, scope: e.target.value })} />
+          <input className="input" aria-label="Grant scope (path prefix)" placeholder="scope (path prefix)" value={g.scope} onChange={(e) => setG({ ...g, scope: e.target.value })} />
           <input className="input" type="number" min={1} max={720} value={g.hours} onChange={(e) => setG({ ...g, hours: Number(e.target.value) })} aria-label="Hours" />
           <button className="btn btn-primary" disabled={!g.tool_id}>
             Grant
@@ -88,7 +89,7 @@ export function SettingsView({ onSignOut }: { onSignOut: () => void }) {
               <span className="font-mono">{x.tool_id}</span>
               <span className="chip">{x.scope || "any path"}</span>
               <span className="text-[var(--color-mute)]">until {x.expires_at ? new Date(x.expires_at).toLocaleString() : "∞"}</span>
-              <button className="btn btn-danger ml-auto !px-2 !py-1" onClick={() => client.del(`/api/grants/${x.id}`).then(loadGrants)} aria-label="Revoke">
+              <button className="btn btn-danger ml-auto !px-2 !py-1" onClick={() => client.del(`/api/grants/${x.id}`).then(loadGrants).catch((e) => notify("error", e.message))} aria-label="Revoke grant">
                 <Trash2 size={12} />
               </button>
             </div>

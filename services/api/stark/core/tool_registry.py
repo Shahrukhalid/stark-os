@@ -25,14 +25,12 @@ class Risk(str, Enum):
     WRITE = "write"  # reversible change to files/state
     EXTERNAL = "external"  # communicates outside the system
     SENSITIVE = "sensitive"  # credentials, accounts, money, security settings
-    PHYSICAL = "physical"  # moves or powers real (or simulated) devices
     DESTRUCTIVE = "destructive"  # irreversible
 
 
 class Availability(str, Enum):
     IMPLEMENTED = "implemented"
     REQUIRES_CREDENTIALS = "requires_credentials"
-    REQUIRES_HARDWARE = "requires_hardware"
     SIMULATED = "simulated"
     UNAVAILABLE = "unavailable"
 

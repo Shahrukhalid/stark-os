@@ -143,6 +143,7 @@ export function Shell({ onSignOut }: { onSignOut: () => void }) {
               <button
                 key={n.id}
                 onClick={() => setView(n.id)}
+                aria-current={view === n.id ? "page" : undefined}
                 className={`flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition ${
                   view === n.id ? "bg-cyan-400/10 text-cyan-200 ring-1 ring-cyan-400/30" : "text-[var(--color-mute)] hover:bg-white/5 hover:text-[var(--color-ink)]"
                 }`}
@@ -174,11 +175,12 @@ export function Shell({ onSignOut }: { onSignOut: () => void }) {
         {toasts.map((t) => (
           <div
             key={t.id}
+            role={t.kind === "error" ? "alert" : "status"}
             className={`panel flex items-start gap-2 p-3 text-sm ${
               t.kind === "error" ? "!border-red-400/50" : t.kind === "warn" ? "!border-amber-300/50" : t.kind === "success" ? "!border-emerald-400/50" : ""
             }`}
           >
-            <span className="flex-1">{t.text}</span>
+            <span className="break-anywhere min-w-0 flex-1">{t.text}</span>
             <button onClick={() => dismiss(t.id)} aria-label="Dismiss" className="text-[var(--color-mute)] hover:text-white">
               <X size={14} />
             </button>

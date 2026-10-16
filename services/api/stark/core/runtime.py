@@ -312,7 +312,7 @@ class Kernel:
             other = self.registry.get(other_id)
             team.append(f"- {other.id}: {other.name} -- {other.role}")
         prefs = self.memory.preferences_for(agent)
-        relevant = self.memory.search(actor=agent, query=task["instruction"], limit=5)
+        relevant = self.memory.search(actor=agent, query=task["instruction"], limit=5, root_id=task["root_id"])
         mem_lines = [f"- ({m['layer']}, {m['namespace']}) {m['content'][:300]}" for m in relevant
                      if m["namespace"] != "user:preferences"]
         mode = self.perms.global_mode.value

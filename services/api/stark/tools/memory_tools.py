@@ -64,7 +64,7 @@ class MemorySave(Tool):
         try:
             row = ctx.kernel.memory.save(actor=ctx.agent, namespace=ns, layer=args.layer, content=args.content,
                                          source=f"task:{ctx.task_id}", consent=ns == "user:preferences",
-                                         tags=args.tags)
+                                         tags=args.tags, ttl_days=30 if ns.startswith("shared:project:") else None)
         except (MemoryAccessError, ValueError) as exc:
             return ToolResult(False, str(exc), error="memory_denied")
         verb = "Already remembered (refreshed)" if row.get("deduplicated") else "Saved"
@@ -84,7 +84,7 @@ class MemorySearch(Tool):
     risk = Risk.READ
 
     async def run(self, args: SearchInput, ctx) -> ToolResult:
-        hits = ctx.kernel.memory.search(actor=ctx.agent, query=args.query, limit=args.limit)
+        hits = ctx.kernel.memory.search(actor=ctx.agent, query=args.query, limit=args.limit, root_id=ctx.root_id)
         if not ctx.kernel.memory.enabled:
             return ToolResult(True, "Memory is disabled by the user", {"memories": [], "disabled": True})
         return ToolResult(True, f"{len(hits)} memories", {"memories": [

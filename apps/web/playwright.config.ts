@@ -25,7 +25,7 @@ export default defineConfig({
   webServer: [
     { command: `${py} e2e/mock_llm.py 8799`, url: "http://127.0.0.1:8799/api/v1/models", reuseExistingServer: false },
     {
-      command: `${py} -m uvicorn stark.main:create_app --factory --host 127.0.0.1 --port 8100`,
+      command: `${py} -m uvicorn stark.main:create_app --factory --host 127.0.0.1 --port 8100 --no-access-log`,
       cwd: path.resolve(__dirname, "../../services/api"),
       url: "http://127.0.0.1:8100/api/health",
       reuseExistingServer: false,

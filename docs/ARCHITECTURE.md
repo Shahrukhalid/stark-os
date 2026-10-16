@@ -188,7 +188,7 @@ Agent card states map from the task state; *Listening* is set by the browser whi
 
 **Execution modes** (global, capped per agent by `permission_level`):
 
-| Mode | Read | Memory write | Delegation | Write (reversible) | External / sensitive / physical / destructive |
+| Mode | Read | Memory write | Delegation | Write (reversible) | External (publish) / sensitive / destructive |
 |---|---|---|---|---|---|
 | OBSERVE | allow | deny | allow | deny | deny |
 | ASSIST (default) | allow* | allow* | allow | approval | approval |

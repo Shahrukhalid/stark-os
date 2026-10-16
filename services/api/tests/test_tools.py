@@ -228,3 +228,46 @@ async def test_browser_render_real_chromium(kctx, settings, tmp_path):
     assert res.ok, res.summary
     assert "rendered by javascript" in res.data["text"]
     assert (settings.workspace_roots[0] / res.data["screenshot"]).is_file()
+
+
+async def test_browser_checks_every_redirect_hop(kctx, settings, monkeypatch):
+    """A public page that redirects the headless browser to an internal address must not be followed."""
+    pytest.importorskip("playwright", reason="install the 'browser' extra")
+    from stark.tools import web
+
+    k, ctx = kctx
+    settings.allow_private_fetch = True
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            if self.path == "/start":
+                self.send_response(302)
+                self.send_header("Location", f"http://localhost:{self.server.server_port}/internal")
+                self.end_headers()
+                return
+            body = b"<html><title>internal</title><body>INTERNAL SECRET</body></html>"
+            self.send_response(200)
+            self.send_header("content-type", "text/html")
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    real = web.check_url
+
+    async def guarded(url, allow_private=False):
+        if "localhost" in url:  # stands in for an internal-only host
+            raise web.FetchBlocked("internal host")
+        return await real(url, allow_private)
+
+    monkeypatch.setattr(web, "check_url", guarded)
+    try:
+        res = await BrowserRender().run(BrowserRender.Input(url=f"http://127.0.0.1:{server.server_port}/start"),
+                                        ctx("jocasta"))
+    finally:
+        server.shutdown()
+    assert "INTERNAL SECRET" not in (res.data.get("text") or "")

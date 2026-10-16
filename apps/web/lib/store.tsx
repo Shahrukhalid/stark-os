@@ -130,6 +130,7 @@ export function StarkProvider({ conn, children, onAuthError }: { conn: Connectio
     return () => {
       stop();
       clearInterval(poll);
+      Object.values(timers.current).forEach(clearTimeout); // pending debounced reloads
     };
   }, [client, refresh, debounce, loadAgents, loadTasks, loadApprovals, loadStatus, notify]);
 

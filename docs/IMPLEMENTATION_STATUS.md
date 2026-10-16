@@ -1,16 +1,16 @@
 # Implementation status
 
-_Last updated: 2026-10-16 · release 0.3.0 (social media team, VisionQuest roles, own brain per agent)_
+_Last updated: 2026-10-16 · release 0.3.1 (deep audit round 3: security, frontend, accessibility, infrastructure)_
 
-Legend: ✅ **Implemented & tested** · 🟡 **Implemented, not fully live-tested** · 🔑 **Requires credentials** · 🔌 **Requires hardware** · 🧪 **Simulated** · 📋 **Planned** · ⛔ **Unsupported by design**
+Legend: ✅ **Implemented & tested** · 🟡 **Implemented, not fully live-tested** · 🔑 **Requires credentials** · 🧪 **Simulated** · 📋 **Planned** · ⛔ **Unsupported by design**
 
 ## Test results (this release)
 
 | Suite | Result |
 |---|---|
-| Backend `pytest` (runtime, social tools & adapters, tools, permissions, memory, free-model pool, API, security regressions) | **136 passed**, 1 skipped on Python 3.12 (135 on 3.11); PostgreSQL 16 suite (2 tests incl. the social queue) passes |
-| Frontend type-check + `vitest` | **15 passed** |
-| End-to-end (Playwright: real dashboard + real API + a test-only scripted server speaking the OpenRouter protocol) | **9 passed** (incl. draft → approval → simulated publish, inbox triage) |
+| Backend `pytest` (runtime, social tools & adapters, tools, permissions, memory, free-model pool, API, security regressions) | **147 passed** on Python 3.12 with PostgreSQL 16 and real Chromium (142 passed, 5 skipped on 3.11 without those) |
+| Frontend type-check + `vitest` | **18 passed** |
+| End-to-end (Playwright: real dashboard + real API + a test-only scripted server speaking the OpenRouter protocol) | **11 passed** (incl. draft → approval → simulated publish, inbox triage, no sideways scroll at 360 px, safe markdown) |
 | `next build` | passed · `npm audit`: **0 vulnerabilities** · `pip-audit`: **0 known vulnerabilities** |
 | Secret scan (gitleaks) on the publishable tree | no leaks |
 | Live OpenRouter check (2026-10-16, from the owner's machine) | key valid (free tier, 50 free requests/day); **10 of 15** chat-capable free models answered with a correct tool call; 4 were temporarily rate-limited upstream (429); 2 are restricted to agentic harnesses (403, excluded) |
@@ -38,6 +38,22 @@ Three independent reviews (backend security, frontend/infra/dependencies, runtim
 | Low | Symlinked secrets in search, missing OpenRouter-key redaction/detection, query token accepted on all routes, dev server on all interfaces, `.dockerignore`/`.gitignore` gaps, `.env` briefly world-readable, unpinned CI actions, no Python lockfile, vulnerable dev/build deps (vitest/tinypool, postcss) | all fixed |
 
 Residual risks (documented, not fully solvable here): the headless browser resolves DNS itself, so rebinding within one page load is mitigated only by per-request re-checks; agents that legitimately read files and then fetch search-result URLs still send page requests to those sites.
+
+## Audit round 3 (2026-10-16): security, frontend, accessibility, infrastructure
+
+Three independent reviews (backend security, dashboard/CSS/accessibility, infrastructure/dependencies). All confirmed findings fixed; tests in `test_security_regressions.py`, `test_tools.py`, `tests/markdown.test.ts` and `e2e/dashboard.spec.ts`.
+
+| Severity | Finding | Fix |
+|---|---|---|
+| High | Exfiltration guard was per task: a follow-up chat turn (or memories in the prompt) could send earlier file contents out in a URL | A URL is fetched without approval only if a web search in this task returned it or you typed it in this request |
+| Medium | Agents' project notes from one task tree reached unrelated later prompts, without review or expiry | Project memory is only visible inside its own task tree and expires after 30 days |
+| Medium | `web.fetch` buffered whole responses before truncating (memory exhaustion) | Bodies are streamed and cut at 3 MB; only gzip/deflate accepted |
+| Medium | Headless browser followed redirects to addresses that were never checked | Navigations are fetched hop by hop and every redirect target is SSRF-checked (tested with real Chromium) |
+| Medium | Dashboard scrolled sideways on phones with long URLs/ids; custom CSS silently overrode Tailwind utilities | Grid children can shrink, long text wraps; component CSS moved into `@layer components` |
+| Medium | Wake-word voice commands used stale state; login fields, icon buttons and filters had no accessible names; hold-to-talk was mouse-only | Fixed; keyboard push-to-talk (Space/Enter), labels, `aria-pressed/expanded/current`, focus ring, error toasts as alerts |
+| Medium | Docker: sandbox not writable on Linux; compose crash-looped without a token; web didn't wait for the API | UID build arg, required-token check with a clear message, healthchecks |
+| Low | Non-ASCII token returned 500; negative/unbounded list limits; screenshots wrote files without approval; approval cards truncated long writes/moves; more credential file names; paid models reachable via ping; approvals could outlive task timeouts; out-of-order fetches; SSE never reconnected after an error status; low-contrast idle badge; access logs could contain the event-stream token; CI not active; unused "physical" risk class | All fixed |
+| Polish | Agent replies showed raw markdown | Safe renderer that builds React elements only and keeps only http(s) links |
 
 ## Definition of Done (Part 18)
 
@@ -83,7 +99,7 @@ Residual risks (documented, not fully solvable here): the headless browser resol
 | Web search (Tavily / Brave) | 🔑 |
 | Voice (browser speech: push-to-talk, wake phrases, per-agent voices; U is muted) | 🟡 logic tested; microphone flow needs a real browser |
 | Docker Compose | 🟡 written and hardened; images not built here (Docker Hub blocked in the build sandbox) |
-| CI workflow | 🟡 `infrastructure/ci/ci.yml` (copy to `.github/workflows/`) |
+| CI workflow (GitHub Actions: pytest + PostgreSQL + Chromium, type-check, unit, E2E, gitleaks) | ✅ `.github/workflows/ci.yml` |
 
 ## Removed in 0.3.0
 Smart-home / robotics tools (Home Assistant, simulated lab) and the allowlisted terminal: the product is a social media team, not a personal-computer assistant. System metrics remain for the Diagnostics page only (no agent has them).

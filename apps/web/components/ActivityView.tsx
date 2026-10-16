@@ -15,7 +15,7 @@ export function ActivityView({ openTask }: { openTask: (id: string) => void }) {
   }, [client, auditEvents]);
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_420px]">
+    <div className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-[1fr_420px]">
       <Section title="Audit log">
         <div className="max-h-[78vh] overflow-auto">
           <table className="w-full text-left text-xs">

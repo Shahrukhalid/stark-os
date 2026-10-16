@@ -62,7 +62,7 @@ export function AgentGlyph({ icon, color, size = 28, active = false }: { icon: s
 }
 
 export const STATE_META: Record<string, { label: string; color: string; animated: boolean }> = {
-  idle: { label: "Idle", color: "#5b6b77", animated: false },
+  idle: { label: "Idle", color: "#8a9aa6", animated: false },
   listening: { label: "Listening", color: "#22d3ee", animated: true },
   thinking: { label: "Thinking", color: "#a78bfa", animated: true },
   executing: { label: "Executing", color: "#22d3ee", animated: true },
@@ -108,7 +108,6 @@ const AVAIL: Record<string, { label: string; color: string }> = {
   implemented: { label: "Implemented", color: "#34d399" },
   simulated: { label: "Simulated", color: "#fbbf24" },
   requires_credentials: { label: "Requires credentials", color: "#f472b6" },
-  requires_hardware: { label: "Requires hardware", color: "#f472b6" },
   unavailable: { label: "Unavailable", color: "#f87171" },
 };
 
@@ -122,7 +121,7 @@ export function AvailabilityChip({ value }: { value: string }) {
 }
 
 export function RiskChip({ risk }: { risk: string }) {
-  const color = { read: "#7d8d99", memory: "#60a5fa", delegation: "#a78bfa", write: "#fbbf24", external: "#f472b6", sensitive: "#fb923c", physical: "#f87171", destructive: "#ef4444" }[risk] || "#7d8d99";
+  const color = { read: "#7d8d99", memory: "#60a5fa", delegation: "#a78bfa", write: "#fbbf24", external: "#f472b6", sensitive: "#fb923c", destructive: "#ef4444" }[risk] || "#7d8d99";
   return (
     <span className="chip" style={{ borderColor: `${color}55`, color }}>
       {risk}

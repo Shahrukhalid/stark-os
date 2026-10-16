@@ -46,9 +46,9 @@ export function ToolsView() {
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_480px]">
+    <div className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-[1fr_480px]">
       <Section title={`Tool registry (${tools.length})`}>
-        <p className="mb-3 text-xs text-[var(--color-mute)]">Every tool listed is implemented and covered by automated tests. Availability shows what still needs credentials, hardware, or runs as a labelled simulation.</p>
+        <p className="mb-3 text-xs text-[var(--color-mute)]">Every tool listed is implemented and covered by automated tests. Availability shows what still needs credentials or runs as a labelled simulation.</p>
         <div className="space-y-4">
           {Object.entries(groups).map(([cat, list]) => (
             <div key={cat}>

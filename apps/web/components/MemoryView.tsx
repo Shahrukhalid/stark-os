@@ -1,7 +1,7 @@
 "use client";
 
 import { Download, Pencil, Plus, Save, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useStark } from "@/lib/store";
 import type { Memory } from "@/lib/types";
 import { Empty, Section, timeAgo } from "./ui";
@@ -19,13 +19,16 @@ export function MemoryView() {
   const [draft, setDraft] = useState("");
   const [newPref, setNewPref] = useState("");
 
+  const reqId = useRef(0); // search runs on every keystroke: keep only the newest answer
   const load = useCallback(async () => {
+    const id = ++reqId.current;
     const params = new URLSearchParams();
     if (ns) params.set("namespace", ns);
     if (layer) params.set("layer", layer);
     if (q) params.set("q", q);
     try {
       const res = await client.get<{ enabled: boolean; memories: Memory[] }>(`/api/memory?${params}`);
+      if (id !== reqId.current) return;
       setItems(res.memories);
       setEnabled(res.enabled);
     } catch (e: any) {
@@ -33,13 +36,11 @@ export function MemoryView() {
     }
   }, [client, ns, layer, q, notify]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
   const memEvents = events.filter((e) => e.type.startsWith("memory.")).length;
   useEffect(() => {
-    load();
-  }, [memEvents]); // eslint-disable-line react-hooks/exhaustive-deps
+    const t = setTimeout(load, q ? 250 : 0); // debounce typing; reload on memory events
+    return () => clearTimeout(t);
+  }, [load, memEvents, q]);
 
   const namespaces = Array.from(new Set(items.map((m) => m.namespace))).sort();
 
@@ -92,7 +93,7 @@ export function MemoryView() {
             if (newPref.trim()) act(() => client.post("/api/memory", { content: newPref.trim() }), "Preference saved").then(() => setNewPref(""));
           }}
         >
-          <input className="input" placeholder="Add a preference yourself, e.g. “I prefer concise technical explanations”" value={newPref} onChange={(e) => setNewPref(e.target.value)} />
+          <input className="input" aria-label="New preference" placeholder="Add a preference yourself, e.g. “I prefer concise technical explanations”" value={newPref} onChange={(e) => setNewPref(e.target.value)} />
           <button className="btn btn-primary" disabled={!newPref.trim()}>
             <Plus size={14} /> Add
           </button>
@@ -116,7 +117,7 @@ export function MemoryView() {
               </option>
             ))}
           </select>
-          <input className="input" placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input" aria-label="Search memories" placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         <div className="space-y-2">
           {items.length === 0 && <Empty>No memories match.</Empty>}
@@ -130,7 +131,7 @@ export function MemoryView() {
                 {m.expires_at && <span className="text-[var(--color-mute)]">· expires {new Date(m.expires_at).toLocaleDateString()}</span>}
                 <span className="ml-auto flex gap-1">
                   {editing === m.id ? (
-                    <button className="btn !px-2 !py-1" onClick={() => act(() => client.patch(`/api/memory/${m.id}`, { content: draft }), "Memory updated").then(() => setEditing(null))}>
+                    <button className="btn !px-2 !py-1" aria-label="Save memory" title="Save" onClick={() => act(() => client.patch(`/api/memory/${m.id}`, { content: draft }), "Memory updated").then(() => setEditing(null))}>
                       <Save size={12} />
                     </button>
                   ) : (

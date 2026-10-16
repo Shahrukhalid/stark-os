@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink, PauseCircle, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStark } from "@/lib/store";
 import type { ContentItem, SocialAccount } from "@/lib/types";
 import { Empty, Section, timeAgo } from "./ui";
@@ -21,12 +21,15 @@ export function ContentView({ talkTo }: { talkTo: (agentId: string, text?: strin
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [status, setStatus] = useState<(typeof STATUSES)[number]>("all");
 
+  const reqId = useRef(0);
   const load = useCallback(async () => {
+    const id = ++reqId.current;
     try {
       const [q, a] = await Promise.all([
         client.get<{ items: ContentItem[] }>(`/api/social/queue?status=${status}`),
         client.get<{ accounts: SocialAccount[] }>("/api/social/accounts"),
       ]);
+      if (id !== reqId.current) return;
       setItems(q.items);
       setAccounts(a.accounts);
     } catch (e: any) {
@@ -41,7 +44,7 @@ export function ContentView({ talkTo }: { talkTo: (agentId: string, text?: strin
 
   const connected = accounts.filter((a) => a.mode === "connected");
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
+    <div className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-[1fr_320px]">
       <Section
         title="Content queue"
         right={
@@ -70,9 +73,9 @@ export function ContentView({ talkTo }: { talkTo: (agentId: string, text?: strin
                   {it.due && <span className="chip !text-cyan-300">due now</span>}
                   <span className="ml-auto font-mono text-[var(--color-mute)]">{it.id} · by {it.created_by}</span>
                 </div>
-                <p className="whitespace-pre-wrap text-sm">{it.text}</p>
+                <p className="break-anywhere whitespace-pre-wrap text-sm">{it.text}</p>
                 {it.thread?.map((p, i) => (
-                  <p key={i} className="mt-1 border-l-2 border-[var(--color-line)] pl-2 text-sm text-[var(--color-mute)]">{p}</p>
+                  <p key={i} className="break-anywhere mt-1 border-l-2 border-[var(--color-line)] pl-2 text-sm text-[var(--color-mute)]">{p}</p>
                 ))}
                 {it.media?.length > 0 && (
                   <ul className="mt-2 list-disc pl-5 text-xs text-[var(--color-mute)]">
@@ -89,7 +92,7 @@ export function ContentView({ talkTo }: { talkTo: (agentId: string, text?: strin
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--color-mute)]">
                   {it.scheduled_for && <span>scheduled {new Date(it.scheduled_for).toLocaleString()} ({timeAgo(it.scheduled_for)})</span>}
                   {it.error && <span className="text-red-300">{it.error}</span>}
-                  {it.external_url && (
+                  {it.external_url && /^https?:\/\//i.test(it.external_url) && (
                     <a className="inline-flex items-center gap-1 text-cyan-300 hover:underline" href={it.external_url} target="_blank" rel="noreferrer noopener">
                       view post <ExternalLink size={12} />
                     </a>

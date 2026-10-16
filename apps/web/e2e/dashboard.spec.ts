@@ -115,3 +115,24 @@ test("Models panel lists the free pool and pings a model", async ({ page }) => {
   await expect(page.getByText(/ok · \d+ms · tool call/)).toBeVisible({ timeout: 15_000 });
   await page.screenshot({ path: "e2e/screenshots/models.png", fullPage: true });
 });
+
+test("no sideways page scroll on a 360px phone, even with long unbroken text", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await connect(page);
+  await send(page, "Jocasta, summarise https://example.com/" + "a".repeat(180) + " for our audience");
+  await expect(page.getByText(/JOCASTA acknowledges/)).toBeVisible({ timeout: 20_000 });
+  for (const view of ["Command", "Content", "Agents", "Tasks", "Approvals", "Memory", "Models", "Tools", "Activity", "Settings"]) {
+    await page.getByRole("button", { name: view, exact: true }).first().click();
+    await page.waitForTimeout(300);
+    const width = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(width, `${view} page width`).toBeLessThanOrEqual(362);
+  }
+});
+
+test("agent replies render markdown safely", async ({ page }) => {
+  await connect(page);
+  await send(page, "Ultron, **bold** test [x](javascript:alert(1))");
+  const reply = page.getByText(/ULTRON acknowledges/);
+  await expect(reply).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('a[href^="javascript:"]')).toHaveCount(0);
+});

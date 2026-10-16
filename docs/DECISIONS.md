@@ -30,7 +30,7 @@ Text / tool_use / tool_result blocks are converted to OpenAI chat messages (`to_
 - **Plan:** server-side STT/TTS adapters (Whisper/faster-whisper locally; a premium TTS provider optional).
 
 ### D7. Monorepo layout
-`apps/web`, `services/api` (Python package `stark` containing core/, providers/, tools/), `agents/` (config only), `docs/`, `scripts/`, `infrastructure/`. The suggested `core/` and `integrations/` top-level folders became sub-packages of `stark` so the API installs as one Python package.
+`apps/web`, `services/api` (Python package `stark` containing core/, providers/, tools/), `agents/` (config only), `docs/`, `scripts/`, `.github/workflows/`. The suggested `core/` and `integrations/` top-level folders became sub-packages of `stark` so the API installs as one Python package.
 
 ### D8. Tool output is untrusted; permissions don't rely on the model
 Prompts tell agents that tool content is data, but the real defence is structural: allowlists, modes, approvals, path confinement, SSRF guards. A fully prompt-injected agent can still only request actions the policy allows, and changes still need a human.

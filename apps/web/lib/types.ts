@@ -14,7 +14,7 @@ export interface ToolInfo {
   description: string;
   risk: string;
   timeout_s: number;
-  availability: "implemented" | "requires_credentials" | "requires_hardware" | "simulated" | "unavailable";
+  availability: "implemented" | "requires_credentials" | "simulated" | "unavailable";
   availability_detail: string;
   input_schema: Record<string, unknown>;
   agents?: string[];

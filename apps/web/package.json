@@ -1,6 +1,6 @@
 {
   "name": "stark-os-web",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "scripts": {
     "dev": "next dev -H 127.0.0.1 -p 3000",

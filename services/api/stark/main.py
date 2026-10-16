@@ -138,7 +138,8 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         token = header[7:] if header.lower().startswith("bearer ") else ""
         if not token and request.url.path == "/api/events":
             token = request.query_params.get("token", "")  # EventSource cannot send headers
-        if not token or not hmac.compare_digest(token, settings.api_token):
+        if not token or not hmac.compare_digest(token.encode("utf-8", "surrogateescape"),
+                                                settings.api_token.encode("utf-8")):
             raise HTTPException(401, "invalid or missing API token")
 
     @app.exception_handler(KeyError)
@@ -231,6 +232,10 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         if pool is None or not pool.configured()[0]:
             raise HTTPException(409, "OPENROUTER_API_KEY is not configured")
         targets = body.models or pool.pool
+        if not pool.allow_paid:  # never spend money on a ping either
+            from .providers.openrouter import META_ROUTER
+
+            targets = [m for m in targets if m == META_ROUTER or m.endswith(":free") or m in pool.catalog]
         results = []
         for model in targets[: body.limit]:  # sequential: free models are rate-limited
             results.append(await pool.ping(model))
@@ -259,7 +264,7 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         return {"accounts": tool.social.accounts()}
 
     @app.get("/api/social/queue", dependencies=[api])
-    async def social_queue(status: str = "all", platform: str | None = None, limit: int = 100,
+    async def social_queue(status: str = "all", platform: str | None = None, limit: int = Query(100, ge=1, le=500),
                            k: Kernel = Depends(kernel)):
         if status not in {"all", "draft", "scheduled", "published", "failed", "rejected"}:
             raise HTTPException(400, "bad status")
@@ -338,7 +343,7 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         return task
 
     @app.get("/api/conversations", dependencies=[api])
-    async def conversations(k: Kernel = Depends(kernel), limit: int = 50):
+    async def conversations(k: Kernel = Depends(kernel), limit: int = Query(50, ge=1, le=500)):
         with k.db.session() as s:
             return [to_dict(c) for c in s.scalars(select(Conversation).order_by(Conversation.created_at.desc())
                                                    .limit(limit)).all()]
@@ -350,7 +355,7 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
                                                    .order_by(Turn.id)).all()]
 
     @app.get("/api/tasks", dependencies=[api])
-    async def tasks(k: Kernel = Depends(kernel), limit: int = Query(50, le=500), agent_id: str | None = None,
+    async def tasks(k: Kernel = Depends(kernel), limit: int = Query(50, ge=1, le=500), agent_id: str | None = None,
                     root_only: bool = False, status: str | None = None):
         with k.db.session() as s:
             stmt = select(Task).order_by(Task.created_at.desc()).limit(limit)
@@ -384,7 +389,8 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         return {"cancelled": True}
 
     @app.get("/api/messages", dependencies=[api])
-    async def messages(k: Kernel = Depends(kernel), root_id: str | None = None, limit: int = 100):
+    async def messages(k: Kernel = Depends(kernel), root_id: str | None = None,
+                       limit: int = Query(100, ge=1, le=1000)):
         return k.messages.for_root(root_id) if root_id else k.messages.recent(limit)
 
     # ---------------------------------------------------------- approvals
@@ -501,7 +507,7 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
 
     # ---------------------------------------------------------- observability
     @app.get("/api/audit", dependencies=[api])
-    async def audit(k: Kernel = Depends(kernel), limit: int = Query(200, le=2000)):
+    async def audit(k: Kernel = Depends(kernel), limit: int = Query(200, ge=1, le=2000)):
         with k.db.session() as s:
             return [to_dict(a) for a in s.scalars(select(AuditEntry).order_by(AuditEntry.id.desc()).limit(limit)).all()]
 
@@ -551,7 +557,8 @@ def run() -> None:  # console entry point: `stark-api`
 
     load_dotenv(REPO_ROOT / ".env")
     settings = Settings.from_env()
-    uvicorn.run(create_app(settings), host=settings.host, port=settings.port, log_level="warning")
+    # access_log=False: the event stream authenticates with ?token=, which must never reach a log file
+    uvicorn.run(create_app(settings), host=settings.host, port=settings.port, log_level="warning", access_log=False)
 
 
 if __name__ == "__main__":

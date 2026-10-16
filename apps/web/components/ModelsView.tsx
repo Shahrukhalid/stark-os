@@ -115,7 +115,7 @@ export function ModelsView() {
                 const p = pings[m.id];
                 const h = m.health;
                 return (
-                  <tr key={m.id} className={`border-t border-[var(--color-line)] ${m.in_pool ? "" : "opacity-50"}`}>
+                  <tr key={m.id} className={`border-t border-[var(--color-line)] ${m.in_pool ? "" : "text-[var(--color-mute)]"}`}>
                     <td className="py-1.5 pr-2 font-mono">
                       {m.id}
                       {!m.in_pool && <span className="ml-1 text-[var(--color-mute)]">{m.excluded ? "(excluded: API-restricted)" : "(not usable by agents)"}</span>}

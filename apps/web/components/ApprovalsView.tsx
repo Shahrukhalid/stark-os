@@ -15,10 +15,10 @@ export function ApprovalsView({ openTask }: { openTask: (id: string) => void }) 
   }, [client, approvals.length]);
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_420px]">
+    <div className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-[1fr_420px]">
       <Section title={`Approval queue (${approvals.length})`}>
         <p className="mb-3 text-xs text-[var(--color-mute)]">
-          Every change, external action, physical action and sensitive read waits here. Agents stay paused until you decide; requests expire automatically.
+          Every change, every publish and every sensitive read waits here. Agents stay paused until you decide; requests expire automatically.
         </p>
         <div className="space-y-3">
           {approvals.length === 0 && <Empty>Nothing waiting for approval.</Empty>}

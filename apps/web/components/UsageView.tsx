@@ -48,7 +48,7 @@ export function UsageView() {
     </table>
   );
   return (
-    <div className="grid gap-4 xl:grid-cols-2">
+    <div className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-2">
       <Section title="Free request quota (OpenRouter, resets 00:00 UTC)" className="xl:col-span-2">
         {q ? (
           <>

@@ -196,7 +196,7 @@ export function TeamView({ talkTo, openTask }: { talkTo: (id: string) => void; o
   const openAgent = agents.find((a) => a.id === open);
   return (
     <>
-      <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+      <div className="grid gap-4 [&>*]:min-w-0 md:grid-cols-2 2xl:grid-cols-3">
         {agents.map((a) => (
           <AgentCard key={a.id} agent={a} onOpen={() => setOpen(a.id)} talkTo={talkTo} openTask={openTask} />
         ))}

@@ -71,7 +71,7 @@ class Settings:
     task_token_budget: int = 200_000
     max_delegation_depth: int = 2
     max_children_per_task: int = 8
-    approval_timeout_s: int = 900
+    approval_timeout_s: int = 480  # below every agent's task timeout (600 s+), so approvals never die silently
     default_mode: str = "assist"
 
     # memory
@@ -113,7 +113,7 @@ class Settings:
             openrouter_allow_paid=_env_bool("OPENROUTER_ALLOW_PAID", False),
             task_token_budget=_env_int("STARK_TASK_TOKEN_BUDGET", 200_000),
             max_delegation_depth=_env_int("STARK_MAX_DELEGATION_DEPTH", 2),
-            approval_timeout_s=_env_int("STARK_APPROVAL_TIMEOUT_S", 900),
+            approval_timeout_s=_env_int("STARK_APPROVAL_TIMEOUT_S", 480),
             default_mode=_env("STARK_DEFAULT_MODE", "assist"),
             memory_enabled=_env_bool("STARK_MEMORY_ENABLED", True),
             episodic_memory=_env_bool("STARK_EPISODIC_MEMORY", True),

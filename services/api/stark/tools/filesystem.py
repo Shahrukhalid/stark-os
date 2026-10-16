@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import fnmatch
+import os
 import shutil
 from collections import Counter
 from pathlib import Path
@@ -12,8 +13,10 @@ from pydantic import BaseModel, Field
 
 from ..core.tool_registry import ApprovalText, Risk, Tool, ToolResult
 
-SENSITIVE_PATTERNS = [".env", ".env.*", "*.pem", "*.key", "id_rsa*", "id_ed25519*", "*.p12", "*.pfx",
-                      "credentials*", "*secret*", "*.kdbx", ".netrc", ".npmrc", ".pypirc"]
+SENSITIVE_PATTERNS = [".env", ".env.*", "*.env", ".envrc", "*.pem", "*.key", "id_rsa*", "id_ed25519*", "id_ecdsa*",
+                      "*.p12", "*.pfx", "credentials*", "*secret*", "*.kdbx", ".netrc", ".npmrc", ".pypirc",
+                      ".git-credentials", ".pgpass", "*.tfvars", "*.tfstate", "service-account*.json",
+                      "*.keystore", "*.jks", "token*.json"]
 SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", ".next"}
 # Version-control metadata can make tools like git execute commands (hooks, fsmonitor):
 # agents may never create, change or move anything inside these directories.
@@ -127,7 +130,16 @@ class FsList(Tool):
         if not base.is_dir():
             return ToolResult(False, f"{args.path} is not a directory", error="not_a_directory")
         entries = []
-        iterator = base.rglob("*") if args.recursive else base.iterdir()
+        if args.recursive:
+            found: list[Path] = []
+            for dirpath, dirnames, filenames in os.walk(base):  # prunes skipped dirs instead of walking them
+                dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS)
+                found += [Path(dirpath) / n for n in [*dirnames, *sorted(filenames)]]
+                if len(found) > 20_000:  # bounded scan on huge trees
+                    break
+            iterator = found
+        else:
+            iterator = base.iterdir()
         for p in sorted(iterator):
             if any(part in SKIP_DIRS for part in p.relative_to(base).parts) or not inside_roots(p, roots):
                 continue
@@ -249,9 +261,12 @@ class FsProposeOrganization(Tool):
             if p.is_file() and not p.name.startswith("."):
                 cat = category_for(p)
                 moves.append({"src": rel(p, roots), "dst": rel(base / cat / p.name, roots)})
+        remaining = max(0, len(moves) - 50)
+        moves = moves[:50]  # fs.move takes at most 50 per approval, so every move is visible to the user
         counts = Counter(Path(m["dst"]).parent.name for m in moves)
-        return ToolResult(True, f"Proposed {len(moves)} moves into {len(counts)} folders",
-                          {"moves": moves, "folders": dict(counts)})
+        return ToolResult(True, f"Proposed {len(moves)} moves into {len(counts)} folders"
+                          + (f"; {remaining} more files remain for a second batch" if remaining else ""),
+                          {"moves": moves, "folders": dict(counts), "remaining": remaining})
 
 
 class Move(BaseModel):
@@ -260,7 +275,7 @@ class Move(BaseModel):
 
 
 class MoveInput(BaseModel):
-    moves: list[Move] = Field(..., min_length=1, max_length=500)
+    moves: list[Move] = Field(..., min_length=1, max_length=50)  # every move is shown on the approval card
 
 
 class FsMove(Tool):
@@ -287,10 +302,9 @@ class FsMove(Tool):
         return False
 
     def describe(self, args, ctx):
-        lines = "\n".join(f"{m.src} -> {m.dst}" for m in args.moves[:50])
-        more = f"\n... and {len(args.moves) - 50} more" if len(args.moves) > 50 else ""
+        lines = "\n".join(f"{m.src} -> {m.dst}" for m in args.moves)
         return ApprovalText(f"Move {len(args.moves)} file(s)", "workspace",
-                            f"{lines}{more}",
+                            lines,
                             "Files change location. Existing files are never overwritten; moves can be reversed "
                             "manually.")
 
@@ -342,9 +356,14 @@ class FsWrite(Tool):
         return [scope_key(args.path, ctx.settings.workspace_roots)]
 
     def describe(self, args, ctx):
-        preview = args.content[:600] + ("..." if len(args.content) > 600 else "")
+        import hashlib
+
+        limit = 4000
+        preview = args.content[:limit] + (f"\n... [{len(args.content) - limit} more characters not shown]"
+                                          if len(args.content) > limit else "")
+        digest = hashlib.sha256(args.content.encode()).hexdigest()[:16]
         return ApprovalText(f"{'Overwrite' if args.overwrite else 'Create'} file {args.path}", args.path,
-                            f"Writes {len(args.content)} characters:\n{preview}",
+                            f"Writes {len(args.content)} characters (sha256 {digest}):\n{preview}",
                             "Overwriting replaces the existing file permanently." if args.overwrite
                             else "Creates a new file.")
 

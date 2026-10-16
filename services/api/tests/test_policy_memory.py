@@ -52,7 +52,7 @@ def test_safety_shape_of_agents(k):
     assert all(k.tools.get(t).risk is Risk.READ for t in ultron.tools)
     assert "user:preferences" not in ultron.memory.read_namespaces
     edith = k.registry.get("edith")
-    assert not [t for t in edith.tools if k.tools.get(t).risk in {Risk.WRITE, Risk.PHYSICAL, Risk.EXTERNAL}]
+    assert not [t for t in edith.tools if k.tools.get(t).risk in {Risk.WRITE, Risk.EXTERNAL}]
     # no tool anywhere can change permissions, modes, grants or agent configs
     assert not [t for t in k.tools.ids() if t.split(".")[0] in {"permissions", "settings", "grants", "agents", "mode"}]
 
