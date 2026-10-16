@@ -22,8 +22,19 @@ export STARK_PORT="$API_PORT"
 export STARK_WEB_ORIGIN="http://localhost:$WEB_PORT"  # the API only accepts the dashboard on this port
 export NEXT_PUBLIC_STARK_API_URL="http://127.0.0.1:$API_PORT"
 
+[ -x "$ROOT/services/api/.venv/bin/python" ] || { echo "API not installed yet: run 'make setup' first"; exit 1; }
+[ -d "$ROOT/apps/web/node_modules" ] || { echo "Dashboard not installed yet: run 'make setup' first"; exit 1; }
+
 trap 'kill 0' EXIT
 ( cd "$ROOT/services/api" && .venv/bin/python -m stark.main ) &
 ( cd "$ROOT/apps/web" && npx next dev -H 127.0.0.1 -p "$WEB_PORT" ) &
-echo "STARK OS: dashboard http://localhost:$WEB_PORT  ·  API http://127.0.0.1:$API_PORT"
+for _ in $(seq 1 40); do  # wait until the API answers, so a startup error is visible right away
+  curl -fsS "http://127.0.0.1:$API_PORT/api/health" >/dev/null 2>&1 && break
+  sleep 0.5
+done
+if curl -fsS "http://127.0.0.1:$API_PORT/api/health" >/dev/null 2>&1; then
+  echo "STARK OS ready: open http://localhost:$WEB_PORT  (API http://127.0.0.1:$API_PORT)"
+else
+  echo "The API did not start on port $API_PORT. See the error above, or run: make api"
+fi
 wait
