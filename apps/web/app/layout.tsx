@@ -10,8 +10,12 @@ export const viewport: Viewport = { themeColor: "#06080b", width: "device-width"
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen">{children}</body>
+    // suppressHydrationWarning: browser extensions (e.g. security/ad-block add-ons) inject attributes such as
+    // bis_register into <html>/<body> before React loads. It only silences attribute mismatches on these two tags.
+    <html lang="en" suppressHydrationWarning>
+      <body className="min-h-screen" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }
