@@ -1,0 +1,167 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #06080b;
+  --color-panel: #0b1015;
+  --color-panel-2: #0f161d;
+  --color-line: rgba(34, 211, 238, 0.12);
+  --color-line-strong: rgba(34, 211, 238, 0.3);
+  --color-cyan: #22d3ee;
+  --color-cyan-dim: #0e7490;
+  --color-ink: #d7e3ea;
+  --color-mute: #7d8d99;
+  --color-ok: #34d399;
+  --color-warn: #fbbf24;
+  --color-bad: #f87171;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-image:
+    radial-gradient(1200px 600px at 70% -10%, rgba(34, 211, 238, 0.07), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(167, 139, 250, 0.05), transparent 60%);
+  background-attachment: fixed;
+}
+
+/* faint lab grid */
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.panel {
+  background: linear-gradient(180deg, rgba(15, 22, 29, 0.92), rgba(11, 16, 21, 0.92));
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  backdrop-filter: blur(6px);
+}
+
+.panel-title {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-mute);
+}
+
+.hud-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 9px;
+  padding: 6px 12px;
+  font-size: 13px;
+  border: 1px solid var(--color-line-strong);
+  color: var(--color-ink);
+  background: rgba(34, 211, 238, 0.06);
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+.btn:hover:not(:disabled) {
+  background: rgba(34, 211, 238, 0.14);
+  border-color: var(--color-cyan);
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--color-cyan);
+  color: #031016;
+  border-color: var(--color-cyan);
+  font-weight: 600;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #67e8f9;
+}
+.btn-danger {
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(248, 113, 113, 0.08);
+  color: #fecaca;
+}
+.btn-danger:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.2);
+  border-color: var(--color-bad);
+}
+
+.input {
+  width: 100%;
+  background: rgba(3, 7, 10, 0.7);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 10px;
+  padding: 8px 12px;
+  color: var(--color-ink);
+  font-size: 14px;
+  outline: none;
+}
+.input:focus {
+  border-color: var(--color-cyan);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--color-line-strong);
+  color: var(--color-mute);
+  white-space: nowrap;
+}
+
+.prose-stark {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.55;
+  font-size: 14px;
+}
+.prose-stark code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  background: rgba(34, 211, 238, 0.08);
+  padding: 1px 5px;
+  border-radius: 5px;
+}
+
+/* status animations only run while the backend reports real activity */
+@keyframes stark-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.85); }
+}
+@keyframes stark-spin { to { transform: rotate(360deg); } }
+@keyframes stark-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.0), 0 0 40px rgba(34, 211, 238, 0.12) inset; }
+  50% { box-shadow: 0 0 30px 2px rgba(34, 211, 238, 0.25), 0 0 60px rgba(34, 211, 238, 0.2) inset; }
+}
+@keyframes stark-dash { to { stroke-dashoffset: -20; } }
+.anim-pulse { animation: stark-pulse 1.2s ease-in-out infinite; }
+.anim-spin { animation: stark-spin 6s linear infinite; }
+.anim-spin-fast { animation: stark-spin 1.6s linear infinite; }
+.anim-breathe { animation: stark-breathe 2.4s ease-in-out infinite; }
+.anim-dash { stroke-dasharray: 4 6; animation: stark-dash 0.8s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-pulse, .anim-spin, .anim-spin-fast, .anim-breathe, .anim-dash { animation: none; }
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(34, 211, 238, 0.18); border-radius: 8px; }
+::-webkit-scrollbar-track { background: transparent; }

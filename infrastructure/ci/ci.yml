@@ -1,0 +1,44 @@
+# GitHub Actions workflow. Copy to .github/workflows/ci.yml in your repository.
+name: CI
+on:
+  push: { branches: [main] }
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: stark, POSTGRES_PASSWORD: ci-only-password, POSTGRES_DB: stark_test }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with: { python-version: "3.12" }
+      - run: pip install --require-hashes -r services/api/requirements.lock && pip install --no-deps -e "services/api" && pip install "pytest>=8" "pytest-asyncio>=0.23" "playwright>=1.45" "psycopg[binary]>=3.1" && python -m playwright install --with-deps chromium
+      - run: cd services/api && python -m pytest -q
+        env: { TEST_DATABASE_URL: "postgresql+psycopg://stark:ci-only-password@127.0.0.1:5432/stark_test" }
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version: "22" }
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with: { python-version: "3.12" }
+      - run: pip install --require-hashes -r services/api/requirements.lock && pip install --no-deps -e "services/api" && cd apps/web && npm ci && npx playwright install --with-deps chromium
+      - run: cd apps/web && npx tsc --noEmit && npm test && npm run build
+      - run: cd apps/web && npx playwright test
+        env: { STARK_PYTHON: python }
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with: { fetch-depth: 0 }
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          # organisation-owned repos also need: GITLEAKS_LICENSE: "${{ secrets.GITLEAKS_LICENSE }}"

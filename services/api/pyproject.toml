@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stark-os-api"
+version = "0.3.0"
+description = "STARK OS - Project Genesis: governed multi-agent social media team on free models (API)"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "pydantic>=2.7",
+  "sqlalchemy>=2.0.30",
+  "httpx>=0.27",
+  "psutil>=5.9",
+  "pypdf>=4.0",
+]
+
+[project.optional-dependencies]
+browser = ["playwright>=1.45"]
+postgres = ["psycopg[binary]>=3.1"]
+dev = ["pytest>=8", "pytest-asyncio>=0.23"]
+
+[project.scripts]
+stark-api = "stark.main:run"
+
+[tool.setuptools.packages.find]
+include = ["stark*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+markers = ["browser: needs Playwright + Chromium", "postgres: needs a PostgreSQL server (TEST_DATABASE_URL)"]

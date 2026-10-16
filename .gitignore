@@ -1,0 +1,37 @@
+# secrets
+.env
+.env.*
+!.env.example
+.envrc
+*.pem
+*.key
+playwright/.auth/
+# runtime data (databases, memories, your sandbox files)
+data/
+sandbox/
+# python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+# node / next
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+test-results/
+playwright-report/
+apps/web/e2e/screenshots/
+# os / editors
+.DS_Store
+.vscode/
+.idea/
+# databases & logs (if DATABASE_URL / STARK_DATA_DIR point elsewhere)
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.log
+build/
+dist/

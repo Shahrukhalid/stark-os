@@ -1,0 +1,40 @@
+# STARK OS - local deployment. Ports are bound to 127.0.0.1 only.
+#   cp .env.example .env   (or: python3 scripts/setup.py)
+#   docker compose up --build
+# Optional PostgreSQL:  docker compose --profile postgres up --build
+#   and set DATABASE_URL=postgresql+psycopg://stark:${POSTGRES_PASSWORD}@postgres:5432/stark in .env
+services:
+  api:
+    build: { context: ., dockerfile: services/api/Dockerfile }
+    env_file: .env
+    environment:
+      STARK_WEB_ORIGIN: http://localhost:3000
+      STARK_WORKSPACE_ROOTS: /app/sandbox
+    volumes:
+      - stark-data:/app/data
+      - ./sandbox:/app/sandbox
+    ports: ["127.0.0.1:8000:8000"]
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args: { NEXT_PUBLIC_STARK_API_URL: "http://localhost:8000" }
+    depends_on: [api]
+    ports: ["127.0.0.1:3000:3000"]
+    restart: unless-stopped
+
+  postgres:
+    profiles: ["postgres"]
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: stark
+      POSTGRES_DB: stark
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}  # required: set in .env (postgres refuses to start without it)
+    volumes: [stark-pg:/var/lib/postgresql/data]
+    ports: ["127.0.0.1:5432:5432"]
+
+volumes:
+  stark-data:
+  stark-pg:
