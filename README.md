@@ -68,6 +68,8 @@ make dev          # API on 127.0.0.1:8000, dashboard on http://localhost:3000
 
 Open http://localhost:3000 and paste the `STARK_API_TOKEN` from `.env`.
 
+Ports 3000 or 8000 already used by another project? Add `STARK_WEB_PORT=3737` and `STARK_PORT=8737` (any free ports) to `.env`; `make dev` checks that the ports are free and prints the address to open.
+
 ## Try it
 
 | Say or type | What happens |
