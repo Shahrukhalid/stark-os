@@ -1,5 +1,7 @@
 # STARK OS — Project Genesis
 
+[![CI](https://github.com/Shahrukhalid/stark-os/actions/workflows/ci.yml/badge.svg)](https://github.com/Shahrukhalid/stark-os/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-22d3ee.svg)](LICENSE) ![Free models](https://img.shields.io/badge/models-free%20OpenRouter-34d399)
+
 A real, runnable **multi-agent social media team**: seven AI agents, each with its own brain, role and limits, who plan campaigns, write posts, run your community inbox, research trends, stress-test content for backlash and publish — **only after you approve each post**.
 
 The agents are modelled on the AI personas in Vision's Mindspace from Marvel's **VisionQuest** (Disney+, 2026): J.A.R.V.I.S., F.R.I.D.A.Y., E.D.I.T.H., Ultron, Jocasta, D.U.M.-E. and U. Each one's job comes from the role that character has in the series.
