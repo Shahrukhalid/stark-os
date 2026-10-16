@@ -98,7 +98,8 @@ test("DUM-E publishes from chat only after the approval card", async ({ page }) 
   await expect(approve).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText(/SIMULATION ONLY - nothing will be sent to Bluesky/).first()).toBeVisible();
   await approve.click();
-  await expect(page.getByText(/whirr\* SIMULATED publish to Bluesky: nothing was sent/).last()).toBeVisible({ timeout: 20_000 });
+  // the reply is rendered as markdown: "*whirr*" becomes italic "whirr"
+  await expect(page.getByText(/whirr\s+SIMULATED publish to Bluesky: nothing was sent/).last()).toBeVisible({ timeout: 20_000 });
 });
 
 test("FRIDAY triages the inbox and labels sample mentions as simulated", async ({ page }) => {
