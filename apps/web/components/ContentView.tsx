@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, Check, Copy, ExternalLink, Link2, PauseCircle, PlayCircle, RefreshCw, Send, Sparkles, Trash2, Unlink, X } from "lucide-react";
+import { CalendarClock, Check, Download, Copy, ExternalLink, Link2, PauseCircle, PlayCircle, RefreshCw, Send, Sparkles, Trash2, Unlink, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStark } from "@/lib/store";
 import type { ContentItem, SocialAccount } from "@/lib/types";
@@ -62,6 +62,21 @@ export function ContentView({ talkTo }: { talkTo: (agentId: string, text?: strin
 
   const byPlatform = useMemo(() => Object.fromEntries(accounts.map((a) => [a.platform, a])), [accounts]);
 
+  async function downloadCalendar() {
+    try {
+      const ics = await client.get<string>("/api/social/calendar.ics");
+      const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "stark-schedule.ics";
+      a.click();
+      URL.revokeObjectURL(url);
+      notify("success", "Calendar downloaded. Import it into Google Calendar, Apple Calendar or Outlook.");
+    } catch (e: any) {
+      notify("error", e.message);
+    }
+  }
+
   async function resume() {
     try {
       await client.post("/api/social/queue/pause?paused=false");
@@ -91,6 +106,9 @@ export function ContentView({ talkTo }: { talkTo: (agentId: string, text?: strin
               <select className="input !w-auto !py-1 text-xs" value={status} onChange={(e) => setStatus(e.target.value as any)} aria-label="Filter by status">
                 {STATUSES.map((s) => <option key={s} value={s}>{s === "all" ? "All posts" : STATUS_LABEL[s]}</option>)}
               </select>
+              <button className="btn !py-1 text-xs" onClick={downloadCalendar} title="Download your scheduled posts as an .ics calendar file">
+                <Download size={13} /> Download calendar (.ics)
+              </button>
               <button className="btn" onClick={load} title="Refresh" aria-label="Refresh posts"><RefreshCw size={14} /></button>
             </div>
           }
