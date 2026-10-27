@@ -14,7 +14,7 @@ from typing import Any, Literal
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import case, func, select
 
@@ -35,6 +35,7 @@ from .core.db import (
     to_dict,
 )
 from .core.events import EventBus
+from .ics import build_calendar
 from .core.model_router import ModelRouter, NoModelAvailable
 from .core.observability import configure_logging, log
 from .core.permissions import Mode
@@ -458,6 +459,14 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         k.obs.audit("user", "social.schedule", "ok", target=item_id,
                     detail={"when": when.isoformat(), "auto_publish": body.auto})
         return {"ok": True, "scheduled_for": when.isoformat(), "auto_publish": body.auto}
+
+    @app.get("/api/social/calendar.ics", dependencies=[api])
+    async def social_calendar(k: Kernel = Depends(kernel)):
+        items = social_tools.list_queue(k, "scheduled", None, None, 500)
+        items.sort(key=lambda i: i["scheduled_for"] or "")
+        return Response(build_calendar(items), media_type="text/calendar; charset=utf-8",
+                        headers={"Content-Disposition": 'attachment; filename="stark-schedule.ics"',
+                                 "Cache-Control": "no-store"})
 
     @app.post("/api/social/items/{item_id}/unschedule", dependencies=[api])
     async def unschedule_item(item_id: str, k: Kernel = Depends(kernel)):
