@@ -185,3 +185,20 @@ def test_publish_refuses_when_the_page_expected_a_simulation_but_the_account_is_
     assert r.status_code == 409 and "connection changed" in r.json()["detail"]
     r = client.post(f"/api/social/items/{item_id}/publish", json={"fingerprint": fp, "live": False}).json()
     assert r["ok"] and r["simulated"]
+
+
+def test_calendar_feed_requires_token_and_lists_only_scheduled_posts(client):
+    k = client.app.state.kernel
+    sched, draft = _draft(k, body="Scheduled, with comma"), _draft(k, body="Just a draft")
+    with k.db.session() as s:
+        row = s.get(ContentItem, sched)
+        row.status = "scheduled"
+        row.scheduled_for = datetime.now(timezone.utc) + timedelta(days=2)
+
+    assert TestClient(client.app).get("/api/social/calendar.ics").status_code == 401
+    res = client.get("/api/social/calendar.ics")
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("text/calendar")
+    assert f"UID:{sched}@stark-os" in res.text and draft not in res.text
+    assert "SUMMARY:Bluesky: Scheduled\\, with comma" in res.text
+    assert res.text.endswith("END:VCALENDAR\r\n")
