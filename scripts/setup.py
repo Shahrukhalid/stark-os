@@ -21,9 +21,9 @@ def main() -> int:
         print(".env already exists - leaving it untouched.")
     else:
         token = secrets.token_urlsafe(32)
-        content = example.read_text().replace("STARK_API_TOKEN=", f"STARK_API_TOKEN={token}", 1)
+        content = example.read_text(encoding="utf-8").replace("STARK_API_TOKEN=", f"STARK_API_TOKEN={token}", 1)
         fd = os.open(env, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)  # never world-readable, even briefly
-        with os.fdopen(fd, "w") as fh:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(content)
         print("Created .env with a new random STARK_API_TOKEN (file permissions 600).")
         print("Paste this token into the dashboard's Connect screen:\n")

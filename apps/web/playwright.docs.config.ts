@@ -9,7 +9,9 @@ const work = mkdtempSync(path.join(tmpdir(), "stark-docs-"));
 const sandbox = path.join(work, "sandbox");
 mkdirSync(sandbox, { recursive: true });
 writeFileSync(path.join(sandbox, "brand-guidelines.md"), "# Brand\nFriendly, short, no slang.\n");
-const py = process.env.STARK_PYTHON || path.resolve(__dirname, "../../services/api/.venv/bin/python");
+// the venv made by `make setup` / scripts\setup.ps1 (Windows keeps it in Scripts\python.exe); quoted for paths with spaces
+const venvPython = process.platform === "win32" ? "../../services/api/.venv/Scripts/python.exe" : "../../services/api/.venv/bin/python";
+const py = `"${process.env.STARK_PYTHON || path.resolve(__dirname, venvPython)}"`;
 
 export default defineConfig({
   testDir: "e2e",

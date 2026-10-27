@@ -6,7 +6,7 @@ import path from "node:path";
 /**
  * End-to-end: real dashboard (next start) + real API (uvicorn) + a TEST-ONLY scripted model
  * server speaking the OpenRouter (OpenAI-compatible) protocol. Run `npm run build` first.
- * Python: set STARK_PYTHON (default: ../../services/api/.venv/bin/python).
+ * Python: set STARK_PYTHON (default: the venv from `make setup`, .venv/bin/python or .venv\Scripts\python.exe on Windows).
  */
 const TOKEN = "e2e-token-0123456789abcdefghijkl";
 const work = process.env.STARK_E2E_DIR || mkdtempSync(path.join(tmpdir(), "stark-e2e-"));
@@ -15,7 +15,9 @@ mkdirSync(path.join(sandbox, "test-folder"), { recursive: true });
 for (const f of ["notes.md", "photo.jpg", "budget.csv"]) writeFileSync(path.join(sandbox, "test-folder", f), "x");
 process.env.STARK_E2E_DIR = work;
 
-const py = process.env.STARK_PYTHON || path.resolve(__dirname, "../../services/api/.venv/bin/python");
+// the venv made by `make setup` / scripts\setup.ps1 (Windows keeps it in Scripts\python.exe); quoted for paths with spaces
+const venvPython = process.platform === "win32" ? "../../services/api/.venv/Scripts/python.exe" : "../../services/api/.venv/bin/python";
+const py = `"${process.env.STARK_PYTHON || path.resolve(__dirname, venvPython)}"`;
 
 export default defineConfig({
   testDir: "./e2e",
