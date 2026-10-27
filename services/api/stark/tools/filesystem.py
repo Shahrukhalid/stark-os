@@ -79,7 +79,8 @@ def is_sensitive(path: Path) -> bool:
 
 
 def is_protected(path: Path) -> bool:
-    return any(part in PROTECTED_DIRS for part in path.parts)
+    # case-insensitive: on macOS and Windows ".GIT" is the same directory as ".git"
+    return any(part.lower() in PROTECTED_DIRS for part in path.parts)
 
 
 def scope_key(raw: str, roots: list[Path]) -> str:

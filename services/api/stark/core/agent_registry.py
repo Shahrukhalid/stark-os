@@ -109,7 +109,7 @@ class AgentRegistry:
             with cfg_path.open("rb") as fh:
                 data = tomllib.load(fh)
             prompt_path = agent_dir / "system_prompt.md"
-            data["system_prompt"] = prompt_path.read_text() if prompt_path.is_file() else ""
+            data["system_prompt"] = prompt_path.read_text(encoding="utf-8") if prompt_path.is_file() else ""
             try:
                 cfg = AgentConfig.model_validate(data)
             except Exception as exc:  # pydantic ValidationError
