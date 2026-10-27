@@ -26,7 +26,7 @@ dev:
 	./scripts/dev.sh
 
 lint:
-	cd services/api && (.venv/bin/ruff --version >/dev/null 2>&1 || .venv/bin/pip install -q "ruff==0.17.2") && \
+	cd services/api && (.venv/bin/ruff --version >/dev/null 2>&1 || uv pip install -q --python .venv/bin/python "ruff==0.17.2" || .venv/bin/pip install -q "ruff==0.17.2") && \
 	  .venv/bin/ruff check stark tests ../../scripts ../../apps/web/e2e/mock_llm.py
 
 test: test-api test-web
