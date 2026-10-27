@@ -1,7 +1,7 @@
 # STARK OS developer commands (macOS / Linux). Requires Python 3.11+, Node 20+, uv (or pip).
 PY ?= services/api/.venv/bin/python
 
-.PHONY: setup api web dev test test-api test-web e2e docker
+.PHONY: setup api web dev lint test test-api test-web e2e docker
 # first Python >= 3.11 found (macOS ships 3.9 as python3, which is too old)
 PYTHON ?= $(shell for p in python3.13 python3.12 python3.11 python3; do command -v $$p >/dev/null 2>&1 && $$p -c 'import sys; sys.exit(sys.version_info < (3, 11))' 2>/dev/null && command -v $$p && break; done)
 
@@ -24,6 +24,10 @@ web:
 
 dev:
 	./scripts/dev.sh
+
+lint:
+	cd services/api && (.venv/bin/ruff --version >/dev/null 2>&1 || .venv/bin/pip install -q "ruff==0.17.2") && \
+	  .venv/bin/ruff check stark tests ../../scripts ../../apps/web/e2e/mock_llm.py
 
 test: test-api test-web
 

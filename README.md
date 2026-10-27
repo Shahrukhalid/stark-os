@@ -117,6 +117,7 @@ Ports 3000 or 8000 already used by another project? Add `STARK_WEB_PORT=3737` an
 ## Tests
 
 ```bash
+make lint         # ruff check of the Python code (same rules as CI)
 make test         # backend pytest + frontend type-check & unit tests
 make e2e          # Playwright: real dashboard + API + a test-only scripted model
 ```

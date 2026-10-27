@@ -16,6 +16,7 @@ Requirements: Python 3.11+, Node.js 20+, a free [OpenRouter key](https://openrou
 git clone https://github.com/Shahrukhalid/stark-os.git && cd stark-os
 make setup     # installs everything and creates .env
 make dev       # dashboard + API
+make lint      # ruff check of the Python code (same rules as CI)
 make test      # backend tests + dashboard type-check and unit tests
 make e2e       # end-to-end tests (no API key needed: uses a scripted test model)
 ```
@@ -25,7 +26,7 @@ make e2e       # end-to-end tests (no API key needed: uses a scripted test model
 1. Fork the repo and create a branch from `main` (`feature/short-name` or `fix/short-name`).
 2. Keep changes focused: one fix or feature per pull request.
 3. Add or update tests. Every tool and every safety rule has tests; new ones need them too.
-4. Run `make test` (and `make e2e` for dashboard changes) before opening the PR. CI runs the same checks.
+4. Run `make lint` and `make test` (and `make e2e` for dashboard changes) before opening the PR. CI runs the same checks.
 5. Update the docs (README, `docs/USER_GUIDE.md`, `docs/IMPLEMENTATION_STATUS.md`) if behaviour changes.
 6. Fill in the pull request template.
 
