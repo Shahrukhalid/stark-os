@@ -1,8 +1,9 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { Monitor, Moon, Sun, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useStark } from "@/lib/store";
+import { applyTheme, readTheme, saveTheme, type ThemePreference } from "@/lib/theme";
 import { pickVoice, ttsSupported } from "@/lib/voice";
 import { AgentGlyph, Section } from "./ui";
 
@@ -18,6 +19,14 @@ export function SettingsView({ onSignOut }: { onSignOut: () => void }) {
   const [grants, setGrants] = useState<any[]>([]);
   const [g, setG] = useState({ agent_id: "jarvis", tool_id: "fs.move", scope: "", hours: 24 });
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [theme, setTheme] = useState<ThemePreference>("system");
+
+  useEffect(() => setTheme(readTheme()), []);
+  const changeTheme = (next: ThemePreference) => {
+    setTheme(next);
+    saveTheme(next);
+    applyTheme(next);
+  };
 
   const loadGrants = () => client.get<any[]>("/api/grants").then(setGrants).catch(() => {});
   useEffect(() => {
@@ -34,6 +43,31 @@ export function SettingsView({ onSignOut }: { onSignOut: () => void }) {
 
   return (
     <div className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-2">
+      <Section title="Appearance">
+        <div className="space-y-3">
+          <p className="text-sm text-[var(--color-mute)]">Choose how STARK OS looks. Your preference is saved in this browser.</p>
+          <div className="grid grid-cols-3 gap-2" role="group" aria-label="Color theme">
+            {([
+              ["light", "Light", Sun],
+              ["dark", "Dark", Moon],
+              ["system", "System", Monitor],
+            ] as const).map(([id, label, Icon]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => changeTheme(id)}
+                aria-pressed={theme === id}
+                className={`flex items-center justify-center gap-2 rounded-lg border p-3 text-sm transition ${theme === id ? "border-cyan-500 bg-cyan-500/10 text-[var(--color-ink)]" : "border-[var(--color-line)]"}`}
+              >
+                <Icon size={16} />
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-[var(--color-mute)]">{theme === "system" ? "Following your device's appearance setting." : `The ${theme} theme is selected.`}</p>
+        </div>
+      </Section>
+
       <Section title="Execution mode">
         <div className="space-y-2">
           {MODES.map((m) => (
