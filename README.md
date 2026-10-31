@@ -45,7 +45,9 @@ Everything below works today in the free, self-hosted version. Each feature has 
 - **Command**: talk to any agent in plain language, by typing or by voice (push-to-talk, a voice per agent). Example: *"EDITH, write a Bluesky post about our launch."*
 - **Compose**: write a post yourself with a live preview of how it will look on each platform, a character counter, Library snippets, a content category and (on Bluesky) who may reply.
 - **Engagement score**: every draft in Compose gets a 0-100 score based on what your own past posts earned (length, hashtags, questions, links, emoji), with tips to improve it.
-- **Drafts for 9 platforms**: posts, threads, replies and video captions for Bluesky, Mastodon, X, Threads, LinkedIn, Instagram, Facebook, TikTok and YouTube, each written in that platform's style.
+- **Drafts for 12 platforms**: posts, threads, replies and video captions for Bluesky, Mastodon, X, Threads, LinkedIn, Instagram, Facebook, TikTok, YouTube, Telegram, Discord and Slack, each written in that platform's style.
+- **Translate**: one click asks E.D.I.T.H. for a version in another language (13 languages), keeping links, mentions and hashtags.
+- **Quote cards and carousels**: branded images drawn on your computer (four themes; square, portrait or story size). A blank line starts a new carousel slide; the images go to your Media library.
 - **Studio → Repurpose**: paste a blog or YouTube link, or any text, and the team turns it into posts, threads and a video script for every platform you pick.
 - **Studio → AI images**: free original illustrations (no API key) saved in your workspace and attached to posts with alt text. Can be turned off.
 - **Video plans**: U writes storyboards, shot lists, scripts, captions and thumbnail briefs.
@@ -64,7 +66,9 @@ Everything below works today in the free, self-hosted version. Each feature has 
 - **Posting plan**: weekly time slots and a content mix (for example 40% tips, 30% news, 30% promo); *Add to queue* fills the next free slot and the Calendar shows planned versus target mix.
 - **Bluesky reply controls**: choose who can reply to a post (everyone, followers, people you follow, people you mention, or nobody).
 - **Publish automatically**: approve a scheduled post once and it goes out on its own at that time.
-- **Real posting** to **Bluesky** and **Mastodon** (threads and replies too). For the other platforms STARK OS writes ready-to-paste posts and clearly labels publishing as a simulation.
+- **Real posting** to **Bluesky**, **Mastodon**, **Threads**, a **Telegram channel**, a **Discord channel** and a **Slack channel** (all free). For X, LinkedIn, Instagram, Facebook, TikTok and YouTube STARK OS writes ready-to-paste posts and clearly labels publishing as a simulation.
+- **Your channels → drafts**: when you publish a new YouTube video, podcast episode or blog post, an announcement draft appears for your platforms.
+- **Click tracking**: tag the links in a post with UTM parameters, so your website analytics shows which post brought each visit.
 - **Evergreen recycling**: a good post comes back as a fresh draft every 30 days, for you to approve again.
 - **Calendar export (.ics)** for Google Calendar, Apple Calendar or Outlook.
 
@@ -77,6 +81,9 @@ Everything below works today in the free, self-hosted version. Each feature has 
 - **Inbox**: your Bluesky and Mastodon mentions, sorted into escalate, abuse, spam, complaint, question and praise. F.R.I.D.A.Y. drafts the replies.
 - **Listening**: follow keywords, hashtags and competitor accounts. Questions and complaints are flagged, and *Draft reply* writes a response for you to approve.
 - **Competitors**: see a rival account's best posts. *Learn from it* writes an original post in your own voice.
+- **Bluesky messages**: read your direct messages and reply yourself, with saved replies.
+- **Inbox rules**: words that add a label (for example "refund" → *Billing*) to what Listening finds. Labels only: nothing is ever answered automatically.
+- **Replies in their language**: reply drafts follow the language of the post you answer.
 
 ### 6. Measure and learn
 - **Analytics**: real likes, reposts and replies, a 30-day chart, a best-time-to-post heatmap in your time zone, top posts and CSV export. Simulated posts never get made-up numbers.
@@ -121,9 +128,9 @@ Everything below works today in the free, self-hosted version. Each feature has 
 | **Calendar** | See and drag scheduled posts; auto-schedule drafts; posting plan |
 | **Analytics** | Results, best times, top posts, A/B winners, report, CSV |
 | **Growth** | Followers, posting streak, top fans, rising hashtags, proven ideas, starter packs |
-| **Listening** | Keywords, hashtags and competitors; reply drafts |
-| **Studio** | Repurpose content, AI images, A/B tests, brand voice |
-| **Library** | Templates, hashtag groups, signatures, media, bulk import, integrations |
+| **Listening** | Keywords, hashtags, competitors, Bluesky messages, inbox rules; reply drafts |
+| **Studio** | Repurpose content, AI images, quote cards and carousels, A/B tests, brand voice |
+| **Library** | Templates, hashtag groups, signatures, saved replies, media, your channels, bulk import, integrations |
 | **Autopilot** | Campaigns that research, write and schedule on their own |
 | **Agents · Tasks · Approvals · Memory** | The team, its work, what waits for you, what it remembers |
 | **Models · Tools · Diagnostics · Usage · Activity** | Free-model status, tools, health checks, usage, audit log |
@@ -246,10 +253,10 @@ Planned work that contributors can pick up. Each item becomes an issue with deta
 
 - [ ] Docker Compose setup for one-command self-hosting
 - [x] Engagement export (CSV) per post and per platform from the dashboard
-- [ ] Real publishing to Threads through its public API
+- [x] Real publishing to Threads through its public API
 - [x] Previews of how a post looks on each platform
 - [x] Weekly posting time slots
-- [ ] Publishing to Discord and Slack channels
+- [x] Publishing to Telegram, Discord and Slack channels
 
 ## FAQ
 
@@ -264,6 +271,9 @@ Yes: STARK OS is MIT licensed, runs on your own computer and uses free OpenRoute
 
 **Can it post to Bluesky and Mastodon automatically?**
 Yes, through their free APIs, including threads and replies. Scheduled posts go out on their own only if you approved that exact text for that time.
+
+**Can it post to Threads, Telegram, Discord and Slack?**
+Yes, for free: add the token or webhook for each one to `.env` (see `.env.example`).
 
 **What about X (Twitter), LinkedIn and Instagram?**
 Their posting APIs need paid or reviewed access, so STARK OS writes posts sized and checked for each platform and you paste them with one click.

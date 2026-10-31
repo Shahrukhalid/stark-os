@@ -25,7 +25,7 @@ from .core.observability import log
 from .core.tool_registry import Risk, Tool, ToolResult
 from .tools import social as social_tools
 
-SNIPPET_KINDS = ("template", "hashtags", "signature")
+SNIPPET_KINDS = ("template", "hashtags", "signature", "reply")
 MAX_IMPORT_ROWS = 500
 
 
@@ -51,6 +51,11 @@ def create_draft(kernel, social, settings, data: dict[str, Any], created_by: str
         if rc not in social_tools.THREADGATES or platform != "bluesky":
             raise HubError("reply_control (everyone, followers, following, mentioned, nobody) is for Bluesky posts")
         item["reply_control"] = rc
+    if settings.utm_enabled:
+        from .reach import add_utm
+
+        item["text"] = add_utm(item["text"], platform, item["campaign"] or item["category"])
+        item["thread"] = [add_utm(t, platform, item["campaign"] or item["category"]) for t in item["thread"]]
     if item["kind"] not in ("post", "reply", "thread", "video"):
         raise HubError("kind must be post, reply, thread or video")
     check = social_tools._run_check(settings, item)
@@ -142,7 +147,7 @@ def recycle_due(kernel, social, settings, now: datetime | None = None) -> list[s
 def clean_snippet(data: dict[str, Any]) -> dict[str, Any]:
     kind = data.get("kind")
     if kind not in SNIPPET_KINDS:
-        raise HubError("kind must be template, hashtags or signature")
+        raise HubError("kind must be template, hashtags, signature or reply")
     name = str(data.get("name") or "").strip()[:120]
     body = str(data.get("body") or "").strip()
     if not name or not body or len(body) > 5000:

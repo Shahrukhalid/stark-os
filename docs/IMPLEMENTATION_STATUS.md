@@ -1,6 +1,6 @@
 # Implementation status
 
-_Last updated: 2026-11-01 · release 0.9.0 (Compose with previews and engagement score, posting plan, Growth, Bluesky reply controls and starter packs)_
+_Last updated: 2026-11-01 · release 1.0.0 (Threads, Telegram, Discord and Slack publishing; Bluesky messages; inbox rules; own-channel announcements; quote cards; UTM; translation)_
 
 Legend: ✅ **Implemented & tested** · 🟡 **Implemented, not fully live-tested** · 🔑 **Requires credentials** · 🧪 **Simulated** · 📋 **Planned** · ⛔ **Unsupported by design**
 
@@ -14,6 +14,15 @@ Legend: ✅ **Implemented & tested** · 🟡 **Implemented, not fully live-teste
 | `next build` | passed · `npm audit`: **0 vulnerabilities** · `pip-audit`: **0 known vulnerabilities** |
 | Secret scan (gitleaks) on the publishable tree | no leaks |
 | Live OpenRouter check (2026-10-16, from the owner's machine) | key valid (free tier, 50 free requests/day); **10 of 15** chat-capable free models answered with a correct tool call; 4 were temporarily rate-limited upstream (429); 2 are restricted to agentic harnesses (403, excluded) |
+
+## Channels, reach and inbox (1.0.0, 2026-11-01)
+
+🔑 **New publishing channels** (`stark/channels.py`): Threads Graph API (text posts and threads; engagement via insights), Telegram channel (bot admin; photo with caption), Discord channel webhook (mentions disabled), Slack incoming webhook. Configured in `.env`; publishing goes through the same approval and `publish_item` path.
+✅ **UTM tagging** (`reach.add_utm`): own links only (social networks and already-tagged links are skipped); per draft (`POST /api/social/items/{id}/utm`, an edit that re-runs the check and cancels earlier approvals) or for every new draft with `STARK_UTM=true`.
+✅ **Own channels → drafts**: `GET/PUT /api/feeds` (YouTube channel id/URL, podcast or blog RSS); hourly check through Autopilot's SSRF-safe reader; the first check only remembers existing items.
+✅ **Inbox rules**: `GET/PUT /api/inbox/rules`; labels added to Listening results (`mentions.labels`); never automatic replies.
+🔑 **Bluesky DMs**: list, read and send (owner-typed only) via `chat.bsky.convo.*` with the chat proxy header; needs an app password with DM access.
+✅ **Saved replies** (Library kind `reply`), **translation** and **reply in the poster's language** (agent instructions), **quote cards and carousels** drawn in the browser and stored with `POST /api/media/upload`.
 
 ## Smarter posting and growth (0.9.0, 2026-11-01)
 

@@ -191,6 +191,9 @@ class Listening:
     def _store(self, w: dict[str, Any], posts: list[dict[str, Any]]) -> list[dict[str, Any]]:
         new = []
         own = {h.lower() for h in (self.settings.bluesky_handle,) if h}
+        from .reach import apply_rules, get_rules
+
+        rules = get_rules(self.kernel)
         with self.kernel.db.session() as s:
             seen = set(s.scalars(select(Mention.external_id).where(Mention.watch_id == w["id"])).all())
             for p in posts:
@@ -201,7 +204,7 @@ class Listening:
                 row = Mention(watch_id=w["id"], platform=p["platform"], external_id=p["external_id"][:300],
                               url=(p.get("url") or "")[:500] or None, author=p["author"][:200], text=p["text"][:5000],
                               posted_at=_dt(p.get("posted_at")), likes=p.get("likes", 0), reposts=p.get("reposts", 0),
-                              replies=p.get("replies", 0), category=cat,
+                              replies=p.get("replies", 0), category=cat, labels=apply_rules(rules, p["text"]),
                               # competitors' posts are research, not a to-do list
                               status="done" if w["kind"] == "account" else "new")
                 s.add(row)

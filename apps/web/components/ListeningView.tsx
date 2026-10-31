@@ -4,6 +4,7 @@ import { Check, ExternalLink, Hash, Plus, Radar, RefreshCw, Reply, Sparkles, Tra
 import { useCallback, useEffect, useState } from "react";
 import { useStark } from "@/lib/store";
 import type { Competitor, Mention, Watch } from "@/lib/types";
+import { DirectMessages, InboxRules } from "./InboxExtras";
 import { Empty, Section, timeAgo } from "./ui";
 
 const CAT: Record<string, string> = { escalate: "#f87171", abuse: "#fb923c", complaint: "#fbbf24", question: "#22d3ee", praise: "#34d399", spam: "#7d8d99", general: "#a78bfa", competitor: "#f472b6" };
@@ -15,7 +16,7 @@ export function ListeningView({ talkTo }: { talkTo: (agentId: string, text?: str
   const [watches, setWatches] = useState<Watch[]>([]);
   const [mentions, setMentions] = useState<Mention[]>([]);
   const [rivals, setRivals] = useState<Competitor[]>([]);
-  const [tab, setTab] = useState<"new" | "done" | "rivals">("new");
+  const [tab, setTab] = useState<"new" | "done" | "rivals" | "messages">("new");
   const [filter, setFilter] = useState<string>("");
   const [form, setForm] = useState({ kind: "keyword" as Watch["kind"], query: "", bluesky: true, mastodon: true });
   const [busy, setBusy] = useState(false);
@@ -132,11 +133,12 @@ export function ListeningView({ talkTo }: { talkTo: (agentId: string, text?: str
               </ul>
             )}
           </Section>
+          <InboxRules />
         </div>
 
         <section className="panel p-4">
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            {([["new", "To handle"], ["done", "Handled"], ["rivals", "Competitors"]] as const).map(([id, label]) => (
+            {([["new", "To handle"], ["done", "Handled"], ["rivals", "Competitors"], ["messages", "Messages (Bluesky)"]] as const).map(([id, label]) => (
               <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`rounded-lg px-3 py-1.5 text-xs ${tab === id ? "bg-cyan-400/15 text-cyan-200 ring-1 ring-cyan-400/30" : "text-[var(--color-mute)] hover:bg-white/5"}`}>
                 {label}
               </button>
@@ -147,7 +149,9 @@ export function ListeningView({ talkTo }: { talkTo: (agentId: string, text?: str
               </button>
             )}
           </div>
-          {tab === "rivals" ? (
+          {tab === "messages" ? (
+            <DirectMessages />
+          ) : tab === "rivals" ? (
             rivals.length === 0 ? (
               <Empty>Follow a competitor account to see what works for them.</Empty>
             ) : (
@@ -191,12 +195,15 @@ export function ListeningView({ talkTo }: { talkTo: (agentId: string, text?: str
                   <div className="mb-1 flex flex-wrap items-center gap-2 text-xs">
                     <span className="font-semibold">{m.author}</span>
                     <span className="chip" style={{ color: CAT[m.category], borderColor: `${CAT[m.category]}55` }}>{m.category}</span>
+                    {(m.labels || []).map((l) => (
+                      <span key={l} className="chip !border-amber-300/50 !text-amber-300">{l}</span>
+                    ))}
                     <span className="text-[var(--color-mute)]"><span className="capitalize">{m.platform}</span> · {watchName(m.watch_id)}</span>
                     <span className="ml-auto text-[var(--color-mute)]">{timeAgo(m.posted_at || m.created_at)}</span>
                   </div>
                   <p className="break-anywhere whitespace-pre-wrap">{m.text}</p>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    <button className="btn !py-1 text-xs" onClick={() => talkTo("friday", `Friday, draft a ${m.platform} reply to this post by ${m.author}${m.platform === "bluesky" ? ` (reply_to: ${m.external_id})` : ""}:\n\n"${m.text}"\n\nKeep it short, helpful and in our brand voice.`)}>
+                    <button className="btn !py-1 text-xs" onClick={() => talkTo("friday", `Friday, draft a ${m.platform} reply to this post by ${m.author}${m.platform === "bluesky" ? ` (reply_to: ${m.external_id})` : ""}:\n\n"${m.text}"\n\nKeep it short, helpful and in our brand voice. Reply in the same language as their post.`)}>
                       <Reply size={12} /> Draft reply
                     </button>
                     {m.url && (

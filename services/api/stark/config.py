@@ -100,6 +100,12 @@ class Settings:
     listening_enabled: bool = True
     webhook_urls: list[str] = field(default_factory=list)  # automation apps (n8n, Make, Zapier…)
     webhook_secret: str = ""  # signs each call (X-Stark-Signature: sha256=…)
+    threads_access_token: str = ""
+    threads_user_id: str = ""
+    telegram_channel_id: str = ""  # @channelname or -100…; posts there with TELEGRAM_BOT_TOKEN
+    discord_post_webhook_url: str = ""
+    slack_webhook_url: str = ""
+    utm_enabled: bool = False  # tag links in new drafts with utm_source/medium/campaign
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -147,6 +153,12 @@ class Settings:
             listening_enabled=_env_bool("STARK_LISTENING", True),
             webhook_urls=_env_list("STARK_WEBHOOK_URLS", []),
             webhook_secret=_env("STARK_WEBHOOK_SECRET"),
+            threads_access_token=_env("THREADS_ACCESS_TOKEN"),
+            threads_user_id=_env("THREADS_USER_ID"),
+            telegram_channel_id=_env("TELEGRAM_CHANNEL_ID"),
+            discord_post_webhook_url=_env("DISCORD_POST_WEBHOOK_URL"),
+            slack_webhook_url=_env("SLACK_WEBHOOK_URL"),
+            utm_enabled=_env_bool("STARK_UTM", False),
         )
 
 

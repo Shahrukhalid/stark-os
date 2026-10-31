@@ -40,7 +40,8 @@ from ..core.observability import log
 from ..core.tool_registry import ApprovalText, Availability, Risk, Tool, ToolResult
 from .security import SECRET_RULES
 
-Platform = Literal["bluesky", "mastodon", "x", "threads", "linkedin", "instagram", "facebook", "tiktok", "youtube"]
+Platform = Literal["bluesky", "mastodon", "x", "threads", "linkedin", "instagram", "facebook", "tiktok", "youtube",
+                   "telegram", "discord", "slack"]
 
 # limit = characters per post (Bluesky counts grapheme clusters, see grapheme_len).
 PLATFORMS: dict[str, dict[str, Any]] = {
@@ -48,8 +49,8 @@ PLATFORMS: dict[str, dict[str, Any]] = {
     "mastodon": {"name": "Mastodon", "limit": 500, "hashtags": 5, "adapter": "Mastodon API (free)"},
     "x": {"name": "X", "limit": 280, "hashtags": 2, "url_weight": 23,
           "why_simulated": "posting needs a paid X API plan"},
-    "threads": {"name": "Threads", "limit": 500, "hashtags": 1,
-                "why_simulated": "needs a Meta app with Threads API review"},
+    "threads": {"name": "Threads", "limit": 500, "hashtags": 1, "adapter": "Threads API (free)",
+                "why_simulated": "add THREADS_ACCESS_TOKEN and THREADS_USER_ID to .env to post for real (free)"},
     "linkedin": {"name": "LinkedIn", "limit": 3000, "hashtags": 5,
                  "why_simulated": "needs LinkedIn Marketing/Community API approval"},
     "instagram": {"name": "Instagram", "limit": 2200, "hashtags": 30, "hashtags_hard": True, "needs_media": True,
@@ -60,6 +61,12 @@ PLATFORMS: dict[str, dict[str, Any]] = {
                "why_simulated": "needs TikTok Content Posting API audit"},
     "youtube": {"name": "YouTube", "limit": 5000, "hashtags": 15, "needs_media": True,
                 "why_simulated": "needs Google OAuth + a video upload; STARK only drafts scripts/briefs"},
+    "telegram": {"name": "Telegram channel", "limit": 4096, "hashtags": 5, "adapter": "Telegram Bot API (free)",
+                 "why_simulated": "add TELEGRAM_BOT_TOKEN and TELEGRAM_CHANNEL_ID (bot must be a channel admin) to .env"},
+    "discord": {"name": "Discord channel", "limit": 2000, "hashtags": 5, "adapter": "Discord webhook (free)",
+                "why_simulated": "add DISCORD_POST_WEBHOOK_URL (Channel settings → Integrations → Webhooks) to .env"},
+    "slack": {"name": "Slack channel", "limit": 3000, "hashtags": 5, "adapter": "Slack incoming webhook (free)",
+              "why_simulated": "add SLACK_WEBHOOK_URL (an incoming webhook for the channel) to .env"},
 }
 
 URL_RE = re.compile(r"https?://[^\s<>\"']*[^\s<>\"'.,;:!?)\]]")  # trailing punctuation is not part of a link
@@ -724,8 +731,10 @@ class Social:
         self.settings = settings
         self.transport = transport
         self.store = AccountStore(settings)
+        from .. import channels  # Threads, Telegram, Discord, Slack
+
         self.adapters = {"bluesky": BlueskyAdapter(settings, transport),
-                         "mastodon": MastodonAdapter(settings, transport)}
+                         "mastodon": MastodonAdapter(settings, transport), **channels.build(settings, transport)}
 
     def adapter(self, platform: str):
         a = self.adapters.get(platform)
@@ -736,14 +745,14 @@ class Social:
         for pid, spec in PLATFORMS.items():
             real = self.adapter(pid) is not None
             mode = "connected" if real else "simulation"
-            if pid in self.adapters and not real:
+            if pid in ACCOUNT_FIELDS and not real:
                 why = "Connect your account to post for real (free)."
             else:
                 why = spec.get("why_simulated", spec.get("adapter", ""))
             out.append({"platform": pid, "name": spec["name"], "mode": mode, "char_limit": spec["limit"],
                         "detail": spec.get("adapter") if real else why,
-                        "can_connect": pid in self.adapters,
-                        "connected_as": self.store.connected_as(pid) if real else None,
+                        "can_connect": pid in ACCOUNT_FIELDS,
+                        "connected_as": self.store.connected_as(pid) if real and pid in ACCOUNT_FIELDS else None,
                         "source": ("env" if self.store.from_env.get(pid) else "dashboard") if real else None})
         return out
 
