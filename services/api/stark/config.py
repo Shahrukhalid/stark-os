@@ -98,7 +98,7 @@ class Settings:
     digest_hour: int = 9  # local time of the daily digest
     image_generator: str = "pollinations"  # "pollinations" (free, no key) or "off"
     listening_enabled: bool = True
-    webhook_urls: list[str] = field(default_factory=list)  # automation apps (n8n, Make, Zapier…)
+    webhook_urls: list[str] = field(default_factory=list)  # automation apps or your own server
     webhook_secret: str = ""  # signs each call (X-Stark-Signature: sha256=…)
     threads_access_token: str = ""
     threads_user_id: str = ""

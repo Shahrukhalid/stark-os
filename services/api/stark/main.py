@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hmac
+import json
 from csv import Error as csv_error
 import platform
 import time
@@ -43,7 +44,7 @@ from .core.permissions import Mode
 from .core.runtime import TERMINAL, Kernel
 from .providers import ModelProvider
 from . import autopilot as ap
-from . import growth, hub, insights, reach
+from . import automations, growth, hub, insights, reach
 from .core.db import Campaign
 from .tools import build_registry
 from .tools import social as social_tools
@@ -254,6 +255,24 @@ class ApproveItem(BaseModel):
     fingerprint: str = Field(..., min_length=64, max_length=64)
 
 
+class AutomationIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120)
+    enabled: bool = True
+    trigger: dict[str, Any]
+    conditions: list[dict[str, Any]] = Field(default_factory=list, max_length=10)
+    actions: list[dict[str, Any]] = Field(..., min_length=1, max_length=6)
+    recipe: str = ""
+
+
+class RecipeIn(BaseModel):
+    recipe: str = Field(..., max_length=60)
+
+
+class AutomationTestIn(BaseModel):
+    data: dict[str, Any] = Field(default_factory=dict)
+    run: bool = False
+
+
 class ApproveIn(BaseModel):
     items: list[ApproveItem] = Field(..., min_length=1, max_length=50)
 
@@ -300,6 +319,8 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
                       asyncio.create_task(hub.recycler_loop(holder["k"], social, settings)),
                       asyncio.create_task(_snapshot_loop(holder["k"], social)),
                       asyncio.create_task(_feeds_loop(holder["k"], social))]
+        holder["k"].automations = automations.Engine(holder["k"], social, settings, holder["k"].notifier)
+        background.append(asyncio.create_task(holder["k"].automations.loop()))
         yield
         scheduler.cancel()
         for job in background:
@@ -917,6 +938,79 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         ok = await k.webhooks.send({"event": "test", "at": datetime.now(timezone.utc).isoformat(),
                                     "data": {"message": "STARK OS webhook test"}})
         return {"delivered": ok, "of": len(k.webhooks.urls)}
+
+    # ---------------------------------------------------------- automations
+    def _auto(k: Kernel) -> automations.Engine:
+        return k.automations
+
+    @app.get("/api/automations", dependencies=[api])
+    async def list_automations(k: Kernel = Depends(kernel)):
+        return {"automations": _auto(k).list(), "events": automations.EVENTS, "ops": list(automations.OPS),
+                "actions": list(automations.ACTIONS), "agents": list(automations.AGENTS),
+                "platforms": list(social_tools.PLATFORMS)}
+
+    @app.get("/api/automations/recipes", dependencies=[api])
+    async def automation_recipes():
+        return {"recipes": automations.RECIPES}
+
+    @app.get("/api/automations/runs", dependencies=[api])
+    async def automation_runs(automation_id: str | None = None, limit: int = Query(50, ge=1, le=200),
+                              k: Kernel = Depends(kernel)):
+        return {"runs": _auto(k).history(automation_id, limit)}
+
+    @app.post("/api/automations", dependencies=[api])
+    async def create_automation(body: AutomationIn, k: Kernel = Depends(kernel)):
+        try:
+            return _auto(k).save(body.model_dump())
+        except automations.AutomationError as exc:
+            raise HTTPException(400, str(exc)) from None
+
+    @app.post("/api/automations/from-recipe", dependencies=[api])
+    async def automation_from_recipe(body: RecipeIn, k: Kernel = Depends(kernel)):
+        try:
+            return _auto(k).save({**automations.from_recipe(body.recipe), "enabled": False})
+        except automations.AutomationError as exc:
+            raise HTTPException(400, str(exc)) from None
+
+    @app.put("/api/automations/{automation_id}", dependencies=[api])
+    async def update_automation(automation_id: str, body: AutomationIn, k: Kernel = Depends(kernel)):
+        try:
+            return _auto(k).save(body.model_dump(), automation_id)
+        except automations.AutomationError as exc:
+            raise HTTPException(400, str(exc)) from None
+
+    @app.delete("/api/automations/{automation_id}", dependencies=[api])
+    async def delete_automation(automation_id: str, k: Kernel = Depends(kernel)):
+        if not _auto(k).delete(automation_id):
+            raise HTTPException(404, "no such automation")
+        return {"deleted": automation_id}
+
+    @app.post("/api/automations/{automation_id}/test", dependencies=[api])
+    async def test_automation(automation_id: str, body: AutomationTestIn, k: Kernel = Depends(kernel)):
+        a = _auto(k).get(automation_id)
+        if a is None:
+            raise HTTPException(404, "no such automation")
+        payload = {"event": "test", "at": datetime.now(timezone.utc).isoformat(), "data": body.data}
+        plan = _auto(k).plan(a, payload)
+        if body.run and plan["would_run"]:
+            return {**plan, "result": await _auto(k).run(a, payload)}
+        return plan
+
+    @app.post("/api/hooks/{automation_id}/{key}")
+    async def inbound_hook(automation_id: str, key: str, request: Request, k: Kernel = Depends(kernel)):
+        """Called by another app. No API token: the secret key in the address is the password."""
+        raw = await request.body()
+        if len(raw) > 64_000:
+            raise HTTPException(413, "body too large (64 KB max)")
+        try:
+            body = json.loads(raw or b"{}")
+        except ValueError:
+            body = {"text": raw.decode("utf-8", "replace")}
+        res = await _auto(k).inbound(automation_id, key, body)
+        if res is None:
+            raise HTTPException(404, "unknown hook")
+        return {"ok": res["ok"], "steps": [{x: s.get(x) for x in ("type", "result", "error")} for s in res["steps"]],
+                **({"note": res["note"]} if "note" in res else {})}
 
     # ---------------------------------------------------------- autopilot
     def _ap(k: Kernel) -> ap.Autopilot:

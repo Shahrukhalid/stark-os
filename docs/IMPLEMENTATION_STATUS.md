@@ -1,6 +1,6 @@
 # Implementation status
 
-_Last updated: 2026-11-01 · release 1.0.0 (Threads, Telegram, Discord and Slack publishing; Bluesky messages; inbox rules; own-channel announcements; quote cards; UTM; translation)_
+_Last updated: 2026-11-01 · release 1.1.0 (Automations: triggers, conditions and actions; recipe gallery; inbound and outbound webhooks for automation apps)_
 
 Legend: ✅ **Implemented & tested** · 🟡 **Implemented, not fully live-tested** · 🔑 **Requires credentials** · 🧪 **Simulated** · 📋 **Planned** · ⛔ **Unsupported by design**
 
@@ -8,12 +8,21 @@ Legend: ✅ **Implemented & tested** · 🟡 **Implemented, not fully live-teste
 
 | Suite | Result |
 |---|---|
-| Backend `pytest` (runtime, social tools & adapters, Autopilot, tools, permissions, memory, free-model pool, API, security regressions) | **223 passed** on Python 3.13 with PostgreSQL 16 and real Chromium |
-| Frontend type-check + `vitest` | **22 passed** |
-| End-to-end (Playwright: real dashboard + real API + a test-only scripted server speaking the OpenRouter protocol) | **19 passed** (incl. Library, Listening, Studio, Live, Calendar, Analytics and the command palette;  Autopilot campaign → research → writing → fact-check → batch approval, one-click publish, approved auto-publish at a time, account-connect checks, chat approval card, inbox triage, 360 px layout, safe markdown) |
+| Backend `pytest` (runtime, social tools & adapters, Autopilot, tools, permissions, memory, free-model pool, API, security regressions, automations) | **238 passed** (7 PostgreSQL-only skipped locally) on Python 3.13 and real Chromium |
+| Frontend type-check + `vitest` | **26 passed** |
+| End-to-end (Playwright: real dashboard + real API + a test-only scripted server speaking the OpenRouter protocol) | **22 passed** (incl. Automations, Library, Listening, Studio, Live, Calendar, Analytics and the command palette;  Autopilot campaign → research → writing → fact-check → batch approval, one-click publish, approved auto-publish at a time, account-connect checks, chat approval card, inbox triage, 360 px layout, safe markdown) |
 | `next build` | passed · `npm audit`: **0 vulnerabilities** · `pip-audit`: **0 known vulnerabilities** |
 | Secret scan (gitleaks) on the publishable tree | no leaks |
 | Live OpenRouter check (2026-10-16, from the owner's machine) | key valid (free tier, 50 free requests/day); **10 of 15** chat-capable free models answered with a correct tool call; 4 were temporarily rate-limited upstream (429); 2 are restricted to agentic harnesses (403, excluded) |
+
+## Automations (1.1.0, 2026-11-01)
+
+✅ **Engine** (`stark/automations.py`, tables `automations` and `automation_runs`): triggers on bus events (mapped to the public webhook event names), daily/weekly schedules (local time, once per day) and inbound webhooks; conditions (`equals`, `contains`, `greater_than`, `matches`, …) that must all match; up to six actions (`ask_agent`, `create_draft`, `label_mention`, `add_utm`, `notify`, `webhook`) with `{{data.x}}` placeholders. No action can publish.
+✅ **Safety**: what an automation created (`created_by = automation:<id>`) never triggers automations (no loops); 20 runs per automation per hour; webhook actions only to `https://`; each run and each step's result or error stored.
+✅ **API**: `GET/POST /api/automations`, `PUT/DELETE /api/automations/{id}`, `GET /api/automations/recipes`, `POST /api/automations/from-recipe` (added switched off), `POST /api/automations/{id}/test` (dry run or real run), `GET /api/automations/runs`.
+✅ **Inbound webhooks**: `POST /api/hooks/{id}/{key}` without the API token; a 32-character random key compared in constant time; 64 KB body limit; only switched-on webhook automations. Exposure guide (a tunnel that exposes only the hooks path) in `docs/AUTOMATIONS.md`.
+✅ **Dashboard**: Automations page with builder, recipe gallery (11 recipes), test runs, run history and instructions for connecting other apps.
+🟡 **Other automation apps**: the HTTP contract (JSON in, JSON out, signed outgoing requests) is tested; set-up inside each app is described generically.
 
 ## Channels, reach and inbox (1.0.0, 2026-11-01)
 

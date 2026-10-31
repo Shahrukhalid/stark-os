@@ -217,6 +217,33 @@ class ContentItem(Base):
     reply_control: Mapped[str | None] = mapped_column(String(16), nullable=True, default=None)
 
 
+class Automation(Base):
+    """A "when this happens, do that" recipe: a trigger, conditions and actions (never a publish)."""
+
+    __tablename__ = "automations"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: new_id("aut"))
+    name: Mapped[str] = mapped_column(String(120))
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    trigger: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)  # {type, event?, every?, weekday?, time?}
+    conditions: Mapped[list[Any]] = mapped_column(JSON, default=list)  # [{field, op, value}]
+    actions: Mapped[list[Any]] = mapped_column(JSON, default=list)  # [{type, ...}]
+    hook_key: Mapped[str | None] = mapped_column(String(64), nullable=True)  # incoming webhook secret
+    recipe: Mapped[str] = mapped_column(String(60), default="")
+    runs: Mapped[int] = mapped_column(Integer, default=0)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class AutomationRun(Base):
+    __tablename__ = "automation_runs"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: new_id("run"))
+    automation_id: Mapped[str] = mapped_column(String(40), index=True)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    event: Mapped[str] = mapped_column(String(40))
+    ok: Mapped[bool] = mapped_column(Boolean, default=True)
+    steps: Mapped[list[Any]] = mapped_column(JSON, default=list)  # what each action did
+
+
 class AccountStat(Base):
     """One snapshot a day of a connected account's follower, following and post counts."""
 

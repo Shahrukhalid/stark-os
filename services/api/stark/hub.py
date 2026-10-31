@@ -208,7 +208,7 @@ WEBHOOK_EVENTS = {"content.updated", "listening.hit", "approval.created", "autop
 
 
 def webhook_payload(ev: dict[str, Any]) -> dict[str, Any] | None:
-    """What automation apps (n8n, Make, Zapier…) receive. Only a few meaningful events, with stable names."""
+    """What automation apps receive. Only a few meaningful events, with stable names."""
     t, d = ev["type"], ev["data"]
     if t not in WEBHOOK_EVENTS:
         return None

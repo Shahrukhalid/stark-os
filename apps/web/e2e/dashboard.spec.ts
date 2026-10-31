@@ -304,6 +304,37 @@ test("Library: snippets, CSV import and integrations", async ({ page }) => {
   await expect(page.getByText("#launch #ShipIt")).toBeHidden();
 });
 
+test("Automations: recipe gallery, builder, test run and inbound webhook", async ({ page, request }) => {
+  await connect(page);
+  await page.getByRole("button", { name: "Automations", exact: true }).click();
+  await page.getByRole("tab", { name: /Recipe gallery/ }).click();
+  await page.getByRole("button", { name: "Use recipe Drafts from other apps" }).click();
+  await expect(page.getByText("Drafts from other apps").first()).toBeVisible();
+  await page.getByRole("switch", { name: /Switch Drafts from other apps/ }).click();
+  await expect(page.getByText("1 on")).toBeVisible();
+  const hook = (await page.getByText("/api/hooks/").first().textContent())!.trim();
+  const res = await request.post(hook, { data: { platform: "bluesky", text: "Hello from another app" } });
+  expect((await res.json()).ok).toBe(true);
+  await page.getByRole("tab", { name: /Run history/ }).click();
+  await expect(page.getByText(/Create a draft: draft cnt/)).toBeVisible();
+
+  await page.getByRole("tab", { name: /My automations/ }).click();
+  await page.getByRole("button", { name: "New automation" }).click();
+  await page.getByLabel("Automation name").fill("Praise to thank-you");
+  await page.getByLabel("Event").selectOption("mention.found");
+  await page.getByRole("button", { name: "Add condition" }).click();
+  await page.getByLabel("Condition 1 field").fill("data.category");
+  await page.getByLabel("Condition 1 value").fill("praise");
+  await page.getByLabel("Action 1", { exact: true }).selectOption("label_mention");
+  await page.getByRole("button", { name: "Save automation" }).click();
+  await expect(page.getByText("Saved “Praise to thank-you”")).toBeVisible();
+  await page.getByRole("button", { name: "Test" }).last().click();
+  await page.getByRole("button", { name: "Dry run" }).click();
+  await expect(page.getByText("All conditions match: these steps run.")).toBeVisible();
+  await page.getByRole("button", { name: "Delete Praise to thank-you" }).click();
+  await expect(page.getByRole("button", { name: "Delete Praise to thank-you" })).toBeHidden();
+});
+
 test("Compose with preview and score, posting plan, Growth", async ({ page }) => {
   await connect(page);
   await page.getByRole("button", { name: "Compose", exact: true }).click();

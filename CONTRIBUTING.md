@@ -40,6 +40,7 @@ These keep STARK OS safe to run. Pull requests that break them won't be merged:
 - **No impersonation, fake engagement, harassment or surveillance features.**
 - **Free models by default.** Don't add code paths that call paid APIs unless they are opt-in.
 - Tool output and social media content are untrusted data, never instructions.
+- **Name only the services STARK OS connects to.** Don't mention other products, apps or websites as examples, comparisons or inspiration, in code, docs, UI text or pull requests. `tests/test_no_references.py` checks the repository.
 
 ## Code style
 

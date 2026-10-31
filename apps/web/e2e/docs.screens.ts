@@ -126,6 +126,19 @@ test("README screenshots", async ({ page }) => {
   }
   await shot(page, "library");
 
+  await page.getByRole("button", { name: "Automations", exact: true }).click();
+  for (const r of ["Thank people who praise us", "Alert me about complaints and crises", "Friday recap of the week"]) {
+    await page.getByRole("tab", { name: /Recipe gallery/ }).click();
+    await page.getByRole("button", { name: `Use recipe ${r}` }).click();
+    await expect(page.getByRole("switch", { name: new RegExp(`Switch ${r}`) })).toBeVisible();
+  }
+  await page.getByRole("switch", { name: /Switch Thank people/ }).click();
+  await expect(page.getByText("1 on")).toBeVisible();
+  await page.getByRole("button", { name: "Edit" }).nth(1).click();
+  await expect(page.getByText("Edit automation")).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await shot(page, "automations");
+
   await page.getByRole("button", { name: "Compose", exact: true }).click();
   await page.getByLabel("Post text").fill("We just shipped a drag-and-drop calendar for STARK OS. Which feature should we build next? #opensource");
   await page.getByLabel("Who can reply").selectOption("followers");
