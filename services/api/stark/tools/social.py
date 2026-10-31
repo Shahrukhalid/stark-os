@@ -808,7 +808,8 @@ def fingerprint(item: dict[str, Any]) -> str:
 
 def summarize(item: dict[str, Any]) -> dict[str, Any]:
     keys = ("id", "platform", "kind", "text", "thread", "media", "reply_to", "campaign", "sponsored", "status",
-            "scheduled_for", "paused", "simulated", "external_url", "created_by", "error")
+            "scheduled_for", "paused", "simulated", "external_url", "created_by", "error", "evergreen_days",
+            "recycled_from")
     out = {k: item.get(k) for k in keys}
     out["check"] = {"verdict": (item.get("check") or {}).get("verdict"),
                     "issues": (item.get("check") or {}).get("issues", [])}
@@ -1433,7 +1434,8 @@ async def analytics_report(kernel, social: Social, limit: int = 500) -> dict[str
         posts.append({"id": r["id"], "platform": r["platform"], "kind": r["kind"], "text": r["text"][:200],
                       "url": r["external_url"], "campaign": r["campaign"], "simulated": bool(r["simulated"]),
                       "published_at": r["published_at"] or r["updated_at"], "engagement": m,
-                      "score": engagement_score(m) if m is not None else None})
+                      "score": engagement_score(m) if m is not None else None,
+                      "evergreen_days": r.get("evergreen_days")})
     measured = [p["engagement"] for p in posts if p["engagement"] is not None]
     totals = {k: sum(e.get(k, 0) for e in measured) for k in ("likes", "reposts", "replies", "quotes")}
     return {"counts": counts, "posts": posts, "totals": totals, "measured": len(measured),

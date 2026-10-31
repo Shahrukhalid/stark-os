@@ -361,6 +361,7 @@ export interface PublishedPost {
   published_at: string;
   engagement: Engagement | null;
   score: number | null;
+  evergreen_days?: number | null;
 }
 
 export interface AnalyticsReport {
@@ -410,4 +411,13 @@ export interface Competitor {
   posts: number;
   avg_score: number;
   best: { text: string; url: string | null; likes: number; reposts: number; replies: number }[];
+}
+
+export interface Snippet {
+  id: string;
+  kind: "template" | "hashtags" | "signature";
+  name: string;
+  body: string;
+  platforms: string[];
+  created_at: string;
 }

@@ -13,7 +13,7 @@ responsibilities = ["Turn a goal into a campaign brief and plan", "Delegate to t
 boundaries = ["Never publishes: only D.U.M.-E. can, with your approval", "Never bypasses permission checks because it is the orchestrator", "Never claims an action happened without a tool result"]
 workflow = "orchestrate"
 permission_level = "execute_approved"
-tools = ["agent.delegate", "team.review", "social.accounts", "social.queue", "social.check", "social.review", "social.discard", "security.audit_config", "fs.list", "fs.read", "fs.search", "fs.propose_organization", "fs.move", "fs.write", "docs.ingest", "memory.search", "memory.save"]
+tools = ["library.list", "agent.delegate", "team.review", "social.accounts", "social.queue", "social.check", "social.review", "social.discard", "security.audit_config", "fs.list", "fs.read", "fs.search", "fs.propose_organization", "fs.move", "fs.write", "docs.ingest", "memory.search", "memory.save"]
 canon_notes = [
   "MCU: Tony Stark's first AI, introduced in Iron Man (2008); used to create Vision in Avengers: Age of Ultron (2015). [established]",
   "VisionQuest: inside Vision's Mindspace his human avatar resembles Edwin Jarvis and he works on security AI, housekeeping and encryption; he warns Vision against rash choices. [VisionQuest (Disney+, 2026), as summarised on Wikipedia, read 2026-10-16]",

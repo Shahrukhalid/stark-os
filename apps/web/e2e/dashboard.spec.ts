@@ -288,3 +288,18 @@ test("Listening, Studio and phone notification settings", async ({ page }) => {
   await expect(page.getByText("Telegram: off")).toBeVisible();
   await expect(page.getByRole("button", { name: "Send a test" })).toBeDisabled();
 });
+
+test("Library: snippets, CSV import and integrations", async ({ page }) => {
+  await connect(page);
+  await page.getByRole("button", { name: "Library", exact: true }).click();
+  await page.getByRole("tab", { name: /Hashtag groups/ }).click();
+  await page.getByLabel("Name").fill("Launch");
+  await page.getByLabel("Text").fill("launch ShipIt");
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(page.getByText("#launch #ShipIt")).toBeVisible();
+  await page.getByLabel("CSV file").setInputFiles({ name: "posts.csv", mimeType: "text/csv", buffer: Buffer.from("platform,text\nbluesky,Imported from a spreadsheet #csv\n") });
+  await expect(page.getByText("1 imported · 0 scheduled")).toBeVisible();
+  await expect(page.getByText("stark.mcp_server")).toBeVisible();
+  await page.getByRole("button", { name: "Delete Launch" }).click();
+  await expect(page.getByText("#launch #ShipIt")).toBeHidden();
+});

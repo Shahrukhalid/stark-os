@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hmac
+from csv import Error as csv_error
 import platform
 import time
 from pathlib import Path
@@ -42,7 +43,7 @@ from .core.permissions import Mode
 from .core.runtime import TERMINAL, Kernel
 from .providers import ModelProvider
 from . import autopilot as ap
-from . import growth
+from . import growth, hub
 from .core.db import Campaign
 from .tools import build_registry
 from .tools import social as social_tools
@@ -147,6 +148,30 @@ class ImageIn(BaseModel):
     height: int = Field(1024, ge=256, le=1536)
 
 
+class DraftIn(BaseModel):
+    platform: str
+    text: str = Field(..., min_length=1, max_length=10_000)
+    thread: list[str] = Field(default_factory=list, max_length=25)
+    kind: str = "post"
+    campaign: str = Field("", max_length=120)
+    reply_to: str | None = Field(None, max_length=300)
+
+
+class ImportIn(BaseModel):
+    csv: str = Field(..., min_length=10, max_length=2_000_000)
+
+
+class EvergreenIn(BaseModel):
+    days: int | None = None
+
+
+class SnippetIn(BaseModel):
+    kind: str
+    name: str = Field(..., max_length=120)
+    body: str = Field(..., max_length=5000)
+    platforms: list[str] = Field(default_factory=list)
+
+
 class ItemActionIn(BaseModel):
     fingerprint: str = Field(..., min_length=64, max_length=64, description="from the queue: the text you saw")
 
@@ -223,7 +248,7 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
     register_secret(settings.api_token)
     for secret in (settings.openrouter_api_key, settings.bluesky_app_password, settings.mastodon_access_token,
                    settings.tavily_api_key, settings.brave_api_key, settings.telegram_bot_token,
-                   settings.discord_webhook_url):
+                   settings.discord_webhook_url, settings.webhook_secret, *settings.webhook_urls):
         register_secret(secret)
     holder: dict[str, Kernel] = {}
 
@@ -239,10 +264,13 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         holder["k"].listening = growth.Listening(holder["k"], social, settings)
         holder["k"].notifier = growth.Notifier(holder["k"], social, settings)
         scheduler = asyncio.create_task(_scheduler_loop(holder["k"]))
-        notifier = asyncio.create_task(holder["k"].notifier.run())
+        holder["k"].webhooks = hub.Webhooks(holder["k"], settings)
+        background = [asyncio.create_task(holder["k"].notifier.run()), asyncio.create_task(holder["k"].webhooks.run()),
+                      asyncio.create_task(hub.recycler_loop(holder["k"], social, settings))]
         yield
         scheduler.cancel()
-        notifier.cancel()
+        for job in background:
+            job.cancel()
         for job in list(holder["k"]._running.values()):
             job.cancel()
 
@@ -641,6 +669,78 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         except social_tools.MediaFileError as exc:
             raise HTTPException(404, str(exc)) from None
         return Response(data, media_type=meta["mime"], headers={"Cache-Control": "private, max-age=3600"})
+
+    # ---------------------------------------------------------- drafts from outside, import, evergreen, library
+    def _social_for(k: Kernel):
+        return k.tools.get("social.publish").social
+
+    @app.post("/api/social/drafts", dependencies=[api])
+    async def new_draft(body: DraftIn, k: Kernel = Depends(kernel)):
+        try:
+            item = hub.create_draft(k, _social_for(k), settings, body.model_dump(), created_by="user")
+        except hub.HubError as exc:
+            raise HTTPException(400, str(exc)) from None
+        k.obs.audit("user", "social.draft", "ok", target=item["id"])
+        return item
+
+    @app.post("/api/social/import", dependencies=[api])
+    async def import_posts(body: ImportIn, k: Kernel = Depends(kernel)):
+        try:
+            out = hub.import_csv(k, _social_for(k), settings, body.csv)
+        except (hub.HubError, csv_error) as exc:
+            raise HTTPException(400, str(exc)) from None
+        k.obs.audit("user", "social.import", "ok", detail={"created": out["created"], "scheduled": out["scheduled"]})
+        return out
+
+    @app.post("/api/social/items/{item_id}/evergreen", dependencies=[api])
+    async def evergreen(item_id: str, body: EvergreenIn, k: Kernel = Depends(kernel)):
+        try:
+            out = hub.set_evergreen(k, item_id, body.days)
+        except hub.HubError as exc:
+            raise HTTPException(400, str(exc)) from None
+        if out is None:
+            raise HTTPException(404, "no such content item")
+        return out
+
+    @app.get("/api/library", dependencies=[api])
+    async def library(k: Kernel = Depends(kernel)):
+        return {"snippets": hub.snippets(k)}
+
+    @app.post("/api/library", dependencies=[api])
+    async def library_add(body: SnippetIn, k: Kernel = Depends(kernel)):
+        try:
+            return hub.add_snippet(k, body.model_dump())
+        except hub.HubError as exc:
+            raise HTTPException(400, str(exc)) from None
+
+    @app.delete("/api/library/{snippet_id}", dependencies=[api])
+    async def library_delete(snippet_id: str, k: Kernel = Depends(kernel)):
+        if not hub.delete_snippet(k, snippet_id):
+            raise HTTPException(404, "no such snippet")
+        return {"ok": True}
+
+    @app.get("/api/media", dependencies=[api])
+    async def media_list():
+        folder = settings.workspace_roots[0] / growth.IMAGE_DIR if settings.workspace_roots else None
+        if folder is None or not folder.is_dir():
+            return {"images": []}
+        files = sorted((p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in social_tools.IMAGE_TYPES),
+                       key=lambda p: p.stat().st_mtime, reverse=True)[:200]
+        return {"images": [{"name": p.name, "file": f"{growth.IMAGE_DIR}/{p.name}", "bytes": p.stat().st_size,
+                            "modified": datetime.fromtimestamp(p.stat().st_mtime, timezone.utc).isoformat()}
+                           for p in files]}
+
+    @app.get("/api/webhooks", dependencies=[api])
+    async def webhooks_status(k: Kernel = Depends(kernel)):
+        return k.webhooks.status()
+
+    @app.post("/api/webhooks/test", dependencies=[api])
+    async def webhooks_test(k: Kernel = Depends(kernel)):
+        if not k.webhooks.urls:
+            raise HTTPException(409, "Add STARK_WEBHOOK_URLS (https://…) to .env first.")
+        ok = await k.webhooks.send({"event": "test", "at": datetime.now(timezone.utc).isoformat(),
+                                    "data": {"message": "STARK OS webhook test"}})
+        return {"delivered": ok, "of": len(k.webhooks.urls)}
 
     # ---------------------------------------------------------- autopilot
     def _ap(k: Kernel) -> ap.Autopilot:

@@ -116,6 +116,15 @@ test("README screenshots", async ({ page }) => {
   await page.getByRole("button", { name: "Studio", exact: true }).click();
   await page.getByLabel("Link or text to repurpose").fill("https://example.com/blog/how-we-plan-a-week-of-posts");
   await shot(page, "studio");
+
+  await page.getByRole("button", { name: "Library", exact: true }).click();
+  for (const [name, body] of [["New video", "New video is up: {title}. {one-line hook} {link}"], ["Weekly recap", "This week at {brand}: {three wins}. What should we build next?"]]) {
+    await page.getByLabel("Name").fill(name);
+    await page.getByLabel("Text").fill(body);
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(page.getByText(body)).toBeVisible();
+  }
+  await shot(page, "library");
 });
 
 function sampleWatches() {

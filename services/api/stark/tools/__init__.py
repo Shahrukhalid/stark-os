@@ -15,4 +15,7 @@ def build_registry(settings: Settings) -> ToolRegistry:
     from ..growth import GenerateImage  # imported here: growth itself uses the social tools
 
     reg.register(GenerateImage(settings))
+    from ..hub import LibraryList
+
+    reg.register(LibraryList())
     return reg
