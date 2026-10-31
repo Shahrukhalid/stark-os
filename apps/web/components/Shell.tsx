@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, BarChart3, Ear, Library, WandSparkles, Brain, CalendarClock, CalendarDays, Command, Cpu, Home, Gauge, LogOut, MessageSquare, Moon, Network, OctagonX, Radar, Rocket, ScrollText, Settings, ShieldCheck, Sparkles, Sun, Users, Wrench, X } from "lucide-react";
+import { Activity, BarChart3, Ear, Library, PenLine, TrendingUp, WandSparkles, Brain, CalendarClock, CalendarDays, Command, Cpu, Home, Gauge, LogOut, MessageSquare, Moon, Network, OctagonX, Radar, Rocket, ScrollText, Settings, ShieldCheck, Sparkles, Sun, Users, Wrench, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { saveFx, useFx, type FxLevel } from "@/lib/fx";
 import { applyTheme, saveTheme } from "@/lib/theme";
@@ -9,6 +9,8 @@ import { CalendarView } from "./CalendarView";
 import { CommandPalette, type PaletteAction } from "./CommandPalette";
 import { BootOverlay } from "./fx/BootOverlay";
 import { ParticleField } from "./fx/ParticleField";
+import { ComposerView } from "./ComposerView";
+import { GrowthView } from "./GrowthView";
 import { LibraryView } from "./LibraryView";
 import { ListeningView } from "./ListeningView";
 import { LiveView } from "./LiveView";
@@ -30,15 +32,17 @@ import { ToolsView } from "./ToolsView";
 import { UsageView } from "./UsageView";
 import { AgentGlyph } from "./ui";
 
-export type View = "home" | "live" | "calendar" | "analytics" | "listening" | "studio" | "library" | "command" | "content" | "autopilot" | "team" | "tasks" | "approvals" | "memory" | "models" | "tools" | "diagnostics" | "usage" | "activity" | "settings";
+export type View = "home" | "live" | "calendar" | "analytics" | "listening" | "studio" | "library" | "compose" | "growth" | "command" | "content" | "autopilot" | "team" | "tasks" | "approvals" | "memory" | "models" | "tools" | "diagnostics" | "usage" | "activity" | "settings";
 
 const NAV: { id: View; label: string; icon: React.ElementType }[] = [
   { id: "home", label: "Start", icon: Home },
   { id: "live", label: "Live", icon: Radar },
   { id: "command", label: "Command", icon: MessageSquare },
+  { id: "compose", label: "Compose", icon: PenLine },
   { id: "content", label: "Content", icon: CalendarClock },
   { id: "calendar", label: "Calendar", icon: CalendarDays },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
+  { id: "growth", label: "Growth", icon: TrendingUp },
   { id: "listening", label: "Listening", icon: Ear },
   { id: "studio", label: "Studio", icon: WandSparkles },
   { id: "library", label: "Library", icon: Library },
@@ -240,6 +244,8 @@ export function Shell({ onSignOut }: { onSignOut: () => void }) {
           {view === "listening" && <ListeningView talkTo={talkTo} />}
           {view === "studio" && <StudioView talkTo={talkTo} />}
           {view === "library" && <LibraryView />}
+          {view === "compose" && <ComposerView talkTo={talkTo} />}
+          {view === "growth" && <GrowthView talkTo={talkTo} />}
           {view === "content" && <ContentView talkTo={talkTo} />}
           {view === "autopilot" && <AutopilotView />}
           {view === "team" && <TeamView talkTo={talkTo} openTask={openTask} />}

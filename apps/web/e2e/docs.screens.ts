@@ -125,6 +125,12 @@ test("README screenshots", async ({ page }) => {
     await expect(page.getByText(body)).toBeVisible();
   }
   await shot(page, "library");
+
+  await page.getByRole("button", { name: "Compose", exact: true }).click();
+  await page.getByLabel("Post text").fill("We just shipped a drag-and-drop calendar for STARK OS. Which feature should we build next? #opensource");
+  await page.getByLabel("Who can reply").selectOption("followers");
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await shot(page, "compose");
 });
 
 function sampleWatches() {

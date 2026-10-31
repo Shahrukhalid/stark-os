@@ -358,3 +358,4 @@ html[data-theme="light"] .text-red-200, html[data-theme="light"] .text-red-300 {
 html[data-theme="light"] .bg-black\/10, html[data-theme="light"] .bg-black\/20 { background-color: rgba(15, 23, 42, 0.035); }
 html[data-theme="light"] .nav-item[aria-current="page"] { color: #0e7490; background: rgba(8, 145, 178, 0.1); }
 html[data-theme="light"] .stat-glow { text-shadow: none; }
+@keyframes stark-draw { from { stroke-dashoffset: 2000; } to { stroke-dashoffset: 0; } }

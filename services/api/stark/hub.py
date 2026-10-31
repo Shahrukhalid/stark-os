@@ -45,7 +45,12 @@ def create_draft(kernel, social, settings, data: dict[str, Any], created_by: str
     thread = [str(t) for t in (data.get("thread") or [])][:25]
     item = {"platform": platform, "kind": "thread" if thread else str(data.get("kind") or "post"), "text": text,
             "thread": thread, "media": [], "reply_to": data.get("reply_to"), "sponsored": bool(data.get("sponsored")),
-            "campaign": str(data.get("campaign") or "")[:120]}
+            "campaign": str(data.get("campaign") or "")[:120], "category": str(data.get("category") or "")[:40]}
+    rc = data.get("reply_control")
+    if rc and rc != "everyone":
+        if rc not in social_tools.THREADGATES or platform != "bluesky":
+            raise HubError("reply_control (everyone, followers, following, mentioned, nobody) is for Bluesky posts")
+        item["reply_control"] = rc
     if item["kind"] not in ("post", "reply", "thread", "video"):
         raise HubError("kind must be post, reply, thread or video")
     check = social_tools._run_check(settings, item)

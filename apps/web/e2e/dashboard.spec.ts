@@ -303,3 +303,22 @@ test("Library: snippets, CSV import and integrations", async ({ page }) => {
   await page.getByRole("button", { name: "Delete Launch" }).click();
   await expect(page.getByText("#launch #ShipIt")).toBeHidden();
 });
+
+test("Compose with preview and score, posting plan, Growth", async ({ page }) => {
+  await connect(page);
+  await page.getByRole("button", { name: "Compose", exact: true }).click();
+  await page.getByLabel("Post text").fill("Which feature should we build next? #opensource");
+  await expect(page.getByText("Which feature should we build next?").last()).toBeVisible(); // preview
+  await expect(page.getByText(/General guidance|Compared with your average/)).toBeVisible();
+  await page.getByLabel("Who can reply").selectOption("followers");
+  await page.getByRole("button", { name: "Add to queue" }).click();
+  await expect(page.getByText(/Queued for/)).toBeVisible();
+  await page.getByRole("button", { name: "Calendar", exact: true }).click();
+  await expect(page.getByText("Posting plan")).toBeVisible();
+  await page.getByLabel("New category").fill("Behind the scenes");
+  await page.getByRole("button", { name: "Save plan" }).click();
+  await expect(page.getByText("Posting plan saved")).toBeVisible();
+  await page.getByRole("button", { name: "Growth", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Growth" })).toBeVisible();
+  await expect(page.getByText("Bluesky starter pack")).toBeVisible();
+});

@@ -43,7 +43,7 @@ from .core.permissions import Mode
 from .core.runtime import TERMINAL, Kernel
 from .providers import ModelProvider
 from . import autopilot as ap
-from . import growth, hub
+from . import growth, hub, insights
 from .core.db import Campaign
 from .tools import build_registry
 from .tools import social as social_tools
@@ -148,8 +148,26 @@ class ImageIn(BaseModel):
     height: int = Field(1024, ge=256, le=1536)
 
 
+class PlanIn(BaseModel):
+    categories: list[dict[str, Any]] = Field(default_factory=list, max_length=12)
+    slots: list[dict[str, Any]] = Field(default_factory=list, max_length=70)
+
+
+class ItemOptionsIn(BaseModel):
+    category: str | None = Field(None, max_length=40)
+    reply_control: str | None = None
+
+
+class StarterPackIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=50)
+    description: str = Field("", max_length=300)
+    handles: list[str] = Field(..., min_length=1, max_length=150)
+
+
 class DraftIn(BaseModel):
     platform: str
+    category: str = Field("", max_length=40)
+    reply_control: str | None = None
     text: str = Field(..., min_length=1, max_length=10_000)
     thread: list[str] = Field(default_factory=list, max_length=25)
     kind: str = "post"
@@ -266,13 +284,23 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         scheduler = asyncio.create_task(_scheduler_loop(holder["k"]))
         holder["k"].webhooks = hub.Webhooks(holder["k"], settings)
         background = [asyncio.create_task(holder["k"].notifier.run()), asyncio.create_task(holder["k"].webhooks.run()),
-                      asyncio.create_task(hub.recycler_loop(holder["k"], social, settings))]
+                      asyncio.create_task(hub.recycler_loop(holder["k"], social, settings)),
+                      asyncio.create_task(_snapshot_loop(holder["k"], social))]
         yield
         scheduler.cancel()
         for job in background:
             job.cancel()
         for job in list(holder["k"]._running.values()):
             job.cancel()
+
+    async def _snapshot_loop(k: Kernel, social) -> None:
+        """Follower counts of connected accounts, a few times a day (the latest one each day is kept)."""
+        while True:
+            try:
+                await insights.snapshot(k, social)
+            except Exception as exc:  # never let the loop die
+                log.warning(f"snapshot error: {exc}")
+            await asyncio.sleep(6 * 3600)
 
     async def _scheduler_loop(k: Kernel) -> None:
         """Publishes posts approved for a time (by you, or by an Autopilot campaign you set to veto/auto)
@@ -669,6 +697,55 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         except social_tools.MediaFileError as exc:
             raise HTTPException(404, str(exc)) from None
         return Response(data, media_type=meta["mime"], headers={"Cache-Control": "private, max-age=3600"})
+
+    # ---------------------------------------------------------- posting plan, growth, Bluesky extras
+    @app.get("/api/plan", dependencies=[api])
+    async def get_plan(k: Kernel = Depends(kernel)):
+        return insights.get_plan(k)
+
+    @app.put("/api/plan", dependencies=[api])
+    async def put_plan(body: PlanIn, k: Kernel = Depends(kernel)):
+        try:
+            return insights.save_plan(k, body.model_dump())
+        except (insights.InsightError, ValueError, TypeError) as exc:
+            raise HTTPException(400, str(exc)) from None
+
+    @app.post("/api/social/items/{item_id}/options", dependencies=[api])
+    async def item_options(item_id: str, body: ItemOptionsIn, k: Kernel = Depends(kernel)):
+        try:
+            out = insights.set_item_options(k, item_id, body.category, body.reply_control)
+        except insights.InsightError as exc:
+            raise HTTPException(400, str(exc)) from None
+        if out is None:
+            raise HTTPException(404, "no such content item")
+        return out
+
+    @app.get("/api/growth", dependencies=[api])
+    async def growth_report(k: Kernel = Depends(kernel)):
+        return insights.growth_report(k)
+
+    @app.post("/api/growth/snapshot", dependencies=[api])
+    async def growth_snapshot(k: Kernel = Depends(kernel)):
+        return {"saved": await insights.snapshot(k, _social(k))}
+
+    @app.get("/api/growth/fans", dependencies=[api])
+    async def growth_fans(k: Kernel = Depends(kernel)):
+        return await insights.top_fans(_social(k))
+
+    @app.get("/api/growth/trends", dependencies=[api])
+    async def growth_trends(k: Kernel = Depends(kernel)):
+        return {"hashtags": insights.rising_hashtags(k), "outliers": insights.outliers(k)}
+
+    @app.post("/api/bluesky/starter-pack", dependencies=[api])
+    async def starter_pack(body: StarterPackIn, k: Kernel = Depends(kernel)):
+        try:
+            out = await insights.create_starter_pack(_social(k), body.name, body.description, body.handles)
+        except (insights.InsightError, social_tools.AdapterError) as exc:
+            raise HTTPException(400, str(exc)) from None
+        except httpx.HTTPError:
+            raise HTTPException(502, "Could not reach Bluesky.") from None
+        k.obs.audit("user", "bluesky.starter_pack", "ok", target=out["uri"], detail={"added": out["added"]})
+        return out
 
     # ---------------------------------------------------------- drafts from outside, import, evergreen, library
     def _social_for(k: Kernel):

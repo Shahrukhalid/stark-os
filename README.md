@@ -43,6 +43,8 @@ Everything below works today in the free, self-hosted version. Each feature has 
 
 ### 1. Create content
 - **Command**: talk to any agent in plain language, by typing or by voice (push-to-talk, a voice per agent). Example: *"EDITH, write a Bluesky post about our launch."*
+- **Compose**: write a post yourself with a live preview of how it will look on each platform, a character counter, Library snippets, a content category and (on Bluesky) who may reply.
+- **Engagement score**: every draft in Compose gets a 0-100 score based on what your own past posts earned (length, hashtags, questions, links, emoji), with tips to improve it.
 - **Drafts for 9 platforms**: posts, threads, replies and video captions for Bluesky, Mastodon, X, Threads, LinkedIn, Instagram, Facebook, TikTok and YouTube, each written in that platform's style.
 - **Studio → Repurpose**: paste a blog or YouTube link, or any text, and the team turns it into posts, threads and a video script for every platform you pick.
 - **Studio → AI images**: free original illustrations (no API key) saved in your workspace and attached to posts with alt text. Can be turned off.
@@ -59,6 +61,8 @@ Everything below works today in the free, self-hosted version. Each feature has 
 - **Content queue**: every draft, scheduled, published and failed post in one place.
 - **Calendar**: month and week views; drag a post or draft onto a day to schedule it.
 - **Auto-schedule**: one click gives every ready draft its own day at your best-performing time.
+- **Posting plan**: weekly time slots and a content mix (for example 40% tips, 30% news, 30% promo); *Add to queue* fills the next free slot and the Calendar shows planned versus target mix.
+- **Bluesky reply controls**: choose who can reply to a post (everyone, followers, people you follow, people you mention, or nobody).
 - **Publish automatically**: approve a scheduled post once and it goes out on its own at that time.
 - **Real posting** to **Bluesky** and **Mastodon** (threads and replies too). For the other platforms STARK OS writes ready-to-paste posts and clearly labels publishing as a simulation.
 - **Evergreen recycling**: a good post comes back as a fresh draft every 30 days, for you to approve again.
@@ -79,6 +83,9 @@ Everything below works today in the free, self-hosted version. Each feature has 
 - **Report**: one click downloads a ready-to-send results report (print it to PDF if needed).
 - **A/B hook tests**: two versions of a post with different openings; Analytics shows the winner.
 - **Learn my voice**: J.A.R.V.I.S. studies your best posts and saves your brand voice for every agent.
+- **Growth**: follower history for Bluesky and Mastodon, a posting streak, a 12-month posting-consistency graph and your top fans (who likes, reposts and replies most).
+- **Trends and proven ideas**: rising hashtags from your Listening results, and competitor posts that did 3× better than their usual, with one click to write your own take.
+- **Bluesky starter packs**: build a shareable list of up to 150 accounts that people can follow in one click.
 - **Usage and models**: your remaining free AI requests today and the health of each free model.
 
 ### 7. Stay in control from anywhere
@@ -109,9 +116,11 @@ Everything below works today in the free, self-hosted version. Each feature has 
 | **Start** | How it works, setup checklist, one-click starting points |
 | **Live** | Watch the agents work in real time |
 | **Command** | Talk to any agent (text or voice) |
+| **Compose** | Write a post yourself with preview, score, category and queue |
 | **Content** | Review, edit, approve, publish or schedule drafts; connect accounts |
-| **Calendar** | See and drag scheduled posts; auto-schedule drafts |
+| **Calendar** | See and drag scheduled posts; auto-schedule drafts; posting plan |
 | **Analytics** | Results, best times, top posts, A/B winners, report, CSV |
+| **Growth** | Followers, posting streak, top fans, rising hashtags, proven ideas, starter packs |
 | **Listening** | Keywords, hashtags and competitors; reply drafts |
 | **Studio** | Repurpose content, AI images, A/B tests, brand voice |
 | **Library** | Templates, hashtag groups, signatures, media, bulk import, integrations |
@@ -134,7 +143,16 @@ New here? Read the **[user guide](docs/USER_GUIDE.md)**. Exact status: **[docs/I
 
 ## Quick start (macOS / Linux / Windows)
 
-Requirements: Python 3.11+, Node.js 20+, and a free [OpenRouter key](https://openrouter.ai/keys).
+Requirements (all free):
+
+| You need | Download |
+|---|---|
+| Python 3.11 or newer | [python.org/downloads](https://www.python.org/downloads/) |
+| Node.js 20 or newer (LTS) | [nodejs.org/en/download](https://nodejs.org/en/download) |
+| Git | [git-scm.com/downloads](https://git-scm.com/downloads) |
+| An OpenRouter key (free models) | [openrouter.ai/keys](https://openrouter.ai/keys) |
+
+On macOS you can also install them with [Homebrew](https://brew.sh): `brew install python node git`.
 
 ```bash
 git clone https://github.com/Shahrukhalid/stark-os.git && cd stark-os
@@ -159,7 +177,7 @@ Open http://localhost:3000 and paste the `STARK_API_TOKEN` from `.env`.
 
 ### Windows
 
-Requirements: Python 3.11+ from [python.org](https://www.python.org/downloads/windows/) (tick "Add python.exe to PATH"), Node.js 20+ LTS, and Git. In PowerShell:
+Requirements: [Python 3.11+ for Windows](https://www.python.org/downloads/windows/) (tick "Add python.exe to PATH"), [Node.js 20+ LTS](https://nodejs.org/en/download) and [Git for Windows](https://git-scm.com/download/win). In PowerShell:
 
 ```powershell
 git clone https://github.com/Shahrukhalid/stark-os.git; cd stark-os
@@ -193,6 +211,7 @@ Ports 3000 or 8000 already used by another project? Add `STARK_WEB_PORT=3737` an
 | ![Team review with visible collaboration](docs/screenshots/collaboration.png) | ![Command: talk to any agent](docs/screenshots/command.png) |
 | ![Listening: keywords, hashtags and competitors, triaged (sample posts)](docs/screenshots/listening.png) | ![Studio: repurpose, AI images, A/B tests and brand voice](docs/screenshots/studio.png) |
 | ![Autopilot: research, write, fact-check, approve in one click](docs/screenshots/autopilot.png) | ![Library: templates, hashtag groups, signatures, bulk import and integrations](docs/screenshots/library.png) |
+| ![Compose: live preview, engagement score, category and reply control](docs/screenshots/compose.png) | |
 
 The Analytics and Listening screenshots use made-up sample data; the dashboard itself only ever shows real engagement from your connected accounts.
 
@@ -228,8 +247,8 @@ Planned work that contributors can pick up. Each item becomes an issue with deta
 - [ ] Docker Compose setup for one-command self-hosting
 - [x] Engagement export (CSV) per post and per platform from the dashboard
 - [ ] Real publishing to Threads through its public API
-- [ ] Previews of how a post looks on each platform
-- [ ] Weekly posting time slots
+- [x] Previews of how a post looks on each platform
+- [x] Weekly posting time slots
 - [ ] Publishing to Discord and Slack channels
 
 ## FAQ
