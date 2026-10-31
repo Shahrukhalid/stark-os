@@ -36,6 +36,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select, update
 
 from ..core.db import ContentItem, to_dict, utcnow
+from ..core.observability import log
 from ..core.tool_registry import ApprovalText, Availability, Risk, Tool, ToolResult
 from .security import SECRET_RULES
 
@@ -408,6 +409,16 @@ def bluesky_facets(text: str) -> list[dict[str, Any]]:
     return facets
 
 
+# Bluesky reply controls (app.bsky.feed.threadgate). "everyone" = no threadgate record.
+THREADGATES: dict[str, list[dict[str, str]] | None] = {
+    "everyone": None,
+    "followers": [{"$type": "app.bsky.feed.threadgate#followerRule"}],
+    "following": [{"$type": "app.bsky.feed.threadgate#followingRule"}],
+    "mentioned": [{"$type": "app.bsky.feed.threadgate#mentionRule"}],
+    "nobody": [],
+}
+
+
 class BlueskyAdapter:
     platform = "bluesky"
 
@@ -497,6 +508,15 @@ class BlueskyAdapter:
                 reply = {"root": reply["root"] if reply else {"uri": first["uri"], "cid": first["cid"]},
                          "parent": {"uri": ref["uri"], "cid": ref["cid"]}}
             assert first is not None
+            gate = THREADGATES.get(item.get("reply_control") or "everyone")
+            if gate is not None and not item.get("reply_to"):
+                rkey = first["uri"].rsplit("/", 1)[-1]
+                g = await client.post(f"{self.base}/xrpc/com.atproto.repo.putRecord", headers=headers, json={
+                    "repo": sess["did"], "collection": "app.bsky.feed.threadgate", "rkey": rkey,
+                    "record": {"$type": "app.bsky.feed.threadgate", "post": first["uri"], "allow": gate,
+                               "createdAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")}})
+                if g.status_code != 200:  # the post is live; only the reply setting failed
+                    log.warning(f"Bluesky threadgate failed ({g.status_code})")
             return self._ref(first, sess)
 
     async def _upload(self, client, headers, media: dict[str, Any], data: bytes) -> dict[str, Any]:
@@ -809,7 +829,7 @@ def fingerprint(item: dict[str, Any]) -> str:
 def summarize(item: dict[str, Any]) -> dict[str, Any]:
     keys = ("id", "platform", "kind", "text", "thread", "media", "reply_to", "campaign", "sponsored", "status",
             "scheduled_for", "paused", "simulated", "external_url", "created_by", "error", "evergreen_days",
-            "recycled_from")
+            "recycled_from", "category", "reply_control")
     out = {k: item.get(k) for k in keys}
     out["check"] = {"verdict": (item.get("check") or {}).get("verdict"),
                     "issues": (item.get("check") or {}).get("issues", [])}

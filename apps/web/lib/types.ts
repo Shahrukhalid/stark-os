@@ -224,6 +224,9 @@ export interface ContentItem {
   fingerprint: string;
   auto_publish: boolean;
   autopilot?: AutopilotMeta | null;
+  category?: string;
+  reply_control?: string | null;
+  evergreen_days?: number | null;
 }
 
 export interface GateReason {
@@ -420,4 +423,17 @@ export interface Snippet {
   body: string;
   platforms: string[];
   created_at: string;
+}
+
+export interface PostingPlan {
+  categories: { name: string; share: number; color: string }[];
+  slots: { weekday: number; time: string }[];
+}
+
+export interface GrowthReport {
+  series: Record<string, { day: string; followers: number; following: number; posts: number }[]>;
+  summary: Record<string, { followers: number; change_total: number; change_7d: number; since: string }>;
+  posted_days: Record<string, number>;
+  streak: number;
+  active_days_30: number;
 }

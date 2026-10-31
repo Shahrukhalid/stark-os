@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { bestSlots, nextSlots } from "@/lib/analytics";
 import { useStark } from "@/lib/store";
 import type { AnalyticsReport, ContentItem } from "@/lib/types";
+import { PlanEditor } from "./PlanEditor";
 import { Section } from "./ui";
 
 const PLATFORM_COLOR: Record<string, string> = { bluesky: "#38bdf8", mastodon: "#a78bfa", x: "#e5e7eb", linkedin: "#60a5fa", instagram: "#f472b6", tiktok: "#2dd4bf", youtube: "#f87171", threads: "#d4d4d8" };
@@ -248,6 +249,7 @@ export function CalendarView() {
               </ul>
             )}
           </Section>
+          <PlanEditor items={items} />
           <Section title="Best times to post">
             {slots.length ? (
               <ul className="space-y-1.5 text-xs">

@@ -1,6 +1,6 @@
 # Implementation status
 
-_Last updated: 2026-11-01 · release 0.8.0 (Library, bulk import, evergreen recycling, reports, MCP server and webhooks)_
+_Last updated: 2026-11-01 · release 0.9.0 (Compose with previews and engagement score, posting plan, Growth, Bluesky reply controls and starter packs)_
 
 Legend: ✅ **Implemented & tested** · 🟡 **Implemented, not fully live-tested** · 🔑 **Requires credentials** · 🧪 **Simulated** · 📋 **Planned** · ⛔ **Unsupported by design**
 
@@ -14,6 +14,15 @@ Legend: ✅ **Implemented & tested** · 🟡 **Implemented, not fully live-teste
 | `next build` | passed · `npm audit`: **0 vulnerabilities** · `pip-audit`: **0 known vulnerabilities** |
 | Secret scan (gitleaks) on the publishable tree | no leaks |
 | Live OpenRouter check (2026-10-16, from the owner's machine) | key valid (free tier, 50 free requests/day); **10 of 15** chat-capable free models answered with a correct tool call; 4 were temporarily rate-limited upstream (429); 2 are restricted to agentic harnesses (403, excluded) |
+
+## Smarter posting and growth (0.9.0, 2026-11-01)
+
+✅ **Compose**: manual composer with per-platform previews, character counter, Library snippets, category, Bluesky reply control, *Save draft* / *Add to queue* (next free posting-plan slot, no auto-publish).
+✅ **Engagement score** (`lib/score.ts`): 0-100 against the owner's own average from measured posts with the same traits; general guidance (clearly labelled) below 5 measured posts.
+✅ **Posting plan**: `GET/PUT /api/plan` (categories with target shares, weekly slots); `category` on content items; planned vs target mix in Calendar.
+✅ **Bluesky reply controls**: `reply_control` → `app.bsky.feed.threadgate` record after the post is created (a failed threadgate never hides a live post).
+✅ **Growth**: daily follower snapshots (`account_stats`, every 6 h), `GET /api/growth` (series, summary, posting streak, consistency), `GET /api/growth/fans` (top interactors from notifications), `GET /api/growth/trends` (rising hashtags in Listening results; competitor posts ≥ 3× their average).
+✅ **Bluesky starter packs**: `POST /api/bluesky/starter-pack` creates a reference list, list items and a starter pack (up to 150 handles).
 
 ## Workflow (0.8.0, 2026-11-01)
 

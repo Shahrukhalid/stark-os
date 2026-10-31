@@ -212,6 +212,21 @@ class ContentItem(Base):
     # Evergreen: after this many days a published post comes back as a fresh draft (None = off).
     evergreen_days: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
     recycled_from: Mapped[str | None] = mapped_column(String(40), nullable=True, default=None)
+    category: Mapped[str] = mapped_column(String(40), default="")  # content category from the posting plan
+    # Bluesky: who may reply (everyone | followers | following | mentioned | nobody); None = everyone
+    reply_control: Mapped[str | None] = mapped_column(String(16), nullable=True, default=None)
+
+
+class AccountStat(Base):
+    """One snapshot a day of a connected account's follower, following and post counts."""
+
+    __tablename__ = "account_stats"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: new_id("ast"))
+    platform: Mapped[str] = mapped_column(String(24), index=True)
+    day: Mapped[str] = mapped_column(String(10), index=True)  # YYYY-MM-DD (UTC)
+    followers: Mapped[int] = mapped_column(Integer, default=0)
+    following: Mapped[int] = mapped_column(Integer, default=0)
+    posts: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class Snippet(Base):
