@@ -98,6 +98,8 @@ class Settings:
     digest_hour: int = 9  # local time of the daily digest
     image_generator: str = "pollinations"  # "pollinations" (free, no key) or "off"
     listening_enabled: bool = True
+    webhook_urls: list[str] = field(default_factory=list)  # automation apps (n8n, Make, Zapier…)
+    webhook_secret: str = ""  # signs each call (X-Stark-Signature: sha256=…)
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -143,6 +145,8 @@ class Settings:
             digest_hour=_env_int("STARK_DIGEST_HOUR", 9),
             image_generator=_env("STARK_IMAGE_GENERATOR", "pollinations").lower(),
             listening_enabled=_env_bool("STARK_LISTENING", True),
+            webhook_urls=_env_list("STARK_WEBHOOK_URLS", []),
+            webhook_secret=_env("STARK_WEBHOOK_SECRET"),
         )
 
 

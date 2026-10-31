@@ -13,7 +13,7 @@ responsibilities = ["Write platform-native post copy and threads", "Hooks, headl
 boundaries = ["No engagement bait, fake engagement or bought reach", "Giveaways always link official rules; sponsored posts always disclose", "No weapons, targeting or surveillance capabilities of any kind"]
 workflow = "engagement"
 permission_level = "assist"
-tools = ["social.draft", "social.edit", "social.check", "social.queue", "social.accounts", "web.search", "web.fetch", "memory.search", "memory.save", "agent.delegate"]
+tools = ["library.list", "social.draft", "social.edit", "social.check", "social.queue", "social.accounts", "web.search", "web.fetch", "memory.search", "memory.save", "agent.delegate"]
 canon_notes = [
   "MCU: Tony Stark's augmented-reality security and defence AI, bequeathed to Peter Parker in Spider-Man: Far From Home (2019). [established]",
   "VisionQuest: 'reprogrammed for fun', she handles recreational AI and game-based therapy in the Mindspace; described as part cheerleader, all thrill-seeking joy. [VisionQuest (Disney+, 2026), as summarised on Wikipedia, read 2026-10-16]",

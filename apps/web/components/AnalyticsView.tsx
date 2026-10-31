@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, ExternalLink, FlaskConical, Heart, Trophy, MessageCircle, RefreshCw, Repeat2, TrendingUp } from "lucide-react";
+import { Download, ExternalLink, FileText, FlaskConical, Heart, Recycle, Trophy, MessageCircle, RefreshCw, Repeat2, TrendingUp } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { bestSlots, daily, experiments, heatmap, toCsv } from "@/lib/analytics";
 import { useStark } from "@/lib/store";
@@ -142,6 +142,34 @@ export function AnalyticsView() {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
+  /** A self-contained HTML report to send to a client or a boss (open it and print to PDF if needed). */
+  function exportReport() {
+    const esc = (t: unknown) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+    const kpi = [["Published posts", posts.length], ["Likes", totals.likes], ["Reposts", totals.reposts + (totals.quotes || 0)], ["Replies", totals.replies]];
+    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Social media report</title><style>body{font:15px/1.5 system-ui,sans-serif;max-width:860px;margin:32px auto;padding:0 16px;color:#17212b}h1{margin:0}small{color:#64748b}.k{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:24px 0}.k div{border:1px solid #cbd5e1;border-radius:10px;padding:12px}.k b{display:block;font-size:26px;color:#0e7490}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #e2e8f0;padding:6px;text-align:left;vertical-align:top}</style></head><body>
+<h1>Social media report</h1><small>Generated ${esc(new Date().toLocaleString())} · real engagement from Bluesky and Mastodon</small>
+<div class="k">${kpi.map(([l, v]) => `<div><b>${esc(v)}</b>${esc(l)}</div>`).join("")}</div>
+${slots[0] ? `<p><b>Best time to post so far:</b> ${esc(slots[0].label)} (your time zone)</p>` : ""}
+<h2>Top posts</h2><table><tr><th>#</th><th>Post</th><th>Platform</th><th>♥</th><th>⟲</th><th>💬</th></tr>${top.map((p, i) => `<tr><td>${i + 1}</td><td>${esc(p.text)}</td><td>${esc(p.platform)}</td><td>${p.engagement?.likes ?? 0}</td><td>${p.engagement?.reposts ?? 0}</td><td>${p.engagement?.replies ?? 0}</td></tr>`).join("")}</table>
+<h2>Last 30 days</h2><table><tr><th>Day</th><th>Posts</th><th>Likes</th><th>Reposts</th><th>Replies</th></tr>${points.filter((d) => d.posts || d.likes).map((d) => `<tr><td>${esc(d.date.toLocaleDateString())}</td><td>${d.posts}</td><td>${d.likes}</td><td>${d.reposts}</td><td>${d.replies}</td></tr>`).join("")}</table>
+</body></html>`;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
+    a.download = `social-report-${new Date().toISOString().slice(0, 10)}.html`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  async function toggleEvergreen(id: string, on: boolean) {
+    try {
+      await client.post(`/api/social/items/${id}/evergreen`, { days: on ? 30 : null });
+      notify("success", on ? "This post will come back as a draft every 30 days." : "Recycling off.");
+      load(true);
+    } catch (e: any) {
+      notify("error", e.message);
+    }
+  }
+
   const totals = r?.totals ?? { likes: 0, reposts: 0, replies: 0, quotes: 0 };
   const statuses = ["draft", "scheduled", "published", "failed", "rejected"];
 
@@ -162,6 +190,9 @@ export function AnalyticsView() {
           </button>
           <button className="btn text-xs" onClick={exportCsv} disabled={!posts.length}>
             <Download size={13} /> CSV
+          </button>
+          <button className="btn text-xs" onClick={exportReport} disabled={!posts.length}>
+            <FileText size={13} /> Report
           </button>
         </div>
       </section>
@@ -262,6 +293,15 @@ export function AnalyticsView() {
                       <span>{timeAgo(p.published_at)}</span>
                     </span>
                   </span>
+                  <button
+                    className={`shrink-0 ${p.evergreen_days ? "text-emerald-300" : "text-[var(--color-mute)] hover:text-emerald-300"}`}
+                    onClick={() => toggleEvergreen(p.id, !p.evergreen_days)}
+                    aria-pressed={!!p.evergreen_days}
+                    aria-label={p.evergreen_days ? "Stop recycling this post" : "Recycle this post every 30 days"}
+                    title={p.evergreen_days ? `Evergreen: back as a draft every ${p.evergreen_days} days` : "Make evergreen: back as a draft every 30 days"}
+                  >
+                    <Recycle size={13} />
+                  </button>
                   {p.url && (
                     <a href={p.url} target="_blank" rel="noreferrer noopener" className="shrink-0 text-[var(--color-mute)] hover:text-cyan-300" aria-label="Open post">
                       <ExternalLink size={13} />

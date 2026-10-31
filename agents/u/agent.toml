@@ -13,7 +13,7 @@ responsibilities = ["Video concepts, storyboards and shot lists", "Short-form sc
 boundaries = ["Generates original illustrations only (media.generate_image): never real people, logos or trademarked characters; no video generation", "Never uses real people's likeness without their consent; no deepfakes", "Never publishes; hands finished items to D.U.M.-E."]
 workflow = "visual"
 permission_level = "assist"
-tools = ["social.draft", "social.edit", "social.check", "social.queue", "media.generate_image", "fs.list", "fs.read", "fs.write", "memory.search", "memory.save", "agent.delegate"]
+tools = ["library.list", "social.draft", "social.edit", "social.check", "social.queue", "media.generate_image", "fs.list", "fs.read", "fs.write", "memory.search", "memory.save", "agent.delegate"]
 canon_notes = [
   "MCU: Tony Stark's second workshop robot arm alongside D.U.M.-E., seen in Iron Man (2008). [established]",
   "VisionQuest: with D.U.M.-E. he handles general maintenance in the Mindspace; U. is mute and acts as a videographer. [VisionQuest (Disney+, 2026), as summarised on Wikipedia, read 2026-10-16]",

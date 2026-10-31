@@ -209,6 +209,21 @@ class ContentItem(Base):
     # Autopilot metadata (campaign, source story, quality gate, fact-check, keywords, engagement). Empty for
     # items written by hand or by an agent.
     autopilot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True, default=None)
+    # Evergreen: after this many days a published post comes back as a fresh draft (None = off).
+    evergreen_days: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
+    recycled_from: Mapped[str | None] = mapped_column(String(40), nullable=True, default=None)
+
+
+class Snippet(Base):
+    """Library: reusable templates, hashtag groups and signatures the owner and the agents can use."""
+
+    __tablename__ = "snippets"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: new_id("snp"))
+    kind: Mapped[str] = mapped_column(String(16))  # template | hashtags | signature
+    name: Mapped[str] = mapped_column(String(120))
+    body: Mapped[str] = mapped_column(Text)
+    platforms: Mapped[list[Any]] = mapped_column(JSON, default=list)  # empty = all
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
 class Watch(Base):

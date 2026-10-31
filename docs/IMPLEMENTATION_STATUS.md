@@ -1,6 +1,6 @@
 # Implementation status
 
-_Last updated: 2026-10-31 · release 0.7.0 (social listening, Studio, phone approvals and self-learning tools)_
+_Last updated: 2026-11-01 · release 0.8.0 (Library, bulk import, evergreen recycling, reports, MCP server and webhooks)_
 
 Legend: ✅ **Implemented & tested** · 🟡 **Implemented, not fully live-tested** · 🔑 **Requires credentials** · 🧪 **Simulated** · 📋 **Planned** · ⛔ **Unsupported by design**
 
@@ -8,12 +8,22 @@ Legend: ✅ **Implemented & tested** · 🟡 **Implemented, not fully live-teste
 
 | Suite | Result |
 |---|---|
-| Backend `pytest` (runtime, social tools & adapters, Autopilot, tools, permissions, memory, free-model pool, API, security regressions) | **219 passed** on Python 3.13 with PostgreSQL 16 and real Chromium |
+| Backend `pytest` (runtime, social tools & adapters, Autopilot, tools, permissions, memory, free-model pool, API, security regressions) | **223 passed** on Python 3.13 with PostgreSQL 16 and real Chromium |
 | Frontend type-check + `vitest` | **22 passed** |
-| End-to-end (Playwright: real dashboard + real API + a test-only scripted server speaking the OpenRouter protocol) | **18 passed** (incl. Listening, Studio, Live, Calendar, Analytics and the command palette;  Autopilot campaign → research → writing → fact-check → batch approval, one-click publish, approved auto-publish at a time, account-connect checks, chat approval card, inbox triage, 360 px layout, safe markdown) |
+| End-to-end (Playwright: real dashboard + real API + a test-only scripted server speaking the OpenRouter protocol) | **19 passed** (incl. Library, Listening, Studio, Live, Calendar, Analytics and the command palette;  Autopilot campaign → research → writing → fact-check → batch approval, one-click publish, approved auto-publish at a time, account-connect checks, chat approval card, inbox triage, 360 px layout, safe markdown) |
 | `next build` | passed · `npm audit`: **0 vulnerabilities** · `pip-audit`: **0 known vulnerabilities** |
 | Secret scan (gitleaks) on the publishable tree | no leaks |
 | Live OpenRouter check (2026-10-16, from the owner's machine) | key valid (free tier, 50 free requests/day); **10 of 15** chat-capable free models answered with a correct tool call; 4 were temporarily rate-limited upstream (429); 2 are restricted to agentic harnesses (403, excluded) |
+
+## Workflow (0.8.0, 2026-11-01)
+
+✅ **Library**: templates, hashtag groups (normalised to unique #tags) and signatures; `library.list` for J.A.R.V.I.S., E.D.I.T.H., F.R.I.D.A.Y. and U, whose prompts say to use them. Media library of generated images.
+✅ **Bulk import**: `POST /api/social/import` (CSV: platform, text, scheduled_for, campaign, thread), max 500 rows; policy check per row; times become scheduled without auto-publish.
+✅ **Evergreen**: `POST /api/social/items/{id}/evergreen` (7-365 days); an hourly job turns due published posts into fresh drafts and moves the setting to the copy.
+✅ **Report**: Analytics → Report downloads a self-contained HTML report.
+✅ **MCP server** (`python -m stark.mcp_server`, stdio): status, queue, create/schedule drafts (no auto-publish), ask the team, task status, analytics, mentions. No publish tool by design. `POST /api/social/drafts` backs it.
+✅ **Webhooks**: `STARK_WEBHOOK_URLS` get post.drafted/scheduled/published/failed, mention.found, approval.needed, autopilot.alert and estop, once per post and state, HMAC-signed with `STARK_WEBHOOK_SECRET`.
+⛔ Auto-like, auto-follow-back and auto-comment (offered by some schedulers) are left out on purpose: they break Bluesky's and Mastodon's anti-spam rules.
 
 ## Growth (0.7.0, 2026-10-31)
 

@@ -13,7 +13,7 @@ responsibilities = ["Monitor mentions and replies (inbox)", "Triage: escalate, a
 boundaries = ["Drafts replies; never publishes them", "Never argues with abusive users; never replies to spam", "Moves personal details to private channels; never posts them"]
 workflow = "community"
 permission_level = "assist"
-tools = ["social.inbox", "social.draft", "social.edit", "social.check", "social.queue", "social.accounts", "memory.search", "memory.save", "agent.delegate"]
+tools = ["library.list", "social.inbox", "social.draft", "social.edit", "social.check", "social.queue", "social.accounts", "memory.search", "memory.save", "agent.delegate"]
 canon_notes = [
   "MCU: replaces J.A.R.V.I.S. as Tony Stark's assistant from Avengers: Age of Ultron (2015). [established]",
   "VisionQuest: in the Mindspace she helps Vision with socialization issues, AI humour and tactical operations. [VisionQuest (Disney+, 2026), as summarised on Wikipedia, read 2026-10-16]",
