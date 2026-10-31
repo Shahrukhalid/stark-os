@@ -152,5 +152,10 @@ def test_listening_and_notify_api(settings):
         assert c.delete(f"/api/listening/watches/{w['id']}").json()["ok"]
         assert c.get("/api/notify/status").json()["telegram"] is False
         assert c.post("/api/notify/test").status_code == 409
-        assert c.get("/api/media/file", params={"path": "../etc/passwd"}).status_code == 404
+        assert c.get("/api/media/file", params={"name": "../../etc/passwd"}).status_code == 404
+        img = settings.workspace_roots[0] / growth.IMAGE_DIR
+        img.mkdir(parents=True)
+        (img / "a.png").write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 50)
+        r = c.get("/api/media/file", params={"name": "a.png"})
+        assert r.status_code == 200 and r.headers["content-type"] == "image/png"
         assert "media.generate_image" in c.get("/api/system/status").json()["tools"]

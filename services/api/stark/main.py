@@ -629,9 +629,15 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         return out
 
     @app.get("/api/media/file", dependencies=[api])
-    async def media_file(path: str):
+    async def media_file(name: str):
+        """A generated image, by file name. The file is picked from the folder listing, never built from input."""
+        folder = settings.workspace_roots[0] / growth.IMAGE_DIR if settings.workspace_roots else None
+        found = next((p for p in folder.iterdir() if p.is_file() and p.name == name), None) \
+            if folder is not None and folder.is_dir() else None
+        if found is None:
+            raise HTTPException(404, "no such image")
         try:
-            meta, data = social_tools.load_media_file(settings, path)
+            meta, data = social_tools.load_media_file(settings, f"{growth.IMAGE_DIR}/{found.name}")
         except social_tools.MediaFileError as exc:
             raise HTTPException(404, str(exc)) from None
         return Response(data, media_type=meta["mime"], headers={"Cache-Control": "private, max-age=3600"})

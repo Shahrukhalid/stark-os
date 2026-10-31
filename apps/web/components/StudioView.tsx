@@ -54,7 +54,7 @@ export function StudioView({ talkTo }: { talkTo: (agentId: string, text?: string
     setImgBusy(true);
     try {
       const out = await client.post<{ file: string }>("/api/media/generate", { prompt });
-      const blob = await client.blob(`/api/media/file?path=${encodeURIComponent(out.file)}`);
+      const blob = await client.blob(`/api/media/file?name=${encodeURIComponent(out.file.split("/").pop() || "")}`);
       setImg({ file: out.file, url: URL.createObjectURL(blob) });
     } catch (e: any) {
       notify("error", e.message);
