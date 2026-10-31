@@ -8,7 +8,7 @@ const TOKEN = "e2e-token-0123456789abcdefghijkl";
 async function shot(page: Page, name: string) {
   const dismiss = page.getByRole("button", { name: "Dismiss" });
   while (await dismiss.count()) await dismiss.first().click(); // no toasts in the README images
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(1000); // let the tab's boot-up animation finish
   await page.screenshot({ path: `../../docs/screenshots/${name}.png`, fullPage: true });
 }
 
@@ -89,4 +89,41 @@ test("README screenshots", async ({ page }) => {
   await expect(page.getByText(/free requests left today/)).toBeVisible();
   await page.waitForTimeout(400);
   await shot(page, "models");
+  // Live, Calendar and Analytics. Analytics needs real engagement from Bluesky/Mastodon, which a test database
+  // does not have, so that one screenshot uses clearly fictional sample numbers (README says so).
+  await page.getByRole("button", { name: "Live", exact: true }).click();
+  await send2(page);
+  await page.waitForTimeout(1500);
+  await shot(page, "live");
+
+  await page.getByRole("button", { name: "Calendar", exact: true }).click();
+  await expect(page.getByText("Drag a scheduled post", { exact: false })).toBeVisible();
+  await shot(page, "calendar");
+
+  await page.route("**/api/social/analytics*", (r) => r.fulfill({ json: sampleAnalytics() }));
+  await page.getByRole("button", { name: "Analytics", exact: true }).click();
+  await expect(page.getByText("Best slot so far")).toBeVisible();
+  await page.waitForTimeout(800);
+  await shot(page, "analytics");
 });
+
+/** Starts a team review over the API so the Live view has something to show. */
+async function send2(page: Page) {
+  await page.evaluate(async (token) => {
+    await fetch("http://127.0.0.1:8200/api/chat", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${token}` }, body: JSON.stringify({ message: "EDITH, write a Mastodon post about our launch week" }) });
+  }, TOKEN);
+}
+
+function sampleAnalytics() {
+  const now = Date.now();
+  const texts = ["Launch week recap: three things we learned shipping in public.", "Behind the scenes of our editing workflow.", "New video is up: how seven agents plan a week of posts."];
+  const posts = Array.from({ length: 26 }, (_, i) => {
+    const likes = Math.round(4 + 30 * Math.abs(Math.sin(i * 1.7)));
+    const reposts = Math.round(likes / 4);
+    const replies = Math.round(likes / 6);
+    return { id: `sample${i}`, platform: i % 3 ? "bluesky" : "mastodon", kind: "post", text: texts[i % 3], url: null, campaign: "", simulated: false,
+      published_at: new Date(now - i * 26 * 3600e3 - (i % 5) * 3600e3).toISOString(), engagement: { likes, reposts, replies, quotes: 0 }, score: likes + 2 * (reposts + replies) };
+  });
+  const totals = posts.reduce((t, p) => ({ likes: t.likes + p.engagement.likes, reposts: t.reposts + p.engagement.reposts, replies: t.replies + p.engagement.replies, quotes: 0 }), { likes: 0, reposts: 0, replies: 0, quotes: 0 });
+  return { counts: { bluesky: { published: 17, scheduled: 3, draft: 4 }, mastodon: { published: 9, draft: 2, failed: 1 } }, posts, totals, measured: posts.length, errors: [], fetched_at: new Date().toISOString() };
+}

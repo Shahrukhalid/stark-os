@@ -12,7 +12,7 @@ The agents are modelled on the AI personas in Vision's Mindspace from Marvel's *
 
 > **Fan-made, not affiliated with Marvel or Disney.** Character names are used descriptively. Personas, prompts, visuals and voices are original; no copyrighted dialogue, artwork, likeness or actor voices are used. See [Disclaimer](#disclaimer).
 
-![STARK OS demo: ask E.D.I.T.H. for a post, review it, publish it](docs/demo.gif)
+![STARK OS demo: ask E.D.I.T.H. for a post, publish it, then watch the Live view and the calendar](docs/demo.gif)
 
 ## Why STARK OS?
 
@@ -114,10 +114,14 @@ Ports 3000 or 8000 already used by another project? Add `STARK_WEB_PORT=3737` an
 
 | | |
 |---|---|
-| ![Start page: how it works and setup checklist](docs/screenshots/start.png) | ![Content: your posts and accounts](docs/screenshots/content.png) |
-| ![Approval before publishing](docs/screenshots/approval.png) | ![Free models, live status](docs/screenshots/models.png) |
-| ![The seven agents, each with its own brain](docs/screenshots/agents.png) | ![Team review with visible collaboration](docs/screenshots/collaboration.png) |
-| ![Command: talk to any agent](docs/screenshots/command.png) | ![Autopilot: research, write, fact-check, approve in one click](docs/screenshots/autopilot.png) |
+| ![Live: the agent network and a streaming feed of what each agent is doing](docs/screenshots/live.png) | ![Calendar: drag drafts and scheduled posts onto a day](docs/screenshots/calendar.png) |
+| ![Analytics: engagement chart, best time to post and top posts (sample numbers)](docs/screenshots/analytics.png) | ![Start page: how it works and setup checklist](docs/screenshots/start.png) |
+| ![Content: your posts and accounts](docs/screenshots/content.png) | ![Approval before publishing](docs/screenshots/approval.png) |
+| ![Free models, live status](docs/screenshots/models.png) | ![The seven agents, each with its own brain](docs/screenshots/agents.png) |
+| ![Team review with visible collaboration](docs/screenshots/collaboration.png) | ![Command: talk to any agent](docs/screenshots/command.png) |
+| ![Autopilot: research, write, fact-check, approve in one click](docs/screenshots/autopilot.png) | |
+
+The Analytics screenshot uses made-up sample numbers; the dashboard itself only ever shows real engagement from your connected accounts.
 
 ## Tests
 

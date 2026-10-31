@@ -130,7 +130,7 @@ export function Shell({ onSignOut }: { onSignOut: () => void }) {
 
   return (
     <>
-    {fx !== "off" && <ParticleField activity={activity} dense={fx === "max"} />}
+    {fx === "max" && <ParticleField activity={activity} />}
     <div className="relative z-[1] flex min-h-screen flex-col">
       <header className="sticky top-0 z-30 flex flex-wrap items-center gap-3 border-b border-[var(--color-line)] bg-[color-mix(in_srgb,var(--color-bg)_80%,transparent)] px-4 py-2.5 backdrop-blur">
         <div className="flex items-center gap-2.5">
