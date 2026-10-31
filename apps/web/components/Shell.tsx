@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, BarChart3, Ear, Library, PenLine, TrendingUp, WandSparkles, Brain, CalendarClock, CalendarDays, Command, Cpu, Home, Gauge, LogOut, MessageSquare, Moon, Network, OctagonX, Radar, Rocket, ScrollText, Settings, ShieldCheck, Sparkles, Sun, Users, Wrench, X } from "lucide-react";
+import { Activity, BarChart3, Workflow, Ear, Library, PenLine, TrendingUp, WandSparkles, Brain, CalendarClock, CalendarDays, Command, Cpu, Home, Gauge, LogOut, MessageSquare, Moon, Network, OctagonX, Radar, Rocket, ScrollText, Settings, ShieldCheck, Sparkles, Sun, Users, Wrench, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { saveFx, useFx, type FxLevel } from "@/lib/fx";
 import { applyTheme, saveTheme } from "@/lib/theme";
@@ -12,6 +12,7 @@ import { ParticleField } from "./fx/ParticleField";
 import { ComposerView } from "./ComposerView";
 import { GrowthView } from "./GrowthView";
 import { LibraryView } from "./LibraryView";
+import { AutomationsView } from "./AutomationsView";
 import { ListeningView } from "./ListeningView";
 import { LiveView } from "./LiveView";
 import { StudioView } from "./StudioView";
@@ -32,7 +33,7 @@ import { ToolsView } from "./ToolsView";
 import { UsageView } from "./UsageView";
 import { AgentGlyph } from "./ui";
 
-export type View = "home" | "live" | "calendar" | "analytics" | "listening" | "studio" | "library" | "compose" | "growth" | "command" | "content" | "autopilot" | "team" | "tasks" | "approvals" | "memory" | "models" | "tools" | "diagnostics" | "usage" | "activity" | "settings";
+export type View = "home" | "live" | "calendar" | "analytics" | "listening" | "studio" | "library" | "automations" | "compose" | "growth" | "command" | "content" | "autopilot" | "team" | "tasks" | "approvals" | "memory" | "models" | "tools" | "diagnostics" | "usage" | "activity" | "settings";
 
 const NAV: { id: View; label: string; icon: React.ElementType }[] = [
   { id: "home", label: "Start", icon: Home },
@@ -46,6 +47,7 @@ const NAV: { id: View; label: string; icon: React.ElementType }[] = [
   { id: "listening", label: "Listening", icon: Ear },
   { id: "studio", label: "Studio", icon: WandSparkles },
   { id: "library", label: "Library", icon: Library },
+  { id: "automations", label: "Automations", icon: Workflow },
   { id: "autopilot", label: "Autopilot", icon: Rocket },
   { id: "team", label: "Agents", icon: Users },
   { id: "tasks", label: "Tasks", icon: Network },
@@ -244,6 +246,7 @@ export function Shell({ onSignOut }: { onSignOut: () => void }) {
           {view === "listening" && <ListeningView talkTo={talkTo} />}
           {view === "studio" && <StudioView talkTo={talkTo} />}
           {view === "library" && <LibraryView />}
+          {view === "automations" && <AutomationsView />}
           {view === "compose" && <ComposerView talkTo={talkTo} />}
           {view === "growth" && <GrowthView talkTo={talkTo} />}
           {view === "content" && <ContentView talkTo={talkTo} />}

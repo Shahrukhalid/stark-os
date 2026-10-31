@@ -142,7 +142,7 @@ async def check_feeds(kernel, social, settings, fetch) -> dict[str, Any]:
         if not f["primed"]:
             f["seen"], f["primed"] = keys[:200], True
             continue
-        for i, k in zip(items, keys):
+        for i, k in zip(items, keys, strict=True):
             if k in f["seen"]:
                 continue
             f["seen"] = [k, *f["seen"]][:200]

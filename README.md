@@ -70,14 +70,21 @@ Everything below works today in the free, self-hosted version. Each feature has 
 - **Your channels → drafts**: when you publish a new YouTube video, podcast episode or blog post, an announcement draft appears for your platforms.
 - **Click tracking**: tag the links in a post with UTM parameters, so your website analytics shows which post brought each visit.
 - **Evergreen recycling**: a good post comes back as a fresh draft every 30 days, for you to approve again.
-- **Calendar export (.ics)** for Google Calendar, Apple Calendar or Outlook.
+- **Calendar export (.ics)** for any calendar app.
 
 ### 4. Automate with Autopilot
 - **Campaigns** ([guide](docs/AUTOPILOT.md)) research news from RSS feeds, Hacker News, Reddit and web search, pick SEO keywords and hashtags, write every platform's version, fact-check it and schedule it within your daily limits.
 - **Trust levels**: **Co-pilot** (you approve each batch in one click) → **Autopilot with veto** (posts go out unless you stop them) → **Full auto** (unlocked after 10 clean posts).
 - **Safety brakes**: pauses itself on a possible crisis in your mentions, repeated publishing failures or a sudden drop in engagement. Sensitive topics always wait for you.
 
-### 5. Listen and engage
+### 5. Automations
+- **Automations page** ([guide](docs/AUTOMATIONS.md)): "when this happens, do that". Triggers: a draft is created, a post is scheduled, published or fails, Listening finds a mention, an agent needs approval, Autopilot raises an alert, a daily or weekly schedule, or another app calling a secret webhook address.
+- **Conditions and chained actions**: match on any field (is, contains, more than, pattern…), then ask an agent, create a draft, label a mention, add UTM tags, message your phone or call a webhook, with `{{data.text}}`-style placeholders.
+- **Recipe gallery**: thank people who praise you, alert on complaints, competitor post going viral, blog post → thread, daily ideas, Friday recap, failed-post alert, approval ping, UTM tags on every draft, log published posts, drafts from other apps.
+- **Connect other apps**: automation apps can create drafts in STARK OS through a secret webhook address, and STARK OS can send events to them (spreadsheets, notes, email, CRMs and more).
+- **Test runs and history**: a dry run shows exactly what each step would do; every real run is logged. Automations never publish, are limited to 20 runs an hour, and cannot trigger each other in loops.
+
+### 6. Listen and engage
 - **Inbox**: your Bluesky and Mastodon mentions, sorted into escalate, abuse, spam, complaint, question and praise. F.R.I.D.A.Y. drafts the replies.
 - **Listening**: follow keywords, hashtags and competitor accounts. Questions and complaints are flagged, and *Draft reply* writes a response for you to approve.
 - **Competitors**: see a rival account's best posts. *Learn from it* writes an original post in your own voice.
@@ -85,7 +92,7 @@ Everything below works today in the free, self-hosted version. Each feature has 
 - **Inbox rules**: words that add a label (for example "refund" → *Billing*) to what Listening finds. Labels only: nothing is ever answered automatically.
 - **Replies in their language**: reply drafts follow the language of the post you answer.
 
-### 6. Measure and learn
+### 7. Measure and learn
 - **Analytics**: real likes, reposts and replies, a 30-day chart, a best-time-to-post heatmap in your time zone, top posts and CSV export. Simulated posts never get made-up numbers.
 - **Report**: one click downloads a ready-to-send results report (print it to PDF if needed).
 - **A/B hook tests**: two versions of a post with different openings; Analytics shows the winner.
@@ -95,23 +102,23 @@ Everything below works today in the free, self-hosted version. Each feature has 
 - **Bluesky starter packs**: build a shareable list of up to 150 accounts that people can follow in one click.
 - **Usage and models**: your remaining free AI requests today and the health of each free model.
 
-### 7. Stay in control from anywhere
+### 8. Stay in control from anywhere
 - **Phone approvals**: Telegram messages with Approve / Reject and Publish / Discard buttons (only your chat can press them), Discord notifications and a daily digest.
 - **Installable app**: add the dashboard to your Dock or home screen.
 - **E-STOP**: one button cancels all work and pauses the whole queue.
 - **Modes**: Observe, Assist or Execute approved, for the whole team.
 
-### 8. See the team work
+### 9. See the team work
 - **Live**: an animated map of the seven agents; a signal flies along every message between them, next to a streaming feed of their thoughts, tool use and approvals.
 - **Agents, Tasks, Memory and Activity**: each agent's role, limits and live status; every task's full trace; what the team remembers; and an audit log of every action.
 - **Sci-fi interface with an off switch**: animated background, boot-up sequences and holographic accents. *FX* switches between Maximum, Calm and Off, and your system's reduce-motion setting is respected. Light and dark themes.
 
-### 9. Connect your other tools
+### 10. Connect your other tools
 - **MCP server** (`python -m stark.mcp_server`): AI assistants and code editors can read your queue, results and mentions, save and schedule drafts and give the team tasks. It cannot publish.
-- **Webhooks**: n8n, Make, Zapier or your own server receive a signed message when a post is drafted, scheduled, published or fails, a mention arrives or an approval is needed.
+- **Webhooks**: automation apps or your own server receive a signed message when a post is drafted, scheduled, published or fails, a mention arrives or an approval is needed.
 - **REST API** with a private token, used by the dashboard itself.
 
-### 10. Private and free by design
+### 11. Private and free by design
 - Runs on your computer; social logins stay in a local file only your user can read. The API only listens on 127.0.0.1 and needs a random token.
 - Thinks with **free** OpenRouter models, each agent with its own first choice and automatic failover. Paid models are never used unless you allow them.
 - Secrets are hidden from logs, and messages from strangers are treated as data, never as instructions.
@@ -131,6 +138,7 @@ Everything below works today in the free, self-hosted version. Each feature has 
 | **Listening** | Keywords, hashtags, competitors, Bluesky messages, inbox rules; reply drafts |
 | **Studio** | Repurpose content, AI images, quote cards and carousels, A/B tests, brand voice |
 | **Library** | Templates, hashtag groups, signatures, saved replies, media, your channels, bulk import, integrations |
+| **Automations** | When-this-then-that workflows, recipe gallery, test runs, run history, webhooks in and out |
 | **Autopilot** | Campaigns that research, write and schedule on their own |
 | **Agents · Tasks · Approvals · Memory** | The team, its work, what waits for you, what it remembers |
 | **Models · Tools · Diagnostics · Usage · Activity** | Free-model status, tools, health checks, usage, audit log |
@@ -218,7 +226,7 @@ Ports 3000 or 8000 already used by another project? Add `STARK_WEB_PORT=3737` an
 | ![Team review with visible collaboration](docs/screenshots/collaboration.png) | ![Command: talk to any agent](docs/screenshots/command.png) |
 | ![Listening: keywords, hashtags and competitors, triaged (sample posts)](docs/screenshots/listening.png) | ![Studio: repurpose, AI images, A/B tests and brand voice](docs/screenshots/studio.png) |
 | ![Autopilot: research, write, fact-check, approve in one click](docs/screenshots/autopilot.png) | ![Library: templates, hashtag groups, signatures, bulk import and integrations](docs/screenshots/library.png) |
-| ![Compose: live preview, engagement score, category and reply control](docs/screenshots/compose.png) | |
+| ![Compose: live preview, engagement score, category and reply control](docs/screenshots/compose.png) | ![Automations: triggers, conditions and actions, recipe gallery and run history](docs/screenshots/automations.png) |
 
 The Analytics and Listening screenshots use made-up sample data; the dashboard itself only ever shows real engagement from your connected accounts.
 
@@ -235,7 +243,7 @@ make e2e          # Playwright: real dashboard + API + a test-only scripted mode
 ```
 agents/<id>/            agent.toml (identity, brain, tools, memory, limits, voice, canon notes) + system_prompt.md
 services/api/stark/     FastAPI app: core/ (kernel, permissions, memory, router, workflows), providers/, tools/ (social.py ...)
-apps/web/               Next.js dashboard (Live, Content, Calendar, Analytics, Listening, Studio, Library ...), voice, E2E tests
+apps/web/               Next.js dashboard (Live, Content, Calendar, Analytics, Listening, Studio, Library, Automations ...), voice, E2E tests
 docs/                   ARCHITECTURE, DECISIONS, IMPLEMENTATION_STATUS, TASKS
 ```
 

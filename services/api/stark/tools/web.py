@@ -39,7 +39,7 @@ def _blocked_ip(ip: ipaddress._BaseAddress) -> bool:
     mapped = getattr(ip, "ipv4_mapped", None)
     if mapped is not None:
         ip = mapped
-    # only globally routable addresses: blocks loopback, RFC1918, link-local, CGNAT (100.64/10, e.g. Tailscale),
+    # only globally routable addresses: blocks loopback, RFC1918, link-local, CGNAT (100.64/10, e.g. VPN addresses),
     # multicast, reserved, documentation and unspecified (0.0.0.0) ranges
     return not ip.is_global or ip.is_multicast
 

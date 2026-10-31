@@ -161,7 +161,7 @@ export function LibraryView() {
       <div className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-2">
         <Section title="Automation apps (webhooks)" right={<Webhook size={15} className="text-violet-300" />}>
           <p className="text-xs text-[var(--color-mute)]">
-            n8n, Make, Zapier or your own server get a POST for {hooks?.events.join(", ") || "post and mention events"}. Add <span className="font-mono">STARK_WEBHOOK_URLS</span> (comma-separated https URLs) and optionally <span className="font-mono">STARK_WEBHOOK_SECRET</span> to <span className="font-mono">.env</span>; each call is then signed in the <span className="font-mono">X-Stark-Signature</span> header.
+            Automation apps or your own server get a POST for {hooks?.events.join(", ") || "post and mention events"}. Add <span className="font-mono">STARK_WEBHOOK_URLS</span> (comma-separated https URLs) and optionally <span className="font-mono">STARK_WEBHOOK_SECRET</span> to <span className="font-mono">.env</span>; each call is then signed in the <span className="font-mono">X-Stark-Signature</span> header.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <span className="chip">{hooks?.count ? `${hooks.count} URL(s)${hooks.signed ? " · signed" : ""}` : "not set up"}</span>

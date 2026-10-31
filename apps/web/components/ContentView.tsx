@@ -71,7 +71,7 @@ export function ContentView({ talkTo }: { talkTo: (agentId: string, text?: strin
       a.download = "stark-schedule.ics";
       a.click();
       URL.revokeObjectURL(url);
-      notify("success", "Calendar downloaded. Import it into Google Calendar, Apple Calendar or Outlook.");
+      notify("success", "Calendar downloaded. Import it into your calendar app.");
     } catch (e: any) {
       notify("error", e.message);
     }

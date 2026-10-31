@@ -6,7 +6,6 @@ import json
 
 import httpx
 import pytest
-from sqlalchemy import select
 
 from stark import growth
 from stark.core.db import Approval, ContentItem, to_dict

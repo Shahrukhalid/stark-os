@@ -216,7 +216,7 @@ def outliers(kernel, factor: float = 3.0) -> list[dict[str, Any]]:
                 continue
             sc = [p["likes"] + 2 * (p["reposts"] + p["replies"]) for p in posts]
             avg = sum(sc) / len(sc)
-            for p, v in zip(posts, sc):
+            for p, v in zip(posts, sc, strict=False):
                 if avg > 0 and v >= factor * avg:
                     out.append({"account": w.query, "text": p["text"][:300], "url": p["url"], "score": v,
                                 "times_average": round(v / avg, 1)})
