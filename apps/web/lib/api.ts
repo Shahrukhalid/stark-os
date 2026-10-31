@@ -117,6 +117,10 @@ export class StarkClient {
   del<T = any>(path: string) {
     return this.req<T>(path, { method: "DELETE" });
   }
+  /** Upload raw bytes (e.g. a PNG made in the browser). */
+  upload<T = any>(path: string, blob: Blob) {
+    return this.req<T>(path, { method: "POST", body: blob, headers: { "content-type": blob.type || "application/octet-stream" } });
+  }
   /** A binary response (e.g. a generated image) with the token in the header, never in the URL. */
   async blob(path: string): Promise<Blob> {
     const res = await fetch(`${this.url}${path}`, { headers: { authorization: `Bearer ${this.conn.token}` } });

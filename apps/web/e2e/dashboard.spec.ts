@@ -322,3 +322,27 @@ test("Compose with preview and score, posting plan, Growth", async ({ page }) =>
   await expect(page.getByRole("heading", { name: "Growth" })).toBeVisible();
   await expect(page.getByText("Bluesky starter pack")).toBeVisible();
 });
+
+test("Channels, translation, quote cards, inbox rules and own feeds", async ({ page }) => {
+  await connect(page);
+  await page.getByRole("button", { name: "Compose", exact: true }).click();
+  await page.getByRole("radio", { name: /Telegram/ }).click();
+  await page.getByLabel("Post text").fill("Release notes are out https://blog.example.com/v1");
+  await page.getByLabel("Tag links for click tracking").check();
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByText("Draft saved in Content.")).toBeVisible();
+  await page.getByRole("button", { name: "Studio", exact: true }).click();
+  await page.getByLabel("Card text").fill("Ship small.\n\nShip often.");
+  await expect(page.getByText("1/2")).toBeVisible();
+  await page.getByRole("button", { name: "Save 2 slides" }).click();
+  await expect(page.getByText("2 image(s) saved to Media.")).toBeVisible();
+  await page.getByRole("button", { name: "Listening", exact: true }).click();
+  await page.getByLabel("Rule words").fill("refund, money back");
+  await page.getByLabel("Rule label").fill("Billing");
+  await page.getByRole("button", { name: "Add rule" }).click();
+  await expect(page.getByText("Rules saved")).toBeVisible();
+  await page.getByRole("button", { name: "Library", exact: true }).click();
+  await page.getByLabel("Feed address").fill("https://www.youtube.com/channel/UCabcdefghijklmnopqrstuv");
+  await page.getByRole("button", { name: "Add feed" }).click();
+  await expect(page.getByText(/channel_id=UCabcdefghijklmnopqrstuv/)).toBeVisible();
+});

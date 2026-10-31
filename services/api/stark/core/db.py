@@ -273,6 +273,7 @@ class Mention(Base):
     reposts: Mapped[int] = mapped_column(Integer, default=0)
     replies: Mapped[int] = mapped_column(Integer, default=0)
     category: Mapped[str] = mapped_column(String(24), default="general")  # from the inbox triage rules
+    labels: Mapped[list[Any]] = mapped_column(JSON, default=list)  # from the owner's inbox rules
     status: Mapped[str] = mapped_column(String(16), default="new", index=True)  # new | done | dismissed
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 

@@ -4,12 +4,14 @@ import { Copy, FileUp, Hash, Image as ImageIcon, PenLine, Plug, Plus, Signature,
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStark } from "@/lib/store";
 import type { Snippet } from "@/lib/types";
+import { OwnFeeds } from "./InboxExtras";
 import { Empty, Section } from "./ui";
 
 const KINDS = [
   { id: "template", label: "Templates", icon: PenLine, hint: "A post skeleton, e.g. “New video: {title}. {one-line hook} {link}”" },
   { id: "hashtags", label: "Hashtag groups", icon: Hash, hint: "#BuildInPublic #OpenSource #AI" },
   { id: "signature", label: "Signatures", icon: Signature, hint: "— The STARK OS team · stark.example" },
+  { id: "reply", label: "Saved replies", icon: Copy, hint: "Thanks for asking! Here's how it works: …" },
 ] as const;
 
 function Thumb({ name }: { name: string }) {
@@ -137,6 +139,8 @@ export function LibraryView() {
               </div>
             )}
           </Section>
+
+          <OwnFeeds />
 
           <Section title={`Media · ${images.length}`} right={<ImageIcon size={15} className="text-fuchsia-300" />}>
             {images.length === 0 ? (

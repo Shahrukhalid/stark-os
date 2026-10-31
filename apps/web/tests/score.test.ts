@@ -30,3 +30,15 @@ describe("posting plan slots", () => {
     expect(nextPlanSlot([], [], now)).toBeNull();
   });
 });
+
+describe("carousel slides", () => {
+  it("splits on blank lines and long paragraphs, max 10 slides", async () => {
+    const { slides } = await import("../lib/cards");
+    expect(slides("One.\n\nTwo.")).toEqual(["One.", "Two."]);
+    const long = Array.from({ length: 12 }, (_, i) => `Sentence number ${i} is here.`).join(" ");
+    const out = slides(long, 80);
+    expect(out.length).toBeGreaterThan(2);
+    expect(out.every((s) => s.length <= 80)).toBe(true);
+    expect(slides(Array.from({ length: 15 }, (_, i) => `S${i}`).join("\n\n"))).toHaveLength(10);
+  });
+});

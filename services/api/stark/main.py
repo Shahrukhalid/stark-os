@@ -43,7 +43,7 @@ from .core.permissions import Mode
 from .core.runtime import TERMINAL, Kernel
 from .providers import ModelProvider
 from . import autopilot as ap
-from . import growth, hub, insights
+from . import growth, hub, insights, reach
 from .core.db import Campaign
 from .tools import build_registry
 from .tools import social as social_tools
@@ -146,6 +146,18 @@ class ImageIn(BaseModel):
     prompt: str = Field(..., min_length=3, max_length=600)
     width: int = Field(1024, ge=256, le=1536)
     height: int = Field(1024, ge=256, le=1536)
+
+
+class RulesIn(BaseModel):
+    rules: list[dict[str, Any]] = Field(default_factory=list, max_length=50)
+
+
+class FeedsIn(BaseModel):
+    feeds: list[dict[str, Any]] = Field(default_factory=list, max_length=20)
+
+
+class MessageIn(BaseModel):
+    text: str = Field(..., min_length=1, max_length=1000)
 
 
 class PlanIn(BaseModel):
@@ -266,7 +278,8 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
     register_secret(settings.api_token)
     for secret in (settings.openrouter_api_key, settings.bluesky_app_password, settings.mastodon_access_token,
                    settings.tavily_api_key, settings.brave_api_key, settings.telegram_bot_token,
-                   settings.discord_webhook_url, settings.webhook_secret, *settings.webhook_urls):
+                   settings.discord_webhook_url, settings.webhook_secret, *settings.webhook_urls,
+                   settings.threads_access_token, settings.discord_post_webhook_url, settings.slack_webhook_url):
         register_secret(secret)
     holder: dict[str, Kernel] = {}
 
@@ -285,7 +298,8 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         holder["k"].webhooks = hub.Webhooks(holder["k"], settings)
         background = [asyncio.create_task(holder["k"].notifier.run()), asyncio.create_task(holder["k"].webhooks.run()),
                       asyncio.create_task(hub.recycler_loop(holder["k"], social, settings)),
-                      asyncio.create_task(_snapshot_loop(holder["k"], social))]
+                      asyncio.create_task(_snapshot_loop(holder["k"], social)),
+                      asyncio.create_task(_feeds_loop(holder["k"], social))]
         yield
         scheduler.cancel()
         for job in background:
@@ -301,6 +315,17 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
             except Exception as exc:  # never let the loop die
                 log.warning(f"snapshot error: {exc}")
             await asyncio.sleep(6 * 3600)
+
+    async def _feeds_loop(k: Kernel, social) -> None:
+        """Your own YouTube / podcast / blog feeds: new items become drafts (checked every hour)."""
+        while True:
+            await asyncio.sleep(60)
+            try:
+                if reach.get_feeds(k):
+                    await reach.check_feeds(k, social, settings, lambda url: reach.fetch_feed_items(k, url))
+            except Exception as exc:
+                log.warning(f"own feeds error: {exc}")
+            await asyncio.sleep(3540)
 
     async def _scheduler_loop(k: Kernel) -> None:
         """Publishes posts approved for a time (by you, or by an Autopilot campaign you set to veto/auto)
@@ -697,6 +722,80 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         except social_tools.MediaFileError as exc:
             raise HTTPException(404, str(exc)) from None
         return Response(data, media_type=meta["mime"], headers={"Cache-Control": "private, max-age=3600"})
+
+    # ---------------------------------------------------------- reach: UTM, own feeds, inbox rules, DMs, uploads
+    @app.post("/api/social/items/{item_id}/utm", dependencies=[api])
+    async def item_utm(item_id: str, k: Kernel = Depends(kernel)):
+        try:
+            out = reach.tag_item(k, settings, item_id)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        if out is None:
+            raise HTTPException(404, "no such content item")
+        return out
+
+    @app.get("/api/inbox/rules", dependencies=[api])
+    async def inbox_rules(k: Kernel = Depends(kernel)):
+        return {"rules": reach.get_rules(k)}
+
+    @app.put("/api/inbox/rules", dependencies=[api])
+    async def put_inbox_rules(body: RulesIn, k: Kernel = Depends(kernel)):
+        return {"rules": reach.save_rules(k, body.rules)}
+
+    @app.get("/api/feeds", dependencies=[api])
+    async def own_feeds(k: Kernel = Depends(kernel)):
+        return {"feeds": [{x: f[x] for x in ("url", "kind", "platforms", "template", "primed")} for f in reach.get_feeds(k)]}
+
+    @app.put("/api/feeds", dependencies=[api])
+    async def put_own_feeds(body: FeedsIn, k: Kernel = Depends(kernel)):
+        try:
+            feeds = reach.save_feeds(k, body.feeds)
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(400, str(exc)) from None
+        return {"feeds": [{x: f[x] for x in ("url", "kind", "platforms", "template", "primed")} for f in feeds]}
+
+    @app.post("/api/feeds/check", dependencies=[api])
+    async def check_own_feeds(k: Kernel = Depends(kernel)):
+        return await reach.check_feeds(k, _social(k), settings, lambda url: reach.fetch_feed_items(k, url))
+
+    @app.get("/api/inbox/dms", dependencies=[api])
+    async def dms(k: Kernel = Depends(kernel)):
+        try:
+            return {"convos": await reach.bluesky_dms(_social(k))}
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        except httpx.HTTPError:
+            raise HTTPException(502, "Could not reach Bluesky.") from None
+
+    @app.get("/api/inbox/dms/{convo_id}", dependencies=[api])
+    async def dm_messages(convo_id: str, k: Kernel = Depends(kernel)):
+        try:
+            return {"messages": await reach.bluesky_dm_messages(_social(k), convo_id)}
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        except httpx.HTTPError:
+            raise HTTPException(502, "Could not reach Bluesky.") from None
+
+    @app.post("/api/inbox/dms/{convo_id}", dependencies=[api])
+    async def dm_send(convo_id: str, body: MessageIn, k: Kernel = Depends(kernel)):
+        try:
+            out = await reach.bluesky_dm_send(_social(k), convo_id, body.text)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        except httpx.HTTPError:
+            raise HTTPException(502, "Could not reach Bluesky.") from None
+        k.obs.audit("user", "bluesky.dm", "ok", target=convo_id)
+        return out
+
+    @app.post("/api/media/upload", dependencies=[api])
+    async def media_upload(request: Request, name: str = "card"):
+        if int(request.headers.get("content-length") or 0) > social_tools.MAX_MEDIA_BYTES:
+            raise HTTPException(413, "Image too large")
+        data = await request.body()
+        try:
+            return reach.save_upload(settings, data, name)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
 
     # ---------------------------------------------------------- posting plan, growth, Bluesky extras
     @app.get("/api/plan", dependencies=[api])

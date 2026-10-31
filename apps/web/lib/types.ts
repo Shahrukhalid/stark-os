@@ -403,6 +403,7 @@ export interface Mention {
   reposts: number;
   replies: number;
   category: string;
+  labels?: string[];
   status: "new" | "done" | "dismissed";
   created_at: string;
 }
@@ -418,7 +419,7 @@ export interface Competitor {
 
 export interface Snippet {
   id: string;
-  kind: "template" | "hashtags" | "signature";
+  kind: "template" | "hashtags" | "signature" | "reply";
   name: string;
   body: string;
   platforms: string[];

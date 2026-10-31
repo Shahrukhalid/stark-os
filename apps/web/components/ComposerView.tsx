@@ -8,8 +8,9 @@ import type { AnalyticsReport, ContentItem, PostingPlan, Snippet, SocialAccount 
 import { PostPreview } from "./PostPreview";
 import { Section } from "./ui";
 
-const PLATFORMS = ["bluesky", "mastodon", "x", "threads", "linkedin", "instagram", "facebook", "tiktok", "youtube"];
-const NAMES: Record<string, string> = { bluesky: "Bluesky", mastodon: "Mastodon", x: "X", threads: "Threads", linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", youtube: "YouTube" };
+const PLATFORMS = ["bluesky", "mastodon", "x", "threads", "linkedin", "instagram", "facebook", "tiktok", "youtube", "telegram", "discord", "slack"];
+const LANGS = ["Spanish", "French", "German", "Portuguese", "Italian", "Arabic", "Hindi", "Urdu", "Japanese", "Chinese", "Korean", "Indonesian", "Turkish"];
+const NAMES: Record<string, string> = { bluesky: "Bluesky", mastodon: "Mastodon", x: "X", threads: "Threads", linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", youtube: "YouTube", telegram: "Telegram", discord: "Discord", slack: "Slack" };
 const REPLIES = [
   ["everyone", "Everyone can reply"],
   ["followers", "Only my followers"],
@@ -32,6 +33,7 @@ export function ComposerView({ talkTo }: { talkTo: (agentId: string, text?: stri
   const [snips, setSnips] = useState<Snippet[]>([]);
   const [queue, setQueue] = useState<ContentItem[]>([]);
   const [busy, setBusy] = useState(false);
+  const [utm, setUtm] = useState(false);
 
   useEffect(() => {
     client.get<{ accounts: SocialAccount[] }>("/api/social/accounts").then((r) => setAccounts(r.accounts)).catch(() => {});
@@ -56,7 +58,8 @@ export function ComposerView({ talkTo }: { talkTo: (agentId: string, text?: stri
   async function save(): Promise<ContentItem | null> {
     setBusy(true);
     try {
-      const item = await client.post<ContentItem>("/api/social/drafts", { platform, text, thread: thread.filter((t) => t.trim()), category, reply_control: platform === "bluesky" ? reply : null });
+      let item = await client.post<ContentItem>("/api/social/drafts", { platform, text, thread: thread.filter((t) => t.trim()), category, reply_control: platform === "bluesky" ? reply : null });
+      if (utm && /https?:\/\//.test(text)) item = await client.post<ContentItem>(`/api/social/items/${item.id}/utm`);
       notify(item.check.verdict === "fail" ? "warn" : "success", item.check.verdict === "fail" ? "Saved, but the policy check failed: fix it in Content." : "Draft saved in Content.");
       return item;
     } catch (e: any) {
@@ -152,6 +155,23 @@ export function ComposerView({ talkTo }: { talkTo: (agentId: string, text?: stri
             <button className="btn" disabled={!text.trim()} onClick={() => talkTo("edith", `EDITH, improve this ${NAMES[platform]} post without changing its meaning, then save it as a draft:\n\n${text}`)}>
               <Sparkles size={14} /> Improve with E.D.I.T.H.
             </button>
+            <select
+              className="input !w-auto text-xs"
+              aria-label="Translate"
+              value=""
+              disabled={!text.trim()}
+              onChange={(e) => e.target.value && talkTo("edith", `EDITH, translate this ${NAMES[platform]} post into ${e.target.value}. Keep the meaning, tone, links, @mentions and hashtags (translate hashtags only if a common local one exists), stay within ${NAMES[platform]}'s length limit, and save it as a new draft:\n\n${text}`)}
+            >
+              <option value="">Translate into…</option>
+              {LANGS.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </select>
+            <label className="flex items-center gap-1.5 text-xs" title="Adds utm_source, utm_medium and utm_campaign to links to your own sites, so your website analytics shows which post brought each visit">
+              <input type="checkbox" checked={utm} onChange={(e) => setUtm(e.target.checked)} /> Tag links for click tracking
+            </label>
           </div>
           {!live && <p className="text-xs text-amber-300">{NAMES[platform]} isn&apos;t connected: publishing will be a simulation, and you can copy the text from Content.</p>}
         </section>
