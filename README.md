@@ -33,39 +33,102 @@ The agents are modelled on the AI personas in Vision's Mindspace from Marvel's *
 | **ULTRON** | Audience red team: worst readings, backlash scenarios, go / revise / kill | Kept behind a firewall; understands humanity best; leaked secrets via the dark web | `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` | OBSERVE only: no posting, no web, no delegation |
 | **JOCASTA** | Intelligence: trends, competitors (public data), fact-checks, analytics | A cunning, powerful android | `nvidia/nemotron-3-super-120b-a12b:free` | Cites only pages she fetched (checked in code); never profiles private people |
 | **D.U.M.-E.** | Publisher: queue, scheduling, publishing with approval, **fire suppression** (pause everything in a crisis) | General maintenance and fire suppression | `cohere/north-mini-code:free` | The only agent that can publish, one approved post at a time |
-| **U** | Video & visuals: storyboards, shot lists, scripts, captions, thumbnails, alt text | Mute; the Mindspace videographer | `nvidia/nemotron-3.5-super-vl:free` | Mute (never spoken aloud); writes briefs, never generates fake media |
+| **U** | Video & visuals: storyboards, shot lists, scripts, captions, thumbnails, alt text, original AI illustrations | Mute; the Mindspace videographer | `nvidia/nemotron-3.5-super-vl:free` | Mute (never spoken aloud); no fake photos, real people or logos |
 
 "Own brain" means each agent has its own first-choice free models, temperature, prompt, private memory, tools and workflow. When its first choice is rate-limited the agent falls back to the next free model automatically. They are software agents, not conscious minds.
 
-## What works today
+## Features
 
-- **Autopilot campaigns** ([guide](docs/AUTOPILOT.md)): automatic research from RSS feeds, Hacker News, Reddit and web search; relevance and freshness scoring; SEO keywords and hashtags ranked by real engagement; one free-model request writes every platform's version and a second one fact-checks them against the source; a quality gate (policy, invented numbers, extra links, duplicates, sensitive topics); posting times, daily caps and spacing; trust levels **Co-pilot → Autopilot with veto → Full auto** (unlocked after 10 clean posts); auto-pause on a crisis in your mentions, repeated failures or an engagement collapse.
-- **Content queue**: drafts, threads, replies and video posts for Bluesky, Mastodon, X, Threads, LinkedIn, Instagram, Facebook, TikTok and YouTube, with a calendar, statuses and a dashboard view.
-- **Calendar export**: *Download calendar (.ics)* on the Content page (or `GET /api/social/calendar.ics` with your API token) gives every scheduled post as an iCalendar file for Google Calendar, Apple Calendar or Outlook.
-- **Policy check on every draft** (code, not a prompt): platform length limits (X counts links as 23), leaked keys, personal data, missing #ad disclosure, giveaway rules, engagement bait, bought engagement, hashtag limits, insecure or shortened links, missing alt text, all-caps.
-- **Real publishing** on **Bluesky** and **Mastodon** (both free APIs), including threads and replies. Other platforms need paid or reviewed API access, so publishing there is a clearly labelled **SIMULATION**.
-- **You approve every post** (or let an Autopilot trust level you chose do it): one click to publish, or schedule it and tick *Publish automatically* to approve that exact text for that time. Edits cancel the approval. Agents can't publish on their own.
-- **Connect accounts in the dashboard** (Bluesky app password, Mastodon token), stored only on your computer.
-- **Start page** with how it works, a setup checklist and one-click starting points.
-- **Inbox** with triage (escalate, abuse, spam, complaint, question, praise), from real Bluesky/Mastodon notifications or labelled sample mentions.
-- **Analytics dashboard**: real likes, reposts and replies from Bluesky and Mastodon, a 30-day engagement chart, a best-time-to-post heatmap in your time zone, top posts and CSV export. Simulated posts never get invented numbers.
-- **Live view**: watch the agents work in real time on an animated agent network, with every thought, tool call and hand-off in a streaming feed.
-- **Drag-and-drop content calendar**: month and week views of scheduled and published posts; drag a draft or a post onto a day to schedule it, at your best hour by default.
-- **Social listening**: follow keywords, hashtags and competitor accounts on Bluesky and Mastodon. Questions, complaints and possible crises are flagged with the inbox rules, F.R.I.D.A.Y. drafts replies for you to approve, and a Competitors tab shows what works for them (*Learn from it* has E.D.I.T.H. write an original post in your voice).
-- **Studio**: repurpose a blog or YouTube link or any text into posts, threads and a video script for every platform; free AI images (Pollinations, no key) that U can attach with alt text; A/B hook tests with the winner shown in Analytics; and *Learn my voice*, which saves your brand voice from your best real posts to shared memory.
-- **Phone approvals**: Telegram messages with Approve / Reject and Publish / Discard buttons (only your chat can press them, and only for the exact text shown), Discord notifications, a daily digest, and an installable app version of the dashboard.
-- **Library**: post templates, hashtag groups and signatures that the writers use automatically, plus a media library of your images.
-- **Bulk import**: upload a CSV of posts (and times) from a spreadsheet; every row is policy-checked.
-- **Evergreen recycling**: mark a published post evergreen and it comes back as a fresh draft every 30 days for you to approve again.
-- **Client-ready report**: one click downloads an HTML report of your results (open it and print to PDF).
-- **Works with your other tools**: an MCP server (`python -m stark.mcp_server`) lets AI assistants and editors read your queue, save drafts and give the team tasks (never publish), and signed webhooks send post and mention events to n8n, Make, Zapier or your own server.
-- **Auto-schedule drafts**: one click gives every ready draft its own day at your best-performing time.
-- **Command palette** (Ctrl/⌘ K): jump to any page, talk to any agent, switch theme or effects, or type a request for J.A.R.V.I.S.
-- **Sci-fi interface with an off switch**: neural-network background, boot-up sequences and holographic accents. *FX* in the header cycles Maximum, Calm and Off, and the system's reduce-motion setting is respected.
-- **E-STOP = fire suppression**: cancels all work and pauses the whole queue; resuming needs approval.
-- **Collaboration**: J.A.R.V.I.S. delegates; team reviews run in parallel, then Ultron challenges them. Every agent message is recorded.
-- A platform check stops any agent from claiming a post went out when it didn't.
-- Free-model pool with per-agent preferences, failover, a Models panel and your remaining free requests; voice (push-to-talk, per-agent voices; U is mute).
+Everything below works today in the free, self-hosted version. Each feature has its own page in the dashboard (left menu) or can be reached with **Ctrl/⌘ K**.
+
+### 1. Create content
+- **Command**: talk to any agent in plain language, by typing or by voice (push-to-talk, a voice per agent). Example: *"EDITH, write a Bluesky post about our launch."*
+- **Drafts for 9 platforms**: posts, threads, replies and video captions for Bluesky, Mastodon, X, Threads, LinkedIn, Instagram, Facebook, TikTok and YouTube, each written in that platform's style.
+- **Studio → Repurpose**: paste a blog or YouTube link, or any text, and the team turns it into posts, threads and a video script for every platform you pick.
+- **Studio → AI images**: free original illustrations (no API key) saved in your workspace and attached to posts with alt text. Can be turned off.
+- **Video plans**: U writes storyboards, shot lists, scripts, captions and thumbnail briefs.
+- **Library**: saved post templates, hashtag groups and signatures. The writers use them automatically.
+- **Bulk import**: upload a spreadsheet (CSV) of up to 500 posts, with optional dates.
+
+### 2. Check before anything goes out
+- **Policy check on every draft** (written in code, not left to the AI): length limits per platform, leaked passwords or keys, personal data, missing #ad disclosure, giveaway rules, engagement bait, too many hashtags, unsafe or shortened links, missing alt text, all-caps.
+- **Team review**: J.A.R.V.I.S. checks security and brand, JOCASTA checks facts against sources, and ULTRON looks for how a post could backfire (go / revise / kill).
+- **Approvals**: nothing is posted without your OK on the exact text. Any edit cancels an earlier approval.
+
+### 3. Schedule and publish
+- **Content queue**: every draft, scheduled, published and failed post in one place.
+- **Calendar**: month and week views; drag a post or draft onto a day to schedule it.
+- **Auto-schedule**: one click gives every ready draft its own day at your best-performing time.
+- **Publish automatically**: approve a scheduled post once and it goes out on its own at that time.
+- **Real posting** to **Bluesky** and **Mastodon** (threads and replies too). For the other platforms STARK OS writes ready-to-paste posts and clearly labels publishing as a simulation.
+- **Evergreen recycling**: a good post comes back as a fresh draft every 30 days, for you to approve again.
+- **Calendar export (.ics)** for Google Calendar, Apple Calendar or Outlook.
+
+### 4. Automate with Autopilot
+- **Campaigns** ([guide](docs/AUTOPILOT.md)) research news from RSS feeds, Hacker News, Reddit and web search, pick SEO keywords and hashtags, write every platform's version, fact-check it and schedule it within your daily limits.
+- **Trust levels**: **Co-pilot** (you approve each batch in one click) → **Autopilot with veto** (posts go out unless you stop them) → **Full auto** (unlocked after 10 clean posts).
+- **Safety brakes**: pauses itself on a possible crisis in your mentions, repeated publishing failures or a sudden drop in engagement. Sensitive topics always wait for you.
+
+### 5. Listen and engage
+- **Inbox**: your Bluesky and Mastodon mentions, sorted into escalate, abuse, spam, complaint, question and praise. F.R.I.D.A.Y. drafts the replies.
+- **Listening**: follow keywords, hashtags and competitor accounts. Questions and complaints are flagged, and *Draft reply* writes a response for you to approve.
+- **Competitors**: see a rival account's best posts. *Learn from it* writes an original post in your own voice.
+
+### 6. Measure and learn
+- **Analytics**: real likes, reposts and replies, a 30-day chart, a best-time-to-post heatmap in your time zone, top posts and CSV export. Simulated posts never get made-up numbers.
+- **Report**: one click downloads a ready-to-send results report (print it to PDF if needed).
+- **A/B hook tests**: two versions of a post with different openings; Analytics shows the winner.
+- **Learn my voice**: J.A.R.V.I.S. studies your best posts and saves your brand voice for every agent.
+- **Usage and models**: your remaining free AI requests today and the health of each free model.
+
+### 7. Stay in control from anywhere
+- **Phone approvals**: Telegram messages with Approve / Reject and Publish / Discard buttons (only your chat can press them), Discord notifications and a daily digest.
+- **Installable app**: add the dashboard to your Dock or home screen.
+- **E-STOP**: one button cancels all work and pauses the whole queue.
+- **Modes**: Observe, Assist or Execute approved, for the whole team.
+
+### 8. See the team work
+- **Live**: an animated map of the seven agents; a signal flies along every message between them, next to a streaming feed of their thoughts, tool use and approvals.
+- **Agents, Tasks, Memory and Activity**: each agent's role, limits and live status; every task's full trace; what the team remembers; and an audit log of every action.
+- **Sci-fi interface with an off switch**: animated background, boot-up sequences and holographic accents. *FX* switches between Maximum, Calm and Off, and your system's reduce-motion setting is respected. Light and dark themes.
+
+### 9. Connect your other tools
+- **MCP server** (`python -m stark.mcp_server`): AI assistants and code editors can read your queue, results and mentions, save and schedule drafts and give the team tasks. It cannot publish.
+- **Webhooks**: n8n, Make, Zapier or your own server receive a signed message when a post is drafted, scheduled, published or fails, a mention arrives or an approval is needed.
+- **REST API** with a private token, used by the dashboard itself.
+
+### 10. Private and free by design
+- Runs on your computer; social logins stay in a local file only your user can read. The API only listens on 127.0.0.1 and needs a random token.
+- Thinks with **free** OpenRouter models, each agent with its own first choice and automatic failover. Paid models are never used unless you allow them.
+- Secrets are hidden from logs, and messages from strangers are treated as data, never as instructions.
+
+## Dashboard at a glance
+
+| Page | What you do there |
+|---|---|
+| **Start** | How it works, setup checklist, one-click starting points |
+| **Live** | Watch the agents work in real time |
+| **Command** | Talk to any agent (text or voice) |
+| **Content** | Review, edit, approve, publish or schedule drafts; connect accounts |
+| **Calendar** | See and drag scheduled posts; auto-schedule drafts |
+| **Analytics** | Results, best times, top posts, A/B winners, report, CSV |
+| **Listening** | Keywords, hashtags and competitors; reply drafts |
+| **Studio** | Repurpose content, AI images, A/B tests, brand voice |
+| **Library** | Templates, hashtag groups, signatures, media, bulk import, integrations |
+| **Autopilot** | Campaigns that research, write and schedule on their own |
+| **Agents · Tasks · Approvals · Memory** | The team, its work, what waits for you, what it remembers |
+| **Models · Tools · Diagnostics · Usage · Activity** | Free-model status, tools, health checks, usage, audit log |
+| **Settings** | Theme, effects, voices, phone notifications, permissions |
+
+## A simple first day
+
+1. **Start STARK OS** (see Quick start below) and open the dashboard.
+2. **Connect Bluesky or Mastodon** in *Content → Your accounts* (two minutes, free).
+3. **Tell J.A.R.V.I.S. your brand voice** in *Command*: "Remember: friendly, short, no slang."
+4. **Ask for a post**: "EDITH, write a post about our new feature." It appears in *Content*.
+5. **Approve it**: publish now, or schedule it and tick *Publish automatically*.
+6. **Follow your brand name** in *Listening* so questions and complaints reach you.
+7. **Check *Analytics*** after a few days to see what works and when to post.
 
 New here? Read the **[user guide](docs/USER_GUIDE.md)**. Exact status: **[docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md)**.
 
@@ -146,7 +209,7 @@ make e2e          # Playwright: real dashboard + API + a test-only scripted mode
 ```
 agents/<id>/            agent.toml (identity, brain, tools, memory, limits, voice, canon notes) + system_prompt.md
 services/api/stark/     FastAPI app: core/ (kernel, permissions, memory, router, workflows), providers/, tools/ (social.py ...)
-apps/web/               Next.js dashboard (Content, Agents, Approvals, Models ...), voice, E2E tests
+apps/web/               Next.js dashboard (Live, Content, Calendar, Analytics, Listening, Studio, Library ...), voice, E2E tests
 docs/                   ARCHITECTURE, DECISIONS, IMPLEMENTATION_STATUS, TASKS
 ```
 
@@ -165,6 +228,9 @@ Planned work that contributors can pick up. Each item becomes an issue with deta
 - [ ] Docker Compose setup for one-command self-hosting
 - [x] Engagement export (CSV) per post and per platform from the dashboard
 - [ ] Real publishing to Threads through its public API
+- [ ] Previews of how a post looks on each platform
+- [ ] Weekly posting time slots
+- [ ] Publishing to Discord and Slack channels
 
 ## FAQ
 
