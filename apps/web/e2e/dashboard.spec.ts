@@ -10,7 +10,7 @@ async function connect(page: Page) {
   await page.getByPlaceholder("STARK_API_TOKEN from your .env").fill(TOKEN);
   await page.getByRole("button", { name: "Connect" }).click();
   await expect(page.getByText("Project Genesis").first()).toBeVisible();
-  await expect(page.getByText("Live", { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("banner").getByText("Live", { exact: true })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("Your AI social media team")).toBeVisible(); // lands on the Start page
   await page.getByRole("button", { name: "Command", exact: true }).click();
 }
@@ -242,5 +242,28 @@ test("Autopilot: create a campaign, it researches and writes, you approve the ba
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(362);
   await page.getByRole("button", { name: "Settings" }).last().click();
   await expect(page.getByText("How much to trust it")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(362);
+});
+
+test("Live, Calendar, Analytics and the command palette", async ({ page }) => {
+  await connect(page);
+  await page.getByRole("button", { name: "Live", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Live agent activity" })).toBeVisible();
+  await expect(page.getByRole("img", { name: /Agent network/ })).toBeVisible();
+  await page.getByRole("button", { name: "Analytics", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Analytics" })).toBeVisible();
+  await page.keyboard.press("Control+k");
+  const search = page.getByLabel("Search commands");
+  await expect(search).toBeFocused();
+  await search.fill("calen");
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("Drag a scheduled post", { exact: false })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Week" })).toBeVisible();
+  // effects can be switched off entirely
+  await page.getByRole("button", { name: /Visual effects/ }).click();
+  await page.getByRole("button", { name: /Visual effects/ }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-fx", "off");
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.waitForTimeout(300);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(362);
 });

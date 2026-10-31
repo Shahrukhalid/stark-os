@@ -196,3 +196,21 @@ def test_data_folder_is_private(settings, client):
 
     if os.name != "nt":
         assert stat.S_IMODE(settings.data_dir.stat().st_mode) == 0o700
+
+
+def test_social_analytics_reports_queue_and_never_invents_engagement(client):
+    from datetime import datetime, timezone
+
+    from stark.core.db import ContentItem
+
+    assert client.get("/api/social/analytics").json()["posts"] == []
+    k = client.app.state.kernel
+    with k.db.session() as s:
+        s.add(ContentItem(platform="bluesky", text="hello", status="published", created_by="user", simulated=True,
+                          published_at=datetime.now(timezone.utc)))
+        s.add(ContentItem(platform="mastodon", text="draft", status="draft", created_by="edith"))
+    data = client.get("/api/social/analytics?refresh=true").json()
+    assert data["counts"] == {"bluesky": {"published": 1}, "mastodon": {"draft": 1}}
+    (post,) = data["posts"]
+    assert post["simulated"] and post["engagement"] is None and post["score"] is None
+    assert data["measured"] == 0 and data["totals"]["likes"] == 0

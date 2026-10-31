@@ -342,3 +342,32 @@ export interface SocialAccount {
   connected_as: string | null;
   source: "env" | "dashboard" | null;
 }
+
+export interface Engagement {
+  likes: number;
+  reposts: number;
+  replies: number;
+  quotes?: number;
+}
+
+export interface PublishedPost {
+  id: string;
+  platform: string;
+  kind: string;
+  text: string;
+  url: string | null;
+  campaign: string;
+  simulated: boolean;
+  published_at: string;
+  engagement: Engagement | null;
+  score: number | null;
+}
+
+export interface AnalyticsReport {
+  counts: Record<string, Record<string, number>>;
+  posts: PublishedPost[];
+  totals: { likes: number; reposts: number; replies: number; quotes: number };
+  measured: number;
+  errors: string[];
+  fetched_at: string;
+}

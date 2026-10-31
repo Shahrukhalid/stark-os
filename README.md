@@ -48,7 +48,11 @@ The agents are modelled on the AI personas in Vision's Mindspace from Marvel's *
 - **Connect accounts in the dashboard** (Bluesky app password, Mastodon token), stored only on your computer.
 - **Start page** with how it works, a setup checklist and one-click starting points.
 - **Inbox** with triage (escalate, abuse, spam, complaint, question, praise), from real Bluesky/Mastodon notifications or labelled sample mentions.
-- **Analytics** from the platforms for real posts; simulated posts never get invented numbers.
+- **Analytics dashboard**: real likes, reposts and replies from Bluesky and Mastodon, a 30-day engagement chart, a best-time-to-post heatmap in your time zone, top posts and CSV export. Simulated posts never get invented numbers.
+- **Live view**: watch the agents work in real time on an animated agent network, with every thought, tool call and hand-off in a streaming feed.
+- **Drag-and-drop content calendar**: month and week views of scheduled and published posts; drag a draft or a post onto a day to schedule it, at your best hour by default.
+- **Command palette** (Ctrl/⌘ K): jump to any page, talk to any agent, switch theme or effects, or type a request for J.A.R.V.I.S.
+- **Sci-fi interface with an off switch**: neural-network background, boot-up sequences and holographic accents. *FX* in the header cycles Maximum, Calm and Off, and the system's reduce-motion setting is respected.
 - **E-STOP = fire suppression**: cancels all work and pauses the whole queue; resuming needs approval.
 - **Collaboration**: J.A.R.V.I.S. delegates; team reviews run in parallel, then Ultron challenges them. Every agent message is recorded.
 - A platform check stops any agent from claiming a post went out when it didn't.
@@ -145,7 +149,7 @@ docs/                   ARCHITECTURE, DECISIONS, IMPLEMENTATION_STATUS, TASKS
 Planned work that contributors can pick up. Each item becomes an issue with details; comment there to take it on.
 
 - [ ] Docker Compose setup for one-command self-hosting
-- [ ] Engagement export (CSV) per post and per platform from the dashboard
+- [x] Engagement export (CSV) per post and per platform from the dashboard
 - [ ] Real publishing to Threads through its public API
 
 ## FAQ

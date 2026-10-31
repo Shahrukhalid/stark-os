@@ -1395,6 +1395,51 @@ class SocialAnalytics(Tool):
                           sources=[{"url": r["url"], "title": "published post"} for r in rows if r["url"]])
 
 
+def engagement_score(m: dict[str, int] | None) -> int:
+    """One number per post: replies, reposts and quotes count double because they reach new people."""
+    if not m:
+        return 0
+    return m.get("likes", 0) + 2 * (m.get("reposts", 0) + m.get("replies", 0) + m.get("quotes", 0))
+
+
+async def analytics_report(kernel, social: Social, limit: int = 500) -> dict[str, Any]:
+    """Queue counts plus every published post with its REAL engagement (connected platforms only).
+
+    Times are returned as ISO strings so the dashboard can bucket them in the viewer's own time zone.
+    """
+    with kernel.db.session() as s:
+        rows = [to_dict(r) for r in s.scalars(
+            select(ContentItem).order_by(ContentItem.created_at.desc()).limit(limit)).all()]
+    counts: dict[str, dict[str, int]] = {}
+    for r in rows:
+        counts.setdefault(r["platform"], {}).setdefault(r["status"], 0)
+        counts[r["platform"]][r["status"]] += 1
+    published = [r for r in rows if r["status"] == "published"]
+    metrics: dict[str, dict[str, int]] = {}
+    errors: list[str] = []
+    for platform in sorted({r["platform"] for r in published}):
+        adapter = social.adapter(platform)
+        ids = [r["external_id"] for r in published if r["platform"] == platform and not r["simulated"]
+               and r["external_id"]][:40]
+        if adapter is None or not ids:
+            continue
+        try:
+            metrics.update(await adapter.metrics(ids))
+        except (AdapterError, httpx.HTTPError) as exc:
+            errors.append(f"{platform}: {exc}")
+    posts = []
+    for r in published:
+        m = None if r["simulated"] else metrics.get(r["external_id"] or "")
+        posts.append({"id": r["id"], "platform": r["platform"], "kind": r["kind"], "text": r["text"][:200],
+                      "url": r["external_url"], "campaign": r["campaign"], "simulated": bool(r["simulated"]),
+                      "published_at": r["published_at"] or r["updated_at"], "engagement": m,
+                      "score": engagement_score(m) if m is not None else None})
+    measured = [p["engagement"] for p in posts if p["engagement"] is not None]
+    totals = {k: sum(e.get(k, 0) for e in measured) for k in ("likes", "reposts", "replies", "quotes")}
+    return {"counts": counts, "posts": posts, "totals": totals, "measured": len(measured),
+            "errors": errors, "fetched_at": datetime.now(timezone.utc).isoformat()}
+
+
 def build(settings, transport: httpx.AsyncBaseTransport | None = None) -> list[Tool]:
     social = Social(settings, transport)
     return [SocialAccounts(social), SocialDraft(social), SocialEdit(), SocialCheck(), SocialQueue(),
