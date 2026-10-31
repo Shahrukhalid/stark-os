@@ -1,6 +1,6 @@
 # Implementation status
 
-_Last updated: 2026-10-17 · release 0.5.0 (Autopilot: automatic research, SEO, writing, fact-checking and scheduling with trust levels)_
+_Last updated: 2026-10-31 · release 0.6.0 (Live view, drag-and-drop calendar, analytics dashboard, command palette and a new animated interface)_
 
 Legend: ✅ **Implemented & tested** · 🟡 **Implemented, not fully live-tested** · 🔑 **Requires credentials** · 🧪 **Simulated** · 📋 **Planned** · ⛔ **Unsupported by design**
 
@@ -8,12 +8,20 @@ Legend: ✅ **Implemented & tested** · 🟡 **Implemented, not fully live-teste
 
 | Suite | Result |
 |---|---|
-| Backend `pytest` (runtime, social tools & adapters, Autopilot, tools, permissions, memory, free-model pool, API, security regressions) | **192 passed** on Python 3.13 with PostgreSQL 16 and real Chromium |
-| Frontend type-check + `vitest` | **18 passed** |
-| End-to-end (Playwright: real dashboard + real API + a test-only scripted server speaking the OpenRouter protocol) | **16 passed** (incl. Autopilot campaign → research → writing → fact-check → batch approval, one-click publish, approved auto-publish at a time, account-connect checks, chat approval card, inbox triage, 360 px layout, safe markdown) |
+| Backend `pytest` (runtime, social tools & adapters, Autopilot, tools, permissions, memory, free-model pool, API, security regressions) | **213 passed** on Python 3.13 with PostgreSQL 16 and real Chromium |
+| Frontend type-check + `vitest` | **20 passed** |
+| End-to-end (Playwright: real dashboard + real API + a test-only scripted server speaking the OpenRouter protocol) | **17 passed** (incl. Live, Calendar, Analytics and the command palette;  Autopilot campaign → research → writing → fact-check → batch approval, one-click publish, approved auto-publish at a time, account-connect checks, chat approval card, inbox triage, 360 px layout, safe markdown) |
 | `next build` | passed · `npm audit`: **0 vulnerabilities** · `pip-audit`: **0 known vulnerabilities** |
 | Secret scan (gitleaks) on the publishable tree | no leaks |
 | Live OpenRouter check (2026-10-16, from the owner's machine) | key valid (free tier, 50 free requests/day); **10 of 15** chat-capable free models answered with a correct tool call; 4 were temporarily rate-limited upstream (429); 2 are restricted to agentic harnesses (403, excluded) |
+
+## Dashboard upgrade (0.6.0, 2026-10-31)
+
+✅ **Live view**: animated agent network (signals fly along every real agent message), live counters and a streaming feed of thoughts, tool calls, results and approvals, filterable by agent and pausable.
+✅ **Calendar**: month and week views of scheduled and published posts; drag a scheduled post or a draft onto a day to (re)schedule it through the same checked API as the Content page. An auto-publish approval is kept only when the post already had one for that exact text.
+✅ **Analytics**: `GET /api/social/analytics` (cached 5 minutes) returns queue counts and real engagement for published Bluesky/Mastodon posts; the page shows totals, a 30-day chart, a best-time-to-post heatmap in the viewer's time zone, top posts and CSV export. Simulated posts never get numbers.
+✅ **Command palette** (Ctrl/⌘ K) and the **FX** switch (Maximum: particle network, scanlines and boot-up sequences; Calm: animations only; Off). Reduce-motion is respected.
+✅ Light theme contrast fixes for accent colours and the active navigation item.
 
 ## Autopilot (0.5.0, 2026-10-17)
 

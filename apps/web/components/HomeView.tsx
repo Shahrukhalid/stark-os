@@ -60,7 +60,7 @@ export function HomeView({ talkTo, go }: { talkTo: (agentId: string, text?: stri
     <div className="mx-auto max-w-6xl space-y-4">
       <section className="panel p-5">
         <div className="hud-label mb-1 text-cyan-300">Welcome</div>
-        <h1 className="text-xl font-semibold">Your AI social media team</h1>
+        <h1 className="holo-text text-xl font-semibold">Your AI social media team</h1>
         <p className="mt-1 max-w-3xl text-sm text-[var(--color-mute)]">
           Seven agents write, check, research and schedule your posts. You stay in charge: every post is shown to you before it goes out, and everything runs on your computer with free AI models.
         </p>

@@ -508,6 +508,18 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         return {"items": social_tools.list_queue(k, status, platform, None, max(1, min(limit, 500))),
                 "paused": social_tools.queue_paused(k)}
 
+    analytics_cache: dict[str, Any] = {"at": 0.0, "data": None}
+
+    @app.get("/api/social/analytics", dependencies=[api])
+    async def social_analytics(refresh: bool = False, k: Kernel = Depends(kernel)):
+        """Published posts with real engagement. Cached for 5 minutes to stay inside platform rate limits."""
+        now = time.monotonic()
+        if not refresh and analytics_cache["data"] is not None and now - analytics_cache["at"] < 300:
+            return analytics_cache["data"]
+        data = await social_tools.analytics_report(k, _social(k))
+        analytics_cache.update(at=now, data=data)
+        return data
+
     # ---------------------------------------------------------- autopilot
     def _ap(k: Kernel) -> ap.Autopilot:
         return k.autopilot
