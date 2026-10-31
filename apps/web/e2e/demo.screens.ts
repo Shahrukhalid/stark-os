@@ -12,7 +12,9 @@ test("README demo video", async ({ browser }) => {
   test.setTimeout(120_000);
   mkdirSync(OUT, { recursive: true });
   const size = { width: 1440, height: 900 };
-  const ctx = await browser.newContext({ viewport: size });
+  const ctx = await browser.newContext({ viewport: size, colorScheme: "dark" });
+  // "Calm" effects keep the GIF small: the moving particle background changes every pixel of every frame.
+  await ctx.addInitScript(() => localStorage.setItem("stark-fx", "calm"));
   const page = await ctx.newPage();
   // Chrome screencast frames + timestamps; ffmpeg turns them into the GIF.
   const cdp = await ctx.newCDPSession(page);
@@ -52,6 +54,14 @@ test("README demo video", async ({ browser }) => {
   await card.getByRole("button", { name: "Run simulation" }).click();
   await expect(card.getByText("SIMULATED", { exact: true })).toBeVisible();
   await pause(1800);
+
+  await page.getByRole("button", { name: "Live", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Live agent activity" })).toBeVisible();
+  await pause(2800);
+
+  await page.getByRole("button", { name: "Calendar", exact: true }).click();
+  await expect(page.getByText("Drag a scheduled post", { exact: false })).toBeVisible();
+  await pause(2200);
 
   await page.getByRole("button", { name: "Agents", exact: true }).click();
   await expect(page.getByRole("heading", { name: "ULTRON", exact: true })).toBeVisible();
