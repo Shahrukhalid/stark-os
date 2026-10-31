@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, BarChart3, Brain, CalendarClock, CalendarDays, Command, Cpu, Home, Gauge, LogOut, MessageSquare, Moon, Network, OctagonX, Radar, Rocket, ScrollText, Settings, ShieldCheck, Sparkles, Sun, Users, Wrench, X } from "lucide-react";
+import { Activity, BarChart3, Ear, WandSparkles, Brain, CalendarClock, CalendarDays, Command, Cpu, Home, Gauge, LogOut, MessageSquare, Moon, Network, OctagonX, Radar, Rocket, ScrollText, Settings, ShieldCheck, Sparkles, Sun, Users, Wrench, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { saveFx, useFx, type FxLevel } from "@/lib/fx";
 import { applyTheme, saveTheme } from "@/lib/theme";
@@ -9,7 +9,9 @@ import { CalendarView } from "./CalendarView";
 import { CommandPalette, type PaletteAction } from "./CommandPalette";
 import { BootOverlay } from "./fx/BootOverlay";
 import { ParticleField } from "./fx/ParticleField";
+import { ListeningView } from "./ListeningView";
 import { LiveView } from "./LiveView";
+import { StudioView } from "./StudioView";
 import { useStark } from "@/lib/store";
 import { ActivityView } from "./ActivityView";
 import { ApprovalsView } from "./ApprovalsView";
@@ -27,7 +29,7 @@ import { ToolsView } from "./ToolsView";
 import { UsageView } from "./UsageView";
 import { AgentGlyph } from "./ui";
 
-export type View = "home" | "live" | "calendar" | "analytics" | "command" | "content" | "autopilot" | "team" | "tasks" | "approvals" | "memory" | "models" | "tools" | "diagnostics" | "usage" | "activity" | "settings";
+export type View = "home" | "live" | "calendar" | "analytics" | "listening" | "studio" | "command" | "content" | "autopilot" | "team" | "tasks" | "approvals" | "memory" | "models" | "tools" | "diagnostics" | "usage" | "activity" | "settings";
 
 const NAV: { id: View; label: string; icon: React.ElementType }[] = [
   { id: "home", label: "Start", icon: Home },
@@ -36,6 +38,8 @@ const NAV: { id: View; label: string; icon: React.ElementType }[] = [
   { id: "content", label: "Content", icon: CalendarClock },
   { id: "calendar", label: "Calendar", icon: CalendarDays },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
+  { id: "listening", label: "Listening", icon: Ear },
+  { id: "studio", label: "Studio", icon: WandSparkles },
   { id: "autopilot", label: "Autopilot", icon: Rocket },
   { id: "team", label: "Agents", icon: Users },
   { id: "tasks", label: "Tasks", icon: Network },
@@ -231,6 +235,8 @@ export function Shell({ onSignOut }: { onSignOut: () => void }) {
           {view === "live" && <LiveView openTask={openTask} />}
           {view === "calendar" && <CalendarView />}
           {view === "analytics" && <AnalyticsView />}
+          {view === "listening" && <ListeningView talkTo={talkTo} />}
+          {view === "studio" && <StudioView talkTo={talkTo} />}
           {view === "content" && <ContentView talkTo={talkTo} />}
           {view === "autopilot" && <AutopilotView />}
           {view === "team" && <TeamView talkTo={talkTo} openTask={openTask} />}

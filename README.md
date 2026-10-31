@@ -51,6 +51,10 @@ The agents are modelled on the AI personas in Vision's Mindspace from Marvel's *
 - **Analytics dashboard**: real likes, reposts and replies from Bluesky and Mastodon, a 30-day engagement chart, a best-time-to-post heatmap in your time zone, top posts and CSV export. Simulated posts never get invented numbers.
 - **Live view**: watch the agents work in real time on an animated agent network, with every thought, tool call and hand-off in a streaming feed.
 - **Drag-and-drop content calendar**: month and week views of scheduled and published posts; drag a draft or a post onto a day to schedule it, at your best hour by default.
+- **Social listening**: follow keywords, hashtags and competitor accounts on Bluesky and Mastodon. Questions, complaints and possible crises are flagged with the inbox rules, F.R.I.D.A.Y. drafts replies for you to approve, and a Competitors tab shows what works for them (*Learn from it* has E.D.I.T.H. write an original post in your voice).
+- **Studio**: repurpose a blog or YouTube link or any text into posts, threads and a video script for every platform; free AI images (Pollinations, no key) that U can attach with alt text; A/B hook tests with the winner shown in Analytics; and *Learn my voice*, which saves your brand voice from your best real posts to shared memory.
+- **Phone approvals**: Telegram messages with Approve / Reject and Publish / Discard buttons (only your chat can press them, and only for the exact text shown), Discord notifications, a daily digest, and an installable app version of the dashboard.
+- **Auto-schedule drafts**: one click gives every ready draft its own day at your best-performing time.
 - **Command palette** (Ctrl/⌘ K): jump to any page, talk to any agent, switch theme or effects, or type a request for J.A.R.V.I.S.
 - **Sci-fi interface with an off switch**: neural-network background, boot-up sequences and holographic accents. *FX* in the header cycles Maximum, Calm and Off, and the system's reduce-motion setting is respected.
 - **E-STOP = fire suppression**: cancels all work and pauses the whole queue; resuming needs approval.
@@ -119,9 +123,10 @@ Ports 3000 or 8000 already used by another project? Add `STARK_WEB_PORT=3737` an
 | ![Content: your posts and accounts](docs/screenshots/content.png) | ![Approval before publishing](docs/screenshots/approval.png) |
 | ![Free models, live status](docs/screenshots/models.png) | ![The seven agents, each with its own brain](docs/screenshots/agents.png) |
 | ![Team review with visible collaboration](docs/screenshots/collaboration.png) | ![Command: talk to any agent](docs/screenshots/command.png) |
+| ![Listening: keywords, hashtags and competitors, triaged (sample posts)](docs/screenshots/listening.png) | ![Studio: repurpose, AI images, A/B tests and brand voice](docs/screenshots/studio.png) |
 | ![Autopilot: research, write, fact-check, approve in one click](docs/screenshots/autopilot.png) | |
 
-The Analytics screenshot uses made-up sample numbers; the dashboard itself only ever shows real engagement from your connected accounts.
+The Analytics and Listening screenshots use made-up sample data; the dashboard itself only ever shows real engagement from your connected accounts.
 
 ## Tests
 

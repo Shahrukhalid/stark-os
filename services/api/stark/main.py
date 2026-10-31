@@ -42,6 +42,7 @@ from .core.permissions import Mode
 from .core.runtime import TERMINAL, Kernel
 from .providers import ModelProvider
 from . import autopilot as ap
+from . import growth
 from .core.db import Campaign
 from .tools import build_registry
 from .tools import social as social_tools
@@ -131,6 +132,21 @@ class MastodonIn(BaseModel):
     access_token: str = Field(..., min_length=8, max_length=300)
 
 
+class WatchIn(BaseModel):
+    kind: Literal["keyword", "hashtag", "account"] | None = None
+    query: str | None = Field(None, max_length=200)
+    platforms: list[str] | None = None
+    label: str | None = Field(None, max_length=120)
+    enabled: bool | None = None
+    interval_min: int | None = Field(None, ge=5, le=1440)
+
+
+class ImageIn(BaseModel):
+    prompt: str = Field(..., min_length=3, max_length=600)
+    width: int = Field(1024, ge=256, le=1536)
+    height: int = Field(1024, ge=256, le=1536)
+
+
 class ItemActionIn(BaseModel):
     fingerprint: str = Field(..., min_length=64, max_length=64, description="from the queue: the text you saw")
 
@@ -206,7 +222,8 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
 
     register_secret(settings.api_token)
     for secret in (settings.openrouter_api_key, settings.bluesky_app_password, settings.mastodon_access_token,
-                   settings.tavily_api_key, settings.brave_api_key):
+                   settings.tavily_api_key, settings.brave_api_key, settings.telegram_bot_token,
+                   settings.discord_webhook_url):
         register_secret(secret)
     holder: dict[str, Kernel] = {}
 
@@ -217,10 +234,15 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         await holder["k"].router.prepare()
         log.info("STARK OS API ready", extra={"ctx": {"agents": holder["k"].registry.ids(),
                                                       "providers": holder["k"].router.configured_providers()}})
-        holder["k"].autopilot = ap.Autopilot(holder["k"], holder["k"].tools.get("social.publish").social, settings)
+        social = holder["k"].tools.get("social.publish").social
+        holder["k"].autopilot = ap.Autopilot(holder["k"], social, settings)
+        holder["k"].listening = growth.Listening(holder["k"], social, settings)
+        holder["k"].notifier = growth.Notifier(holder["k"], social, settings)
         scheduler = asyncio.create_task(_scheduler_loop(holder["k"]))
+        notifier = asyncio.create_task(holder["k"].notifier.run())
         yield
         scheduler.cancel()
+        notifier.cancel()
         for job in list(holder["k"]._running.values()):
             job.cancel()
 
@@ -229,6 +251,7 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         and runs due Autopilot campaigns."""
         social = k.tools.get("social.publish").social
         autopilot_job: asyncio.Task | None = None
+        listen_job: asyncio.Task | None = None
         try:
             while True:
                 await asyncio.sleep(max(1.0, settings.scheduler_interval_s))
@@ -242,9 +265,12 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
                     if autopilot_job is not None and not autopilot_job.cancelled() and autopilot_job.exception():
                         log.warning(f"autopilot error: {autopilot_job.exception()}")
                     autopilot_job = asyncio.create_task(k.autopilot.tick())
+                if settings.listening_enabled and (listen_job is None or listen_job.done()):
+                    listen_job = asyncio.create_task(k.listening.run_once())
         finally:
-            if autopilot_job is not None:
-                autopilot_job.cancel()
+            for job in (autopilot_job, listen_job):
+                if job is not None:
+                    job.cancel()
 
     app = FastAPI(title="STARK OS API", version=__version__, lifespan=lifespan)
     app.add_middleware(CORSMiddleware, allow_origins=[settings.web_origin], allow_methods=["*"],
@@ -519,6 +545,96 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         data = await social_tools.analytics_report(k, _social(k))
         analytics_cache.update(at=now, data=data)
         return data
+
+    # ---------------------------------------------------------- listening, notifications, images
+    @app.get("/api/listening/watches", dependencies=[api])
+    async def list_watches(k: Kernel = Depends(kernel)):
+        return {"watches": k.listening.watches(), "enabled": settings.listening_enabled}
+
+    @app.post("/api/listening/watches", dependencies=[api])
+    async def add_watch(body: WatchIn, k: Kernel = Depends(kernel)):
+        try:
+            w = k.listening.add(body.model_dump(exclude_none=True))
+        except growth.GrowthError as exc:
+            raise HTTPException(400, str(exc)) from None
+        k.obs.audit("user", "listening.watch", "ok", target=f"{w['kind']} {w['query']}")
+        return w
+
+    @app.patch("/api/listening/watches/{watch_id}", dependencies=[api])
+    async def edit_watch(watch_id: str, body: WatchIn, k: Kernel = Depends(kernel)):
+        try:
+            w = k.listening.update(watch_id, body.model_dump(exclude_none=True))
+        except growth.GrowthError as exc:
+            raise HTTPException(400, str(exc)) from None
+        if w is None:
+            raise HTTPException(404, "no such watch")
+        return w
+
+    @app.delete("/api/listening/watches/{watch_id}", dependencies=[api])
+    async def delete_watch(watch_id: str, k: Kernel = Depends(kernel)):
+        if not k.listening.delete(watch_id):
+            raise HTTPException(404, "no such watch")
+        return {"ok": True}
+
+    @app.get("/api/listening/mentions", dependencies=[api])
+    async def list_mentions(status: str = "new", watch_id: str | None = None, limit: int = Query(100, ge=1, le=500),
+                            k: Kernel = Depends(kernel)):
+        if status not in ("new", "done", "dismissed", "all"):
+            raise HTTPException(400, "bad status")
+        return {"mentions": k.listening.mentions(status, watch_id, limit), "competitors": k.listening.competitors()}
+
+    @app.post("/api/listening/mentions/{mention_id}/status", dependencies=[api])
+    async def mention_status(mention_id: str, status: str, k: Kernel = Depends(kernel)):
+        try:
+            ok = k.listening.set_status(mention_id, status)
+        except growth.GrowthError as exc:
+            raise HTTPException(400, str(exc)) from None
+        if not ok:
+            raise HTTPException(404, "no such mention")
+        return {"ok": True}
+
+    @app.post("/api/listening/run", dependencies=[api])
+    async def run_listening(k: Kernel = Depends(kernel)):
+        return await k.listening.run_once(force=True)
+
+    @app.get("/api/notify/status", dependencies=[api])
+    async def notify_status(k: Kernel = Depends(kernel)):
+        return k.notifier.status()
+
+    @app.post("/api/notify/test", dependencies=[api])
+    async def notify_test(k: Kernel = Depends(kernel)):
+        n = k.notifier
+        if not (n.telegram or n.discord):
+            raise HTTPException(409, "Set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID or DISCORD_WEBHOOK_URL in .env first.")
+        await n.send("✅ STARK OS is connected. Approvals, new drafts and urgent mentions will arrive here.")
+        return {"ok": True}
+
+    @app.post("/api/notify/digest", dependencies=[api])
+    async def notify_digest(k: Kernel = Depends(kernel)):
+        n = k.notifier
+        if not (n.telegram or n.discord):
+            raise HTTPException(409, "No phone notifications configured.")
+        await n.send(n.digest_text())
+        return {"ok": True}
+
+    @app.post("/api/media/generate", dependencies=[api])
+    async def media_generate(body: ImageIn, k: Kernel = Depends(kernel)):
+        try:
+            out = await growth.generate_image(settings, body.prompt, body.width, body.height)
+        except growth.GrowthError as exc:
+            raise HTTPException(400, str(exc)) from None
+        except httpx.HTTPError:
+            raise HTTPException(502, "Could not reach the image service. Check your internet connection.") from None
+        k.obs.audit("user", "media.generate_image", "ok", target=out["file"])
+        return out
+
+    @app.get("/api/media/file", dependencies=[api])
+    async def media_file(path: str):
+        try:
+            meta, data = social_tools.load_media_file(settings, path)
+        except social_tools.MediaFileError as exc:
+            raise HTTPException(404, str(exc)) from None
+        return Response(data, media_type=meta["mime"], headers={"Cache-Control": "private, max-age=3600"})
 
     # ---------------------------------------------------------- autopilot
     def _ap(k: Kernel) -> ap.Autopilot:

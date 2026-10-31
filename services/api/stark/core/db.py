@@ -211,6 +211,42 @@ class ContentItem(Base):
     autopilot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True, default=None)
 
 
+class Watch(Base):
+    """Social listening: a keyword, hashtag or account to follow on Bluesky and/or Mastodon."""
+
+    __tablename__ = "watches"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: new_id("wch"))
+    kind: Mapped[str] = mapped_column(String(16))  # keyword | hashtag | account (a competitor or partner)
+    query: Mapped[str] = mapped_column(String(200))
+    platforms: Mapped[list[Any]] = mapped_column(JSON, default=list)
+    label: Mapped[str] = mapped_column(String(120), default="")
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    interval_min: Mapped[int] = mapped_column(Integer, default=15)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Mention(Base):
+    """A public post found by a watch. Text is kept as found; nothing is ever posted from here."""
+
+    __tablename__ = "mentions"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: new_id("men"))
+    watch_id: Mapped[str] = mapped_column(String(40), index=True)
+    platform: Mapped[str] = mapped_column(String(24))
+    external_id: Mapped[str] = mapped_column(String(300), index=True)
+    url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    author: Mapped[str] = mapped_column(String(200), default="")
+    text: Mapped[str] = mapped_column(Text, default="")
+    posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    likes: Mapped[int] = mapped_column(Integer, default=0)
+    reposts: Mapped[int] = mapped_column(Integer, default=0)
+    replies: Mapped[int] = mapped_column(Integer, default=0)
+    category: Mapped[str] = mapped_column(String(24), default="general")  # from the inbox triage rules
+    status: Mapped[str] = mapped_column(String(16), default="new", index=True)  # new | done | dismissed
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class Campaign(Base):
     """An Autopilot campaign: what to research and post about, where, when, and how much to trust it."""
 

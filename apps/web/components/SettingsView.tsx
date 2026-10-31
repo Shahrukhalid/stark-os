@@ -1,5 +1,6 @@
 "use client";
 
+import { PhoneSettings } from "./PhoneSettings";
 import { Monitor, Moon, Sun, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useStark } from "@/lib/store";
@@ -171,6 +172,8 @@ export function SettingsView({ onSignOut }: { onSignOut: () => void }) {
           </div>
         )}
       </Section>
+
+      <PhoneSettings />
 
       <Section title="Connection">
         <p className="mb-3 text-sm text-[var(--color-mute)]">Memory is {status?.memory_enabled ? "enabled" : "disabled"} · database {status?.database}</p>

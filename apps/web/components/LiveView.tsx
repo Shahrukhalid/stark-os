@@ -8,7 +8,7 @@ import { Typewriter } from "./fx/Typewriter";
 import { AgentGlyph, Empty, Section, STATE_META, timeAgo } from "./ui";
 
 const ACTIVE = new Set(["thinking", "executing", "waiting_approval", "collaborating", "listening"]);
-const STREAM_TYPES = new Set(["task.created", "task.thought", "tool.call", "tool.result", "message", "approval.created", "approval.decided", "task.updated", "content.updated", "memory.created", "autopilot.run"]);
+const STREAM_TYPES = new Set(["task.created", "task.thought", "tool.call", "tool.result", "message", "approval.created", "approval.decided", "task.updated", "content.updated", "memory.created", "autopilot.run", "listening.hit"]);
 
 interface Line {
   key: string;
@@ -46,6 +46,8 @@ function describe(ev: StarkEvent, i: number): Line | null {
       return { key, ts: ev.ts, agent: d.created_by || null, icon: Zap, tag: "CONTENT", text: `${d.platform || "post"} ${d.status || "updated"}: ${String(d.text || "").slice(0, 120)}`, tone: "info" };
     case "memory.created":
       return { key, ts: ev.ts, agent: null, icon: Brain, tag: "MEMORY", text: `Stored in ${d.namespace}/${d.layer}`, tone: "info" };
+    case "listening.hit":
+      return { key, ts: ev.ts, agent: null, icon: Radio, tag: "HEARD", text: `${d.platform} · ${d.watch}: ${d.author} “${String(d.text || "").slice(0, 160)}”`, tone: ["escalate", "complaint", "abuse"].includes(d.category) ? "bad" : d.category === "question" ? "warn" : "info" };
     case "autopilot.run":
       return { key, ts: ev.ts, agent: "jarvis", icon: Zap, tag: "AUTOPILOT", text: `Campaign run: ${d.campaign || d.name || ""} ${d.created != null ? `· ${d.created} draft(s)` : ""}`, tone: "info" };
   }

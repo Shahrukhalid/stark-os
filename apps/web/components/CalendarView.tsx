@@ -1,8 +1,8 @@
 "use client";
 
-import { CalendarDays, ChevronLeft, ChevronRight, GripVertical, Sparkles } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, GripVertical, Sparkles, WandSparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { bestSlots } from "@/lib/analytics";
+import { bestSlots, nextSlots } from "@/lib/analytics";
 import { useStark } from "@/lib/store";
 import type { AnalyticsReport, ContentItem } from "@/lib/types";
 import { Section } from "./ui";
@@ -99,6 +99,27 @@ export function CalendarView() {
     }
   }
 
+  /** Puts every passing draft on its own free day at the best hour. Auto-publish stays off: you still approve each one. */
+  async function autoSchedule() {
+    const ready = drafts.filter((i) => i.check?.verdict !== "fail");
+    if (!ready.length) return notify("info", "No drafts ready to schedule.");
+    const taken = new Set(entries.filter((e) => e.status === "scheduled").map((e) => e.when.toDateString()));
+    const when = nextSlots(slots, ready.length, taken);
+    setBusy(true);
+    let ok = 0;
+    for (let n = 0; n < when.length; n++) {
+      try {
+        await client.post(`/api/social/items/${ready[n].id}/schedule`, { fingerprint: ready[n].fingerprint, when: when[n].toISOString(), auto: false });
+        ok++;
+      } catch (e: any) {
+        notify("error", e.message);
+      }
+    }
+    setBusy(false);
+    notify("success", `${ok} draft(s) placed on the calendar. Approve each one in Content to let it go out on its own.`);
+    load();
+  }
+
   const today = startOfDay(new Date());
   const title = mode === "month" ? cursor.toLocaleDateString([], { month: "long", year: "numeric" }) : `Week of ${days[0].toLocaleDateString([], { day: "numeric", month: "short" })}`;
 
@@ -136,7 +157,10 @@ export function CalendarView() {
           <button className="btn !px-2 !py-1" onClick={() => move(1)} aria-label="Next">
             <ChevronRight size={14} />
           </button>
-          <div className="ml-auto flex rounded-lg border border-[var(--color-line-strong)] p-0.5 text-xs" role="tablist">
+          <button className="btn ml-auto !py-1 text-xs" onClick={autoSchedule} disabled={busy || !drafts.length} title="Give every ready draft its own day at your best time">
+            <WandSparkles size={13} /> Auto-schedule drafts
+          </button>
+          <div className="flex rounded-lg border border-[var(--color-line-strong)] p-0.5 text-xs" role="tablist">
             {(["month", "week"] as const).map((m) => (
               <button key={m} role="tab" aria-selected={mode === m} className={`rounded-md px-3 py-1 capitalize ${mode === m ? "bg-cyan-400/15 text-cyan-200" : "text-[var(--color-mute)]"}`} onClick={() => setMode(m)}>
                 {m}

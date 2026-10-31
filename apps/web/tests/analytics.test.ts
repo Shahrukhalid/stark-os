@@ -27,3 +27,20 @@ describe("analytics", () => {
     expect(toCsv([post(mon9, 1)]).split("\n")[1]).toContain('"hi, ""there"""');
   });
 });
+
+describe("experiments and auto-scheduling", () => {
+  it("picks an A/B winner only when every variant is measured", async () => {
+    const { experiments } = await import("../lib/analytics");
+    const mk = (id: string, score: number | null) => ({ id, platform: "bluesky", kind: "post", text: id, url: null, campaign: "ab:launch", simulated: false, published_at: new Date().toISOString(), engagement: null, score });
+    expect(experiments([mk("a", 10), mk("b", 15)])[0]).toMatchObject({ name: "launch", lift: 50, winner: { id: "b" } });
+    expect(experiments([mk("a", 10), mk("b", null)])[0].winner).toBeNull();
+  });
+
+  it("fills free days at the best hour, one post per day, never in the past", async () => {
+    const { nextSlots } = await import("../lib/analytics");
+    const now = new Date(2026, 9, 26, 12, 0); // Monday noon
+    const taken = new Set([new Date(2026, 9, 27).toDateString()]); // Tuesday already has a post
+    const out = nextSlots([{ weekday: 0, hour: 9, avg: 5, count: 2, label: "" }], 3, taken, now);
+    expect(out.map((d) => [d.getDate(), d.getHours()])).toEqual([[28, 9], [29, 9], [30, 9]]); // Monday 9:00 has passed
+  });
+});
