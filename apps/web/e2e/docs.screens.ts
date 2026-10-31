@@ -105,7 +105,39 @@ test("README screenshots", async ({ page }) => {
   await expect(page.getByText("Best slot so far")).toBeVisible();
   await page.waitForTimeout(800);
   await shot(page, "analytics");
+
+  // Listening with clearly fictional sample posts (.example handles), and the Studio
+  await page.route("**/api/listening/watches", (r) =>
+    r.request().method() === "GET" ? r.fulfill({ json: { enabled: true, watches: sampleWatches() } }) : r.continue());
+  await page.route("**/api/listening/mentions*", (r) => r.fulfill({ json: { mentions: sampleMentions(), competitors: [] } }));
+  await page.getByRole("button", { name: "Listening", exact: true }).click();
+  await expect(page.getByText("Draft reply").first()).toBeVisible();
+  await shot(page, "listening");
+  await page.getByRole("button", { name: "Studio", exact: true }).click();
+  await page.getByLabel("Link or text to repurpose").fill("https://example.com/blog/how-we-plan-a-week-of-posts");
+  await shot(page, "studio");
 });
+
+function sampleWatches() {
+  const at = new Date().toISOString();
+  return [
+    { id: "w1", kind: "keyword", query: "stark os", platforms: ["bluesky", "mastodon"], label: "", enabled: true, interval_min: 15, last_run_at: at, last_error: null, created_at: at, new: 2 },
+    { id: "w2", kind: "hashtag", query: "BuildInPublic", platforms: ["bluesky"], label: "", enabled: true, interval_min: 15, last_run_at: at, last_error: null, created_at: at, new: 1 },
+    { id: "w3", kind: "account", query: "rival-sample.bsky.social", platforms: ["bluesky"], label: "", enabled: true, interval_min: 15, last_run_at: at, last_error: null, created_at: at, new: 0 },
+  ];
+}
+
+function sampleMentions() {
+  const ago = (m: number) => new Date(Date.now() - m * 60000).toISOString();
+  const m = (id: string, watch: string, platform: string, author: string, text: string, category: string, mins: number) => ({
+    id, watch_id: watch, platform, external_id: id, url: null, author, text, posted_at: ago(mins), likes: 2, reposts: 0, replies: 1, category, status: "new", created_at: ago(mins),
+  });
+  return [
+    m("m1", "w1", "bluesky", "@curious-sample.example", "Does STARK OS work with Mastodon too, or only Bluesky?", "question", 4),
+    m("m2", "w1", "mastodon", "@user-sample@social.example", "Scheduled posts didn't go out last night, anyone else seeing this?", "complaint", 31),
+    m("m3", "w2", "bluesky", "@maker-sample.example", "Day 12 of #BuildInPublic: our open-source scheduler now has a calendar.", "general", 58),
+  ];
+}
 
 /** Starts a team review over the API so the Live view has something to show. */
 async function send2(page: Page) {

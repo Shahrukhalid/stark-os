@@ -267,3 +267,24 @@ test("Live, Calendar, Analytics and the command palette", async ({ page }) => {
   await page.waitForTimeout(300);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(362);
 });
+
+test("Listening, Studio and phone notification settings", async ({ page }) => {
+  await connect(page);
+  await page.getByRole("button", { name: "Listening", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Listening" })).toBeVisible();
+  await page.getByRole("radio", { name: "hashtag" }).click();
+  await page.getByLabel("Keyword, hashtag or account").fill("#BuildInPublic");
+  await page.getByRole("button", { name: "Follow", exact: true }).click();
+  await expect(page.getByText("BuildInPublic", { exact: false }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Stop following BuildInPublic" }).click();
+  await expect(page.getByText("Start with your brand name")).toBeVisible();
+
+  await page.getByRole("button", { name: "Studio", exact: true }).click();
+  await page.getByLabel("Link or text to repurpose").fill("https://example.com/blog/launch-week");
+  await page.getByRole("button", { name: "Repurpose with the team" }).click();
+  await expect(page.getByLabel("Message")).toHaveValue(/repurpose this content for bluesky, mastodon, linkedin/);
+
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(page.getByText("Telegram: off")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Send a test" })).toBeDisabled();
+});

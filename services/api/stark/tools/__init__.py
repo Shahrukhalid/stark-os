@@ -12,4 +12,7 @@ def build_registry(settings: Settings) -> ToolRegistry:
     for tool in [*social.build(settings), *web.build(settings), *filesystem.TOOLS, *security.TOOLS,
                  *memory_tools.TOOLS, *delegation.TOOLS, *system.TOOLS]:
         reg.register(tool)
+    from ..growth import GenerateImage  # imported here: growth itself uses the social tools
+
+    reg.register(GenerateImage(settings))
     return reg

@@ -371,3 +371,43 @@ export interface AnalyticsReport {
   errors: string[];
   fetched_at: string;
 }
+
+export interface Watch {
+  id: string;
+  kind: "keyword" | "hashtag" | "account";
+  query: string;
+  platforms: string[];
+  label: string;
+  enabled: boolean;
+  interval_min: number;
+  last_run_at: string | null;
+  last_error: string | null;
+  created_at: string;
+  new: number;
+}
+
+export interface Mention {
+  id: string;
+  watch_id: string;
+  platform: string;
+  external_id: string;
+  url: string | null;
+  author: string;
+  text: string;
+  posted_at: string | null;
+  likes: number;
+  reposts: number;
+  replies: number;
+  category: string;
+  status: "new" | "done" | "dismissed";
+  created_at: string;
+}
+
+export interface Competitor {
+  watch_id: string;
+  account: string;
+  label: string;
+  posts: number;
+  avg_score: number;
+  best: { text: string; url: string | null; likes: number; reposts: number; replies: number }[];
+}

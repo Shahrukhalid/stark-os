@@ -1,6 +1,6 @@
 # Implementation status
 
-_Last updated: 2026-10-31 · release 0.6.0 (Live view, drag-and-drop calendar, analytics dashboard, command palette and a new animated interface)_
+_Last updated: 2026-10-31 · release 0.7.0 (social listening, Studio, phone approvals and self-learning tools)_
 
 Legend: ✅ **Implemented & tested** · 🟡 **Implemented, not fully live-tested** · 🔑 **Requires credentials** · 🧪 **Simulated** · 📋 **Planned** · ⛔ **Unsupported by design**
 
@@ -8,12 +8,21 @@ Legend: ✅ **Implemented & tested** · 🟡 **Implemented, not fully live-teste
 
 | Suite | Result |
 |---|---|
-| Backend `pytest` (runtime, social tools & adapters, Autopilot, tools, permissions, memory, free-model pool, API, security regressions) | **213 passed** on Python 3.13 with PostgreSQL 16 and real Chromium |
-| Frontend type-check + `vitest` | **20 passed** |
-| End-to-end (Playwright: real dashboard + real API + a test-only scripted server speaking the OpenRouter protocol) | **17 passed** (incl. Live, Calendar, Analytics and the command palette;  Autopilot campaign → research → writing → fact-check → batch approval, one-click publish, approved auto-publish at a time, account-connect checks, chat approval card, inbox triage, 360 px layout, safe markdown) |
+| Backend `pytest` (runtime, social tools & adapters, Autopilot, tools, permissions, memory, free-model pool, API, security regressions) | **219 passed** on Python 3.13 with PostgreSQL 16 and real Chromium |
+| Frontend type-check + `vitest` | **22 passed** |
+| End-to-end (Playwright: real dashboard + real API + a test-only scripted server speaking the OpenRouter protocol) | **18 passed** (incl. Listening, Studio, Live, Calendar, Analytics and the command palette;  Autopilot campaign → research → writing → fact-check → batch approval, one-click publish, approved auto-publish at a time, account-connect checks, chat approval card, inbox triage, 360 px layout, safe markdown) |
 | `next build` | passed · `npm audit`: **0 vulnerabilities** · `pip-audit`: **0 known vulnerabilities** |
 | Secret scan (gitleaks) on the publishable tree | no leaks |
 | Live OpenRouter check (2026-10-16, from the owner's machine) | key valid (free tier, 50 free requests/day); **10 of 15** chat-capable free models answered with a correct tool call; 4 were temporarily rate-limited upstream (429); 2 are restricted to agentic harnesses (403, excluded) |
+
+## Growth (0.7.0, 2026-10-31)
+
+✅ **Listening**: watches (keyword, hashtag, account) checked every 15 minutes on Bluesky (search via the connected account or the public AppView; author feeds) and Mastodon (search with a token, hashtag timelines, account statuses). Results are de-duplicated, triaged with the inbox rules and shown in a Listening page; competitor accounts get a best-posts summary.
+✅ **Phone notifications**: Telegram (long polling, no public URL) with Approve / Reject and Publish / Discard buttons. Only the configured chat may press them; a Publish button carries the fingerprint of the text it showed and refuses if the post changed. Discord webhook messages and a daily digest.
+✅ **Free AI images**: `media.generate_image` (U) and the Studio save Pollinations images in `media/generated/`, checked like any attachment. `STARK_IMAGE_GENERATOR=off` turns it off.
+✅ **Studio**: repurpose a link or text through J.A.R.V.I.S.'s team, A/B hook tests (campaign `ab:…`, compared under Analytics → Experiments), *Learn my voice* from the best real posts.
+✅ **Auto-schedule drafts** in Calendar (one per free day at the best hour; auto-publish stays off) and an installable web-app manifest.
+🔑 Telegram / Discord need your own bot token, chat id or webhook in `.env`.
 
 ## Dashboard upgrade (0.6.0, 2026-10-31)
 

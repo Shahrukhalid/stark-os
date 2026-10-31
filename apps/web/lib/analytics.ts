@@ -91,3 +91,45 @@ export function toCsv(posts: PublishedPost[]): string {
     rows.push([p.published_at, p.platform, p.campaign, p.engagement?.likes ?? "", p.engagement?.reposts ?? "", p.engagement?.replies ?? "", p.engagement?.quotes ?? "", p.score ?? "", p.simulated, p.url ?? "", p.text].map(String));
   return rows.map((r) => r.map(esc).join(",")).join("\n");
 }
+
+export interface Experiment {
+  name: string;
+  variants: PublishedPost[];
+  winner: PublishedPost | null;
+  lift: number | null;
+}
+
+/** A/B hook tests: published posts whose campaign starts with "ab:". The winner needs every variant measured. */
+export function experiments(posts: PublishedPost[]): Experiment[] {
+  const groups = new Map<string, PublishedPost[]>();
+  for (const p of posts) if (p.campaign?.startsWith("ab:")) groups.set(p.campaign, [...(groups.get(p.campaign) || []), p]);
+  return [...groups.entries()].map(([name, variants]) => {
+    const all = variants.length >= 2 && variants.every((v) => v.score != null);
+    const sorted = [...variants].sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+    const winner = all && sorted[0].score! > sorted[1].score! ? sorted[0] : null;
+    const lift = winner && sorted[1].score ? Math.round((100 * (winner.score! - sorted[1].score!)) / sorted[1].score!) : null;
+    return { name: name.slice(3), variants: sorted, winner, lift };
+  });
+}
+
+/**
+ * The next `count` free posting times: the best weekday/hour slots first (default 10:00 every day when nothing is
+ * measured yet), at most one post per day, never in the past or within an hour from now.
+ */
+export function nextSlots(slots: Slot[], count: number, takenDays: Set<string>, now = new Date(), days = 21): Date[] {
+  const hours = new Map<number, number[]>(); // weekday -> best hours
+  for (const s of slots) hours.set(s.weekday, [...(hours.get(s.weekday) || []), s.hour]);
+  const fallback = slots.length ? slots[0].hour : 10;
+  const out: Date[] = [];
+  for (let i = 0; i < days && out.length < count; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    const key = d.toDateString();
+    if (takenDays.has(key)) continue;
+    const h = (hours.get(weekday(d)) || [fallback])[0];
+    const when = new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, 0);
+    if (when.getTime() < now.getTime() + 3600_000) continue;
+    out.push(when);
+    takenDays.add(key);
+  }
+  return out;
+}

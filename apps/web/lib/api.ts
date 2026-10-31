@@ -114,6 +114,12 @@ export class StarkClient {
   del<T = any>(path: string) {
     return this.req<T>(path, { method: "DELETE" });
   }
+  /** A binary response (e.g. a generated image) with the token in the header, never in the URL. */
+  async blob(path: string): Promise<Blob> {
+    const res = await fetch(`${this.url}${path}`, { headers: { authorization: `Bearer ${this.conn.token}` } });
+    if (!res.ok) throw new ApiError(res.status, res.statusText);
+    return res.blob();
+  }
 
   /** Server-sent events. EventSource cannot set headers, so the token travels as a query parameter
    * (the API never writes access logs). The browser retries dropped connections itself; if the server

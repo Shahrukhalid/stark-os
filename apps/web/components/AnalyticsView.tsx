@@ -1,8 +1,8 @@
 "use client";
 
-import { Download, ExternalLink, Heart, MessageCircle, RefreshCw, Repeat2, TrendingUp } from "lucide-react";
+import { Download, ExternalLink, FlaskConical, Heart, Trophy, MessageCircle, RefreshCw, Repeat2, TrendingUp } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { bestSlots, daily, heatmap, toCsv } from "@/lib/analytics";
+import { bestSlots, daily, experiments, heatmap, toCsv } from "@/lib/analytics";
 import { useStark } from "@/lib/store";
 import type { AnalyticsReport } from "@/lib/types";
 import { Empty, Section, timeAgo } from "./ui";
@@ -130,6 +130,7 @@ export function AnalyticsView() {
   const points = useMemo(() => daily(posts, 30), [posts]);
   const heat = useMemo(() => heatmap(posts), [posts]);
   const slots = useMemo(() => bestSlots(posts), [posts]);
+  const tests = useMemo(() => experiments(posts), [posts]);
   const top = useMemo(() => [...posts].filter((p) => p.score != null).sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, 6), [posts]);
 
   function exportCsv() {
@@ -272,6 +273,46 @@ export function AnalyticsView() {
           )}
         </Section>
       </div>
+
+      <Section title="Experiments · A/B hook tests" right={<FlaskConical size={15} className="text-violet-300" />}>
+        {tests.length === 0 ? (
+          <Empty>No A/B tests yet. Start one in Studio: two versions of a post with different hooks.</Empty>
+        ) : (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {tests.map((t) => {
+              const max = Math.max(1, ...t.variants.map((v) => v.score ?? 0));
+              return (
+                <div key={t.name} className="rounded-lg border border-[var(--color-line)] p-3">
+                  <div className="mb-2 flex items-center gap-2 text-sm">
+                    <span className="font-semibold">{t.name}</span>
+                    {t.winner ? (
+                      <span className="chip ml-auto !border-emerald-400/50 !text-emerald-300">
+                        <Trophy size={11} /> winner{t.lift != null ? ` +${t.lift}%` : ""}
+                      </span>
+                    ) : (
+                      <span className="chip ml-auto">{t.variants.length < 2 ? "waiting for the second post" : "measuring…"}</span>
+                    )}
+                  </div>
+                  <ul className="space-y-2">
+                    {t.variants.map((v, i) => (
+                      <li key={v.id} className="text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-[var(--color-mute)]">{String.fromCharCode(65 + i)}</span>
+                          <span className="line-clamp-1 min-w-0 flex-1">{v.text}</span>
+                          <span className="font-mono">{v.score ?? "–"}</span>
+                        </div>
+                        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-black/20">
+                          <div className="h-full rounded-full" style={{ width: `${(100 * (v.score ?? 0)) / max}%`, background: t.winner?.id === v.id ? "#34d399" : "#a78bfa", transition: "width .8s" }} />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Section>
     </div>
   );
 }

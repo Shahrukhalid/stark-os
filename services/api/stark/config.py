@@ -92,6 +92,12 @@ class Settings:
     scheduler_interval_s: float = 30.0  # how often approved scheduled posts are checked
     scheduler_grace_h: float = 6.0  # an approved post more than this late (STARK OS was off) needs re-approval
     allow_private_fetch: bool = False  # tests only; never enable in production
+    telegram_bot_token: str = ""  # from @BotFather; buttons work without a public URL (long polling)
+    telegram_chat_id: str = ""  # only this chat may press Approve / Publish
+    discord_webhook_url: str = ""
+    digest_hour: int = 9  # local time of the daily digest
+    image_generator: str = "pollinations"  # "pollinations" (free, no key) or "off"
+    listening_enabled: bool = True
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -131,6 +137,12 @@ class Settings:
             scheduler_interval_s=_env_float("STARK_SCHEDULER_INTERVAL_S", 30.0),
             scheduler_grace_h=_env_float("STARK_SCHEDULER_GRACE_H", 6.0),
             allow_private_fetch=_env_bool("STARK_ALLOW_PRIVATE_FETCH", False),
+            telegram_bot_token=_env("TELEGRAM_BOT_TOKEN"),
+            telegram_chat_id=_env("TELEGRAM_CHAT_ID"),
+            discord_webhook_url=_env("DISCORD_WEBHOOK_URL"),
+            digest_hour=_env_int("STARK_DIGEST_HOUR", 9),
+            image_generator=_env("STARK_IMAGE_GENERATOR", "pollinations").lower(),
+            listening_enabled=_env_bool("STARK_LISTENING", True),
         )
 
 
