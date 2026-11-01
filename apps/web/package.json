@@ -13,20 +13,20 @@
     "demo-gif": "next build && STARK_DEMO=1 playwright test -c playwright.docs.config.ts && node e2e/make-gif.mjs"
   },
   "dependencies": {
-    "lucide-react": "1.56.0",
-    "next": "16.4.1",
-    "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "lucide-react": "1.64.0",
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   },
   "devDependencies": {
-    "@playwright/test": "1.64.0",
+    "@playwright/test": "1.64.1",
     "@tailwindcss/postcss": "4.3.3",
-    "@types/node": "26.6.5",
+    "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "tailwindcss": "4.3.3",
     "typescript": "7.0.2",
-    "vitest": "5.0.4"
+    "vitest": "5.0.5"
   },
   "overrides": {
     "postcss": "8.5.30"
