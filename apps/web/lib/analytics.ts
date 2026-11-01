@@ -133,3 +133,36 @@ export function nextSlots(slots: Slot[], count: number, takenDays: Set<string>, 
   }
   return out;
 }
+
+
+export interface GroupStat {
+  name: string;
+  posts: number;
+  measured: number;
+  likes: number;
+  reposts: number;
+  replies: number;
+  avg: number | null;
+}
+
+/** Real engagement grouped by campaign or brand (posts without one are grouped as "(none)"), best first. */
+export function groupBy(posts: PublishedPost[], key: "campaign" | "brand"): GroupStat[] {
+  const out = new Map<string, GroupStat & { total: number }>();
+  for (const p of posts) {
+    if (p.simulated) continue;
+    const name = (p[key] as string | undefined) || "(none)";
+    const g = out.get(name) || { name, posts: 0, measured: 0, likes: 0, reposts: 0, replies: 0, avg: null, total: 0 };
+    g.posts += 1;
+    if (p.engagement && p.score != null) {
+      g.measured += 1;
+      g.likes += p.engagement.likes || 0;
+      g.reposts += p.engagement.reposts || 0;
+      g.replies += p.engagement.replies || 0;
+      g.total += p.score;
+    }
+    out.set(name, g);
+  }
+  return [...out.values()]
+    .map(({ total, ...g }) => ({ ...g, avg: g.measured ? Math.round((10 * total) / g.measured) / 10 : null }))
+    .sort((a, b) => (b.avg ?? -1) - (a.avg ?? -1));
+}

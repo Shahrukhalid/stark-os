@@ -288,7 +288,7 @@ export function AutomationsView() {
 
 function sampleFor(a: Automation) {
   if (a.trigger.type === "webhook") return JSON.stringify({ platform: "bluesky", text: "Hello from Make" }, null, 2);
-  if (a.trigger.event === "mention.found") return JSON.stringify({ platform: "bluesky", author: "@someone.example", text: "Love this tool!", category: "praise", likes: 12, kind: "keyword" }, null, 2);
+  if (a.trigger.event === "mention.found") return JSON.stringify({ platform: "bluesky", author: "@someone.example", text: "Love this tool!", category: "praise", sentiment: "positive", likes: 12, kind: "keyword" }, null, 2);
   return JSON.stringify({ platform: "bluesky", text: "We just shipped Automations https://example.com/blog", campaign: "launch" }, null, 2);
 }
 

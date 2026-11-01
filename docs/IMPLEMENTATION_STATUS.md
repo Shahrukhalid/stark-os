@@ -1,6 +1,6 @@
 # Implementation status
 
-_Last updated: 2026-11-01 · release 1.1.0 (Automations: triggers, conditions and actions; recipe gallery; inbound and outbound webhooks for automation apps)_
+_Last updated: 2026-11-01 · release 1.3.0 (brands, mood of mentions, hashtag research, campaign and brand analytics; 1.2.0: desktop app)_
 
 Legend: ✅ **Implemented & tested** · 🟡 **Implemented, not fully live-tested** · 🔑 **Requires credentials** · 🧪 **Simulated** · 📋 **Planned** · ⛔ **Unsupported by design**
 

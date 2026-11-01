@@ -26,6 +26,7 @@ from sqlalchemy import select
 
 from .core.db import Approval, ContentItem, Mention, Watch, to_dict, utcnow
 from .core.observability import log
+from .sentiment import analyze as analyze_sentiment
 from .core.tool_registry import ApprovalText, Availability, Risk, Tool, ToolResult
 from .tools import social as social_tools
 
@@ -126,14 +127,46 @@ class Listening:
                 s.delete(m)
             return True
 
-    def mentions(self, status: str = "new", watch_id: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+    def mentions(self, status: str = "new", watch_id: str | None = None, limit: int = 100,
+                 sentiment: str | None = None) -> list[dict[str, Any]]:
         with self.kernel.db.session() as s:
             q = select(Mention).order_by(Mention.posted_at.desc().nullslast(), Mention.created_at.desc()).limit(limit)
             if status != "all":
                 q = q.where(Mention.status == status)
             if watch_id:
                 q = q.where(Mention.watch_id == watch_id)
-            return [to_dict(m) for m in s.scalars(q).all()]
+            rows = s.scalars(q).all()
+            for m in rows:  # mentions stored before sentiment existed get it now
+                if not m.sentiment:
+                    m.sentiment, m.sentiment_score = analyze_sentiment(m.text)
+            out = [to_dict(m) for m in rows]
+        return [m for m in out if m["sentiment"] == sentiment] if sentiment else out
+
+    def mood(self, days: int = 7) -> dict[str, Any]:
+        """Share of positive, neutral and negative mentions (keyword and hashtag watches, last `days`)."""
+        since = utcnow() - timedelta(days=days)
+        counts = {"positive": 0, "neutral": 0, "negative": 0}
+        with self.kernel.db.session() as s:
+            for m in s.scalars(select(Mention).where(Mention.created_at >= since, Mention.category != "competitor")):
+                label = m.sentiment or analyze_sentiment(m.text)[0]
+                counts[label] = counts.get(label, 0) + 1
+        total = sum(counts.values())
+        return {"days": days, "total": total, **counts,
+                "negative_share": round(counts["negative"] / total, 3) if total else 0.0}
+
+    async def research_hashtag(self, tag: str) -> dict[str, Any]:
+        """Live look at a hashtag on Bluesky and Mastodon: activity, engagement, related tags and the top posts."""
+        tag = tag.strip().lstrip("#")
+        if not re.fullmatch(r"[\w-]{2,60}", tag):
+            raise GrowthError("Enter a hashtag of letters, numbers, - or _")
+        posts: list[dict[str, Any]] = []
+        errors: list[str] = []
+        for platform in ("bluesky", "mastodon"):
+            try:
+                posts += [{**p, "platform": platform} for p in await self._fetch(platform, {"kind": "hashtag", "query": tag})]
+            except (httpx.HTTPError, social_tools.AdapterError, GrowthError, KeyError, ValueError) as exc:
+                errors.append(f"{platform}: {str(exc)[:160] or exc.__class__.__name__}")
+        return hashtag_report(tag, posts, errors)
 
     def set_status(self, mention_id: str, status: str) -> bool:
         if status not in ("new", "done", "dismissed"):
@@ -201,10 +234,12 @@ class Listening:
                     continue
                 seen.add(p["external_id"])
                 cat = social_tools.triage(p["text"])["category"] if w["kind"] != "account" else "competitor"
+                mood, mood_score = analyze_sentiment(p["text"])
                 row = Mention(watch_id=w["id"], platform=p["platform"], external_id=p["external_id"][:300],
                               url=(p.get("url") or "")[:500] or None, author=p["author"][:200], text=p["text"][:5000],
                               posted_at=_dt(p.get("posted_at")), likes=p.get("likes", 0), reposts=p.get("reposts", 0),
                               replies=p.get("replies", 0), category=cat, labels=apply_rules(rules, p["text"]),
+                              sentiment=mood, sentiment_score=mood_score,
                               # competitors' posts are research, not a to-do list
                               status="done" if w["kind"] == "account" else "new")
                 s.add(row)
@@ -562,3 +597,42 @@ class GenerateImage(Tool):
             return ToolResult(False, f"Image not created: {exc}", error="image_failed")
         return ToolResult(True, f"Image saved as {out['file']} ({out['bytes'] // 1024} KB). Attach it with "
                                 f"media=[{{file: '{out['file']}', alt_text: '…', description: '…'}}].", out)
+
+
+def hashtag_report(tag: str, posts: list[dict[str, Any]], errors: list[str] | None = None,
+                   now: datetime | None = None) -> dict[str, Any]:
+    """Numbers and advice for one hashtag from the posts found (pure: easy to test)."""
+    now = now or utcnow()
+    tag_low = tag.lower()
+    dated = [(p, _dt(p.get("posted_at"))) for p in posts]
+    day = sum(1 for _, t in dated if t and now - t <= timedelta(days=1))
+    week = sum(1 for _, t in dated if t and now - t <= timedelta(days=7))
+    score = [p.get("likes", 0) + 2 * (p.get("reposts", 0) + p.get("replies", 0)) for p in posts]
+    related: dict[str, int] = {}
+    for p in posts:
+        for t in {h.lower() for h in re.findall(r"#([\w-]{2,60})", p.get("text", ""))}:
+            if t != tag_low:
+                related[t] = related.get(t, 0) + 1
+    moods = [analyze_sentiment(p.get("text", ""))[0] for p in posts]
+    top = sorted(posts, key=lambda p: p.get("likes", 0) + 2 * (p.get("reposts", 0) + p.get("replies", 0)), reverse=True)
+    avg = round(sum(score) / len(score), 1) if score else 0.0
+    if not posts:
+        advice = "No recent posts found: pick a more common hashtag, or use it to start your own niche conversation."
+    elif week >= 20 and avg >= 5:
+        advice = "Active and engaging: a good hashtag to use now."
+    elif week >= 20:
+        advice = "Busy but low engagement: posts get lost here. Pair it with a more specific related hashtag."
+    elif avg >= 5:
+        advice = "Small but engaged community: good for reaching people who care."
+    else:
+        advice = "Quiet right now: use it alongside a more popular related hashtag."
+    return {
+        "tag": tag, "found": len(posts), "last_24h": day, "last_7d": week, "avg_engagement": avg,
+        "by_platform": {pl: sum(1 for p in posts if p.get("platform") == pl) for pl in ("bluesky", "mastodon")},
+        "sentiment": {m: moods.count(m) for m in ("positive", "neutral", "negative")},
+        "related": [{"tag": f"#{t}", "count": c} for t, c in sorted(related.items(), key=lambda x: -x[1])[:12]],
+        "top_posts": [{"platform": p.get("platform"), "author": p.get("author", ""), "text": p.get("text", "")[:280],
+                       "url": p.get("url"), "likes": p.get("likes", 0), "reposts": p.get("reposts", 0),
+                       "replies": p.get("replies", 0)} for p in top[:5]],
+        "advice": advice, "errors": errors or [],
+    }

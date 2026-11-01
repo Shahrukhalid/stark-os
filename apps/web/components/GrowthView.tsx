@@ -4,6 +4,7 @@ import { ExternalLink, Flame, Hash, Package, RefreshCw, Sparkles, TrendingUp, Us
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useStark } from "@/lib/store";
 import type { GrowthReport } from "@/lib/types";
+import { HashtagResearch } from "./HashtagResearch";
 import { Empty, Section } from "./ui";
 
 const COLORS: Record<string, string> = { bluesky: "#38bdf8", mastodon: "#a78bfa" };
@@ -174,6 +175,8 @@ export function GrowthView({ talkTo }: { talkTo: (agentId: string, text?: string
       <Section title="Posting consistency · last 12 months">
         {g ? <Consistency posted={g.posted_days} /> : null}
       </Section>
+
+      <HashtagResearch talkTo={talkTo} />
 
       <div className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-2">
         <Section title="Rising hashtags (from Listening)" right={<Hash size={15} className="text-violet-300" />}>

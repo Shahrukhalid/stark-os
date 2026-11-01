@@ -147,7 +147,8 @@ def test_listening_and_notify_api(settings):
         w = c.post("/api/listening/watches", json={"kind": "hashtag", "query": "launch", "platforms": ["mastodon"]}).json()
         assert c.get("/api/listening/watches").json()["watches"][0]["id"] == w["id"]
         assert c.patch(f"/api/listening/watches/{w['id']}", json={"enabled": False}).json()["enabled"] is False
-        assert c.get("/api/listening/mentions").json() == {"mentions": [], "competitors": []}
+        got = c.get("/api/listening/mentions").json()
+        assert got["mentions"] == [] and got["competitors"] == [] and got["mood"]["total"] == 0
         assert c.delete(f"/api/listening/watches/{w['id']}").json()["ok"]
         assert c.get("/api/notify/status").json()["telegram"] is False
         assert c.post("/api/notify/test").status_code == 409

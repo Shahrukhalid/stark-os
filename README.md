@@ -41,6 +41,18 @@ The agents are modelled on the AI personas in Vision's Mindspace from Marvel's *
 
 Everything below works today in the free, self-hosted version. Each feature has its own page in the dashboard (left menu) or can be reached with **Ctrl/⌘ K**.
 
+### New in 1.3
+- **Brands**: run several brands or clients from one STARK OS. Each brand has its own voice, audience, guidelines,
+  hashtags, target platforms and words it never uses. The active brand steers all seven agents, the post checker
+  blocks its forbidden words, and new content is tagged with it.
+- **Mood of mentions**: every mention found by Listening is marked happy, neutral or unhappy, on your computer and
+  without any AI cost. Sort unhappy posts first, see the week's mood at a glance, and use the new automation recipe
+  that labels unhappy posts, alerts your phone and asks F.R.I.D.A.Y. for an empathetic reply draft.
+- **Hashtag research**: look up any hashtag live on Bluesky and Mastodon: posts in the last day and week, average
+  engagement, related hashtags, the mood around it, its top posts and a clear recommendation, then let E.D.I.T.H.
+  write a post for it.
+- **Campaign and brand analytics**: real engagement per campaign and per brand in Analytics.
+
 ### 1. Create content
 - **Command**: talk to any agent in plain language, by typing or by voice (push-to-talk, a voice per agent). Example: *"EDITH, write a Bluesky post about our launch."*
 - **Compose**: write a post yourself with a live preview of how it will look on each platform, a character counter, Library snippets, a content category and (on Bluesky) who may reply.

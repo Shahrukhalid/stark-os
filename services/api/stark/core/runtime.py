@@ -348,6 +348,7 @@ class Kernel:
             f"- Task id: {task['id']}  depth: {task['depth']}  requested by: {task['requested_by']}",
             "- Tools available to you:\n" + ("\n".join(tool_lines) or "  (none)"),
             ("- Agents you may delegate to:\n" + "\n".join(team)) if team else "- You cannot delegate.",
+            *([b] if (b := _brand_section(self)) else []),
             "## Ground rules (enforced by the platform, not optional)",
             "- Every tool call is permission-checked; changes may wait for the user's approval. If a call is "
             "denied or rejected, report that honestly and continue without it.",
@@ -777,3 +778,13 @@ class Kernel:
         self.perms.set_mode(mode)
         self.obs.audit("user", "mode.set", mode.value)
         self.bus.publish("mode", {"mode": mode.value})
+
+
+def _brand_section(runtime) -> str:
+    """The active brand's voice and rules (see stark.brands); empty when none is active or on any error."""
+    try:
+        from ..brands import prompt_section
+
+        return prompt_section(runtime)
+    except Exception:  # noqa: BLE001 - brand context must never break a task
+        return ""

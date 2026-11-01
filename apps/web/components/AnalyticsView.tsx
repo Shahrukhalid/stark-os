@@ -2,7 +2,7 @@
 
 import { Download, ExternalLink, FileText, FlaskConical, Heart, Recycle, Trophy, MessageCircle, RefreshCw, Repeat2, TrendingUp } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { bestSlots, daily, experiments, heatmap, toCsv } from "@/lib/analytics";
+import { bestSlots, daily, experiments, groupBy, heatmap, toCsv, type GroupStat } from "@/lib/analytics";
 import { useStark } from "@/lib/store";
 import type { AnalyticsReport } from "@/lib/types";
 import { Empty, Section, timeAgo } from "./ui";
@@ -131,6 +131,8 @@ export function AnalyticsView() {
   const heat = useMemo(() => heatmap(posts), [posts]);
   const slots = useMemo(() => bestSlots(posts), [posts]);
   const tests = useMemo(() => experiments(posts), [posts]);
+  const campaigns = useMemo(() => groupBy(posts, "campaign"), [posts]);
+  const brandStats = useMemo(() => groupBy(posts, "brand"), [posts]);
   const top = useMemo(() => [...posts].filter((p) => p.score != null).sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, 6), [posts]);
 
   function exportCsv() {
@@ -314,6 +316,15 @@ ${slots[0] ? `<p><b>Best time to post so far:</b> ${esc(slots[0].label)} (your t
         </Section>
       </div>
 
+      <div className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-2">
+        <Section title="Campaigns · real engagement">
+          <GroupTable rows={campaigns} label="Campaign" />
+        </Section>
+        <Section title="Brands · real engagement">
+          <GroupTable rows={brandStats} label="Brand" />
+        </Section>
+      </div>
+
       <Section title="Experiments · A/B hook tests" right={<FlaskConical size={15} className="text-violet-300" />}>
         {tests.length === 0 ? (
           <Empty>No A/B tests yet. Start one in Studio: two versions of a post with different hooks.</Empty>
@@ -353,6 +364,38 @@ ${slots[0] ? `<p><b>Best time to post so far:</b> ${esc(slots[0].label)} (your t
           </div>
         )}
       </Section>
+    </div>
+  );
+}
+
+function GroupTable({ rows, label }: { rows: GroupStat[]; label: string }) {
+  if (!rows.length) return <Empty>No published posts yet.</Empty>;
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="text-left text-xs text-[var(--color-mute)]">
+          <tr>
+            <th className="py-1 pr-3">{label}</th>
+            <th className="py-1 pr-3">Posts</th>
+            <th className="py-1 pr-3">♥</th>
+            <th className="py-1 pr-3">⟲</th>
+            <th className="py-1 pr-3">💬</th>
+            <th className="py-1">Avg score</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((g) => (
+            <tr key={g.name} className="border-t border-[var(--color-line)]">
+              <td className="py-1 pr-3">{g.name}</td>
+              <td className="py-1 pr-3">{g.posts}</td>
+              <td className="py-1 pr-3">{g.likes}</td>
+              <td className="py-1 pr-3">{g.reposts}</td>
+              <td className="py-1 pr-3">{g.replies}</td>
+              <td className="py-1">{g.avg ?? "–"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

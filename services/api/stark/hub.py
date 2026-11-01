@@ -221,7 +221,8 @@ def webhook_payload(ev: dict[str, Any]) -> dict[str, Any] | None:
         data = {k: d.get(k) for k in ("id", "platform", "kind", "text", "campaign", "scheduled_for", "external_url",
                                        "simulated", "created_by")}
     elif t == "listening.hit":
-        name, data = "mention.found", {k: d.get(k) for k in ("platform", "author", "text", "url", "category", "watch")}
+        name, data = "mention.found", {k: d.get(k) for k in ("platform", "author", "text", "url", "category", "watch",
+                                                             "sentiment")}
     elif t == "approval.created":
         name, data = "approval.needed", {k: d.get(k) for k in ("id", "agent_id", "tool_id", "action")}
     elif t == "autopilot.alert":

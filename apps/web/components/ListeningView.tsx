@@ -3,7 +3,7 @@
 import { Check, ExternalLink, Hash, Plus, Radar, RefreshCw, Reply, Sparkles, Trash2, User, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useStark } from "@/lib/store";
-import type { Competitor, Mention, Watch } from "@/lib/types";
+import type { Competitor, Mention, Mood, Watch } from "@/lib/types";
 import { DirectMessages, InboxRules } from "./InboxExtras";
 import { Empty, Section, timeAgo } from "./ui";
 
@@ -18,19 +18,24 @@ export function ListeningView({ talkTo }: { talkTo: (agentId: string, text?: str
   const [rivals, setRivals] = useState<Competitor[]>([]);
   const [tab, setTab] = useState<"new" | "done" | "rivals" | "messages">("new");
   const [filter, setFilter] = useState<string>("");
+  const [mood, setMood] = useState<Mood | null>(null);
+  const [feeling, setFeeling] = useState<"" | "positive" | "neutral" | "negative">("");
   const [form, setForm] = useState({ kind: "keyword" as Watch["kind"], query: "", bluesky: true, mastodon: true });
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
     client.get<{ watches: Watch[] }>("/api/listening/watches").then((r) => setWatches(r.watches)).catch(() => {});
     client
-      .get<{ mentions: Mention[]; competitors: Competitor[] }>(`/api/listening/mentions?status=${tab === "done" ? "done" : "new"}${filter ? `&watch_id=${filter}` : ""}`)
+      .get<{ mentions: Mention[]; competitors: Competitor[]; mood?: Mood }>(
+        `/api/listening/mentions?status=${tab === "done" ? "done" : "new"}${filter ? `&watch_id=${filter}` : ""}${feeling ? `&sentiment=${feeling}` : ""}`,
+      )
       .then((r) => {
         setMentions(r.mentions);
         setRivals(r.competitors);
+        setMood(r.mood || null);
       })
       .catch(() => {});
-  }, [client, tab, filter]);
+  }, [client, tab, filter, feeling]);
   useEffect(load, [load, eventSeq.listening]);
 
   async function add(e: React.FormEvent) {
@@ -143,12 +148,33 @@ export function ListeningView({ talkTo }: { talkTo: (agentId: string, text?: str
                 {label}
               </button>
             ))}
+            {(tab === "new" || tab === "done") && (
+              <select aria-label="Filter by mood" className="input !w-auto !py-1 text-xs" value={feeling} onChange={(e) => setFeeling(e.target.value as typeof feeling)}>
+                <option value="">All moods</option>
+                <option value="negative">Unhappy first</option>
+                <option value="positive">Happy</option>
+                <option value="neutral">Neutral</option>
+              </select>
+            )}
             {filter && (
               <button className="chip ml-auto" onClick={() => setFilter("")}>
                 {watchName(filter)} <X size={11} />
               </button>
             )}
           </div>
+          {mood && mood.total > 0 && (tab === "new" || tab === "done") && (
+            <div className="mb-3" aria-label="Mood of mentions this week">
+              <div className="flex h-2 overflow-hidden rounded-full bg-white/5">
+                <div className="bg-emerald-400" style={{ width: `${(100 * mood.positive) / mood.total}%` }} />
+                <div className="bg-slate-400/60" style={{ width: `${(100 * mood.neutral) / mood.total}%` }} />
+                <div className="bg-rose-400" style={{ width: `${(100 * mood.negative) / mood.total}%` }} />
+              </div>
+              <p className="mt-1 text-xs text-[var(--color-mute)]">
+                Last {mood.days} days: {mood.positive} happy · {mood.neutral} neutral · {mood.negative} unhappy
+                {mood.negative_share >= 0.3 && <span className="ml-2 text-rose-300">Unusually many unhappy posts: check them first.</span>}
+              </p>
+            </div>
+          )}
           {tab === "messages" ? (
             <DirectMessages />
           ) : tab === "rivals" ? (
@@ -195,6 +221,11 @@ export function ListeningView({ talkTo }: { talkTo: (agentId: string, text?: str
                   <div className="mb-1 flex flex-wrap items-center gap-2 text-xs">
                     <span className="font-semibold">{m.author}</span>
                     <span className="chip" style={{ color: CAT[m.category], borderColor: `${CAT[m.category]}55` }}>{m.category}</span>
+                    {m.sentiment && m.sentiment !== "neutral" && (
+                      <span className={`chip ${m.sentiment === "negative" ? "!border-rose-400/50 !text-rose-300" : "!border-emerald-400/50 !text-emerald-300"}`}>
+                        {m.sentiment === "negative" ? "unhappy" : "happy"}
+                      </span>
+                    )}
                     {(m.labels || []).map((l) => (
                       <span key={l} className="chip !border-amber-300/50 !text-amber-300">{l}</span>
                     ))}

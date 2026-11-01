@@ -31,6 +31,14 @@ def new_id(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex[:16]}"
 
 
+# The brand new content belongs to (set by stark.brands when the owner switches brands).
+ACTIVE_BRAND: dict[str, Any] = {"name": "", "blocked_terms": []}
+
+
+def _active_brand_name() -> str:
+    return ACTIVE_BRAND.get("name", "")
+
+
 class Base(DeclarativeBase):
     type_annotation_map = {dict[str, Any]: JSON, list[Any]: JSON}
 
@@ -215,6 +223,7 @@ class ContentItem(Base):
     category: Mapped[str] = mapped_column(String(40), default="")  # content category from the posting plan
     # Bluesky: who may reply (everyone | followers | following | mentioned | nobody); None = everyone
     reply_control: Mapped[str | None] = mapped_column(String(16), nullable=True, default=None)
+    brand: Mapped[str] = mapped_column(String(80), default=_active_brand_name, index=True)  # "" = no brand
 
 
 class Automation(Base):
@@ -302,7 +311,26 @@ class Mention(Base):
     category: Mapped[str] = mapped_column(String(24), default="general")  # from the inbox triage rules
     labels: Mapped[list[Any]] = mapped_column(JSON, default=list)  # from the owner's inbox rules
     status: Mapped[str] = mapped_column(String(16), default="new", index=True)  # new | done | dismissed
+    sentiment: Mapped[str] = mapped_column(String(10), default="")  # positive | neutral | negative
+    sentiment_score: Mapped[float] = mapped_column(Float, default=0.0)  # -1 … 1
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Brand(Base):
+    """One brand or client: its voice, audience, hashtags and words it never uses. Content is tagged with it."""
+
+    __tablename__ = "brands"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: new_id("brd"))
+    name: Mapped[str] = mapped_column(String(80), unique=True)
+    voice: Mapped[str] = mapped_column(Text, default="")
+    audience: Mapped[str] = mapped_column(Text, default="")
+    guidelines: Mapped[str] = mapped_column(Text, default="")
+    hashtags: Mapped[list[Any]] = mapped_column(JSON, default=list)
+    blocked_terms: Mapped[list[Any]] = mapped_column(JSON, default=list)
+    platforms: Mapped[list[Any]] = mapped_column(JSON, default=list)
+    color: Mapped[str] = mapped_column(String(16), default="#22d3ee")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
 class Campaign(Base):
@@ -406,6 +434,8 @@ class Database:
                         ddl += f" DEFAULT {default}"
                     elif isinstance(default, str):
                         ddl += " DEFAULT '" + default.replace("'", "''") + "'"
+                    elif callable(default) and isinstance(col.type, String):
+                        ddl += " DEFAULT ''"  # computed default (e.g. the active brand): existing rows get ""
                     conn.execute(text(ddl))
 
     @contextmanager

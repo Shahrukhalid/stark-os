@@ -256,7 +256,9 @@ def check_post(platform: str, text: str, *, thread: list[str] | None = None, med
     for name, rx, _sev in SECRET_RULES:
         if rx.search(full):
             add("fail", "secret", f"Looks like a credential ({name}). Never post keys or passwords.")
-    for term in blocked_terms or []:
+    from ..core.db import ACTIVE_BRAND
+
+    for term in dict.fromkeys([*(blocked_terms or []), *ACTIVE_BRAND.get("blocked_terms", [])]):
         if term and term.lower() in low:
             add("fail", "blocked_term", f"Contains a brand-blocked term: '{term}'.")
     if any(p in low for p in FAKE_ENGAGEMENT):
@@ -838,7 +840,7 @@ def fingerprint(item: dict[str, Any]) -> str:
 def summarize(item: dict[str, Any]) -> dict[str, Any]:
     keys = ("id", "platform", "kind", "text", "thread", "media", "reply_to", "campaign", "sponsored", "status",
             "scheduled_for", "paused", "simulated", "external_url", "created_by", "error", "evergreen_days",
-            "recycled_from", "category", "reply_control")
+            "recycled_from", "category", "reply_control", "brand")
     out = {k: item.get(k) for k in keys}
     out["check"] = {"verdict": (item.get("check") or {}).get("verdict"),
                     "issues": (item.get("check") or {}).get("issues", [])}
@@ -1464,7 +1466,7 @@ async def analytics_report(kernel, social: Social, limit: int = 500) -> dict[str
                       "url": r["external_url"], "campaign": r["campaign"], "simulated": bool(r["simulated"]),
                       "published_at": r["published_at"] or r["updated_at"], "engagement": m,
                       "score": engagement_score(m) if m is not None else None,
-                      "evergreen_days": r.get("evergreen_days")})
+                      "evergreen_days": r.get("evergreen_days"), "brand": r.get("brand") or ""})
     measured = [p["engagement"] for p in posts if p["engagement"] is not None]
     totals = {k: sum(e.get(k, 0) for e in measured) for k in ("likes", "reposts", "replies", "quotes")}
     return {"counts": counts, "posts": posts, "totals": totals, "measured": len(measured),

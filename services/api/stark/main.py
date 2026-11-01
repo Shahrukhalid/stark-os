@@ -44,7 +44,7 @@ from .core.permissions import Mode
 from .core.runtime import TERMINAL, Kernel
 from .providers import ModelProvider
 from . import autopilot as ap
-from . import automations, growth, hub, insights, reach
+from . import automations, brands, growth, hub, insights, reach
 from .core.db import Campaign
 from .tools import build_registry
 from .tools import social as social_tools
@@ -312,6 +312,7 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         social = holder["k"].tools.get("social.publish").social
         holder["k"].autopilot = ap.Autopilot(holder["k"], social, settings)
         holder["k"].listening = growth.Listening(holder["k"], social, settings)
+        brands.load(holder["k"])
         holder["k"].notifier = growth.Notifier(holder["k"], social, settings)
         scheduler = asyncio.create_task(_scheduler_loop(holder["k"]))
         holder["k"].webhooks = hub.Webhooks(holder["k"], settings)
@@ -680,10 +681,13 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
 
     @app.get("/api/listening/mentions", dependencies=[api])
     async def list_mentions(status: str = "new", watch_id: str | None = None, limit: int = Query(100, ge=1, le=500),
-                            k: Kernel = Depends(kernel)):
+                            sentiment: str | None = None, k: Kernel = Depends(kernel)):
         if status not in ("new", "done", "dismissed", "all"):
             raise HTTPException(400, "bad status")
-        return {"mentions": k.listening.mentions(status, watch_id, limit), "competitors": k.listening.competitors()}
+        if sentiment not in (None, "", "positive", "neutral", "negative"):
+            raise HTTPException(400, "bad sentiment")
+        return {"mentions": k.listening.mentions(status, watch_id, limit, sentiment or None),
+                "competitors": k.listening.competitors(), "mood": k.listening.mood()}
 
     @app.post("/api/listening/mentions/{mention_id}/status", dependencies=[api])
     async def mention_status(mention_id: str, status: str, k: Kernel = Depends(kernel)):
@@ -855,6 +859,44 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
     @app.get("/api/growth/trends", dependencies=[api])
     async def growth_trends(k: Kernel = Depends(kernel)):
         return {"hashtags": insights.rising_hashtags(k), "outliers": insights.outliers(k)}
+
+    @app.get("/api/growth/hashtag", dependencies=[api])
+    async def hashtag_research(tag: str, k: Kernel = Depends(kernel)):
+        """Live research of one hashtag on Bluesky and Mastodon (activity, engagement, related tags, top posts)."""
+        try:
+            return await k.listening.research_hashtag(tag)
+        except growth.GrowthError as exc:
+            raise HTTPException(400, str(exc)) from exc
+
+    # ---------------------------------------------------------- brands
+    @app.get("/api/brands", dependencies=[api])
+    async def list_brands(k: Kernel = Depends(kernel)):
+        return {"brands": brands.all_brands(k), "active": brands.active_id(k)}
+
+    @app.post("/api/brands", dependencies=[api])
+    async def create_brand(body: dict[str, Any], k: Kernel = Depends(kernel)):
+        try:
+            return brands.save(k, body)
+        except brands.BrandError as exc:
+            raise HTTPException(400, str(exc)) from exc
+
+    @app.put("/api/brands/{brand_id}", dependencies=[api])
+    async def update_brand(brand_id: str, body: dict[str, Any], k: Kernel = Depends(kernel)):
+        try:
+            return brands.save(k, body, brand_id)
+        except brands.BrandError as exc:
+            raise HTTPException(400, str(exc)) from exc
+
+    @app.delete("/api/brands/{brand_id}", dependencies=[api])
+    async def delete_brand(brand_id: str, k: Kernel = Depends(kernel)):
+        if not brands.delete(k, brand_id):
+            raise HTTPException(404, "brand not found")
+        return {"ok": True}
+
+    @app.post("/api/brands/active", dependencies=[api])
+    async def activate_brand(body: dict[str, Any], k: Kernel = Depends(kernel)):
+        """Switch the brand agents write for and new content is tagged with ({"id": null} = no brand)."""
+        return {"active": brands.activate(k, body.get("id") or None)}
 
     @app.post("/api/bluesky/starter-pack", dependencies=[api])
     async def starter_pack(body: StarterPackIn, k: Kernel = Depends(kernel)):

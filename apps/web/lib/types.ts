@@ -365,6 +365,7 @@ export interface PublishedPost {
   engagement: Engagement | null;
   score: number | null;
   evergreen_days?: number | null;
+  brand?: string;
 }
 
 export interface AnalyticsReport {
@@ -405,7 +406,32 @@ export interface Mention {
   category: string;
   labels?: string[];
   status: "new" | "done" | "dismissed";
+  sentiment?: "positive" | "neutral" | "negative" | "";
+  sentiment_score?: number;
   created_at: string;
+}
+
+export interface Mood {
+  days: number;
+  total: number;
+  positive: number;
+  neutral: number;
+  negative: number;
+  negative_share: number;
+}
+
+export interface Brand {
+  id: string;
+  name: string;
+  voice: string;
+  audience: string;
+  guidelines: string;
+  hashtags: string[];
+  blocked_terms: string[];
+  platforms: string[];
+  color: string;
+  active?: boolean;
+  items?: number;
 }
 
 export interface Competitor {
