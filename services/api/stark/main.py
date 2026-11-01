@@ -664,8 +664,9 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
 
     # ---------------------------------------------------------- listening, notifications, images
     @app.get("/api/listening/watches", dependencies=[api])
-    async def list_watches(k: Kernel = Depends(kernel)):
-        return {"watches": k.listening.watches(), "enabled": settings.listening_enabled}
+    async def list_watches(brand: str | None = None, k: Kernel = Depends(kernel)):
+        only = brands.scope(k, brand)
+        return {"watches": k.listening.watches(only), "enabled": settings.listening_enabled, "brand": only}
 
     @app.post("/api/listening/watches", dependencies=[api])
     async def add_watch(body: WatchIn, k: Kernel = Depends(kernel)):
@@ -694,13 +695,14 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
 
     @app.get("/api/listening/mentions", dependencies=[api])
     async def list_mentions(status: str = "new", watch_id: str | None = None, limit: int = Query(100, ge=1, le=500),
-                            sentiment: str | None = None, k: Kernel = Depends(kernel)):
+                            sentiment: str | None = None, brand: str | None = None, k: Kernel = Depends(kernel)):
         if status not in ("new", "done", "dismissed", "all"):
             raise HTTPException(400, "bad status")
         if sentiment not in (None, "", "positive", "neutral", "negative"):
             raise HTTPException(400, "bad sentiment")
-        return {"mentions": k.listening.mentions(status, watch_id, limit, sentiment or None),
-                "competitors": k.listening.competitors(), "mood": k.listening.mood()}
+        only = brands.scope(k, brand)
+        return {"mentions": k.listening.mentions(status, watch_id, limit, sentiment or None, only),
+                "competitors": k.listening.competitors(only), "mood": k.listening.mood(only=only), "brand": only}
 
     @app.post("/api/listening/mentions/{mention_id}/status", dependencies=[api])
     async def mention_status(mention_id: str, status: str, k: Kernel = Depends(kernel)):
@@ -963,8 +965,9 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         return out
 
     @app.get("/api/library", dependencies=[api])
-    async def library(k: Kernel = Depends(kernel)):
-        return {"snippets": hub.snippets(k)}
+    async def library(brand: str | None = None, k: Kernel = Depends(kernel)):
+        only = brands.scope(k, brand)
+        return {"snippets": hub.snippets(k, only), "brand": only}
 
     @app.post("/api/library", dependencies=[api])
     async def library_add(body: SnippetIn, k: Kernel = Depends(kernel)):
@@ -1007,8 +1010,9 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         return k.automations
 
     @app.get("/api/automations", dependencies=[api])
-    async def list_automations(k: Kernel = Depends(kernel)):
-        return {"automations": _auto(k).list(), "events": automations.EVENTS, "ops": list(automations.OPS),
+    async def list_automations(brand: str | None = None, k: Kernel = Depends(kernel)):
+        only = brands.scope(k, brand)
+        return {"automations": _auto(k).list(only), "health": _auto(k).health(only), "brand": only, "events": automations.EVENTS, "ops": list(automations.OPS),
                 "actions": list(automations.ACTIONS), "agents": list(automations.AGENTS),
                 "platforms": list(social_tools.PLATFORMS)}
 
@@ -1018,8 +1022,11 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
 
     @app.get("/api/automations/runs", dependencies=[api])
     async def automation_runs(automation_id: str | None = None, limit: int = Query(50, ge=1, le=200),
-                              k: Kernel = Depends(kernel)):
-        return {"runs": _auto(k).history(automation_id, limit)}
+                              brand: str | None = None, k: Kernel = Depends(kernel)):
+        only = brands.scope(k, brand)
+        ids = None if only is None else {a["id"] for a in _auto(k).list(only)}
+        runs = _auto(k).history(automation_id, limit * (1 if ids is None else 4))
+        return {"runs": [r for r in runs if ids is None or r["automation_id"] in ids][:limit]}
 
     @app.post("/api/automations", dependencies=[api])
     async def create_automation(body: AutomationIn, k: Kernel = Depends(kernel)):
@@ -1041,6 +1048,16 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
             return _auto(k).save(body.model_dump(), automation_id)
         except automations.AutomationError as exc:
             raise HTTPException(400, str(exc)) from None
+
+    @app.post("/api/automations/runs/{run_id}/retry", dependencies=[api])
+    async def retry_automation_run(run_id: str, k: Kernel = Depends(kernel)):
+        try:
+            res = await _auto(k).retry(run_id)
+        except automations.AutomationError as exc:
+            raise HTTPException(400, str(exc)) from None
+        if res is None:
+            raise HTTPException(404, "no such run")
+        return res
 
     @app.delete("/api/automations/{automation_id}", dependencies=[api])
     async def delete_automation(automation_id: str, k: Kernel = Depends(kernel)):

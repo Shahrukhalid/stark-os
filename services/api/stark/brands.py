@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from .core import db as dbm
 from .core.db import Brand, ContentItem, Setting, to_dict, utcnow
@@ -201,3 +201,12 @@ def brief(b: dict[str, Any] | None) -> str:
     if b["guidelines"]:
         parts.append("Brand guidelines: " + b["guidelines"][:1500])
     return "\n".join(parts)
+
+
+def where_visible(stmt, column, only: str | None):
+    """Rows of the brand being viewed plus shared rows (no brand); every brand when ``only`` is None."""
+    return stmt if only is None else stmt.where(or_(column == only, column == ""))
+
+
+def visible(row_brand: str | None, only: str | None) -> bool:
+    return only is None or (row_brand or "") in ("", only)

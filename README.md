@@ -66,11 +66,13 @@ Each agent has its own free model with automatic fallback, its own prompt, memor
 ### Automations
 - "When this happens, do that": triggers, conditions, chained actions (ask an agent, draft, label, notify, webhook).
 - Ready-made recipes, test runs, run history. Never publishes; max 20 runs per hour.
+- **Monitoring and recovery**: a step that fails on a network error is tried again; a failed run can be retried with one click; after 3 failed runs in a row the automation pauses itself and alerts your phone and webhooks. Success rate for the last 24 hours.
 
 ### Brands
 - Several brands or clients in one app: voice, audience, guidelines, hashtags, platforms, blocked words.
-- **Brand switcher** in the header: queue, analytics and campaigns show only the active brand.
-- Each campaign writes with its own brand's voice and blocked words.
+- **Brand switcher** in the header: queue, analytics, campaigns, listening, library and automations show only the active brand; items without a brand are shared.
+- Agents only recall the active brand's memories. Each campaign writes with its own brand's voice and blocked words.
+- A brand's automations never act on another brand's posts or mentions.
 
 ![Brands](docs/screenshots/brands.png)
 

@@ -24,6 +24,7 @@ import httpx
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
+from . import brands as brand_mod
 from .core.db import Approval, ContentItem, Mention, Watch, to_dict, utcnow
 from .core.observability import log
 from .sentiment import analyze as analyze_sentiment
@@ -86,9 +87,15 @@ class Listening:
         return httpx.AsyncClient(timeout=20, transport=self.transport, headers={"User-Agent": "STARK-OS listening"})
 
     # -- storage
-    def watches(self) -> list[dict[str, Any]]:
+    def _watch_ids(self, s, only: str | None) -> list[str] | None:
+        if only is None:
+            return None
+        return list(s.scalars(brand_mod.where_visible(select(Watch.id), Watch.brand, only)).all())
+
+    def watches(self, only: str | None = None) -> list[dict[str, Any]]:
         with self.kernel.db.session() as s:
-            rows = [to_dict(w) for w in s.scalars(select(Watch).order_by(Watch.created_at)).all()]
+            q = brand_mod.where_visible(select(Watch).order_by(Watch.created_at), Watch.brand, only)
+            rows = [to_dict(w) for w in s.scalars(q).all()]
             counts: dict[str, int] = {}
             for wid in s.scalars(select(Mention.watch_id).where(Mention.status == "new")).all():
                 counts[wid] = counts.get(wid, 0) + 1
@@ -128,9 +135,12 @@ class Listening:
             return True
 
     def mentions(self, status: str = "new", watch_id: str | None = None, limit: int = 100,
-                 sentiment: str | None = None) -> list[dict[str, Any]]:
+                 sentiment: str | None = None, only: str | None = None) -> list[dict[str, Any]]:
         with self.kernel.db.session() as s:
             q = select(Mention).order_by(Mention.posted_at.desc().nullslast(), Mention.created_at.desc()).limit(limit)
+            ids = self._watch_ids(s, only)
+            if ids is not None:
+                q = q.where(Mention.watch_id.in_(ids))
             if status != "all":
                 q = q.where(Mention.status == status)
             if watch_id:
@@ -142,12 +152,16 @@ class Listening:
             out = [to_dict(m) for m in rows]
         return [m for m in out if m["sentiment"] == sentiment] if sentiment else out
 
-    def mood(self, days: int = 7) -> dict[str, Any]:
+    def mood(self, days: int = 7, only: str | None = None) -> dict[str, Any]:
         """Share of positive, neutral and negative mentions (keyword and hashtag watches, last `days`)."""
         since = utcnow() - timedelta(days=days)
         counts = {"positive": 0, "neutral": 0, "negative": 0}
         with self.kernel.db.session() as s:
-            for m in s.scalars(select(Mention).where(Mention.created_at >= since, Mention.category != "competitor")):
+            q = select(Mention).where(Mention.created_at >= since, Mention.category != "competitor")
+            ids = self._watch_ids(s, only)
+            if ids is not None:
+                q = q.where(Mention.watch_id.in_(ids))
+            for m in s.scalars(q):
                 label = m.sentiment or analyze_sentiment(m.text)[0]
                 counts[label] = counts.get(label, 0) + 1
         total = sum(counts.values())
@@ -178,11 +192,12 @@ class Listening:
             row.status = status
             return True
 
-    def competitors(self) -> list[dict[str, Any]]:
+    def competitors(self, only: str | None = None) -> list[dict[str, Any]]:
         """Per followed account: posts seen, average engagement and their best posts (what works for them)."""
         out = []
         with self.kernel.db.session() as s:
-            for w in s.scalars(select(Watch).where(Watch.kind == "account")).all():
+            for w in s.scalars(brand_mod.where_visible(select(Watch).where(Watch.kind == "account"), Watch.brand,
+                                                       only)).all():
                 posts = [to_dict(m) for m in s.scalars(select(Mention).where(Mention.watch_id == w.id)).all()]
                 score = [p["likes"] + 2 * (p["reposts"] + p["replies"]) for p in posts]
                 best = sorted(posts, key=lambda p: p["likes"] + 2 * (p["reposts"] + p["replies"]), reverse=True)[:3]
@@ -218,7 +233,8 @@ class Listening:
                     row.last_run_at = now
                     row.last_error = "; ".join(err) or None
             for m in new[:10]:
-                self.kernel.bus.publish("listening.hit", {**m, "watch": w["query"], "kind": w["kind"]})
+                self.kernel.bus.publish("listening.hit", {**m, "watch": w["query"], "kind": w["kind"],
+                                                         "brand": w.get("brand") or ""})
         return {"watches": len(due), "new": found, "errors": errors}
 
     def _store(self, w: dict[str, Any], posts: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -394,6 +410,8 @@ class Notifier:
         if t == "listening.hit" and d.get("category") in URGENT:
             return (f"👂 {d.get('category', '').title()} on {d.get('platform')} ({d.get('watch')})\n"
                     f"{d.get('author')}: {d.get('text', '')[:600]}\n{d.get('url') or ''}"), None
+        if t == "automation.paused":
+            return f"⏸ Automation paused · {d.get('name')}: {d.get('reason')}", None
         if t == "autopilot.alert":
             return f"⚠️ Autopilot · {d.get('campaign')}: {d.get('message')}", None
         if t == "estop" and d.get("engaged"):

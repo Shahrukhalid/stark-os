@@ -20,7 +20,8 @@ import httpx
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from .core.db import ContentItem, Snippet, to_dict, utcnow
+from . import brands as brand_mod
+from .core.db import ACTIVE_BRAND, ContentItem, Snippet, to_dict, utcnow
 from .core.observability import log
 from .core.tool_registry import Risk, Tool, ToolResult
 from .tools import social as social_tools
@@ -159,9 +160,10 @@ def clean_snippet(data: dict[str, Any]) -> dict[str, Any]:
     return {"kind": kind, "name": name, "body": body, "platforms": platforms}
 
 
-def snippets(kernel) -> list[dict[str, Any]]:
+def snippets(kernel, only: str | None = None) -> list[dict[str, Any]]:
     with kernel.db.session() as s:
-        return [to_dict(x) for x in s.scalars(select(Snippet).order_by(Snippet.kind, Snippet.name)).all()]
+        q = brand_mod.where_visible(select(Snippet).order_by(Snippet.kind, Snippet.name), Snippet.brand, only)
+        return [to_dict(x) for x in s.scalars(q).all()]
 
 
 def add_snippet(kernel, data: dict[str, Any]) -> dict[str, Any]:
@@ -197,14 +199,15 @@ class LibraryList(Tool):
     risk = Risk.READ
 
     async def run(self, args: LibraryInput, ctx) -> ToolResult:
-        items = [x for x in snippets(ctx.kernel) if not args.kind or x["kind"] == args.kind]
+        items = [x for x in snippets(ctx.kernel, ACTIVE_BRAND.get("name") or None) if not args.kind or x["kind"] == args.kind]
         rows = [{"kind": x["kind"], "name": x["name"], "body": x["body"], "platforms": x["platforms"] or "all"}
                 for x in items]
         return ToolResult(True, f"{len(rows)} snippet(s) in the Library", {"snippets": rows})
 
 
 # ------------------------------------------------------------------ outgoing webhooks
-WEBHOOK_EVENTS = {"content.updated", "listening.hit", "approval.created", "autopilot.alert", "account.unhealthy", "estop"}
+WEBHOOK_EVENTS = {"content.updated", "listening.hit", "approval.created", "autopilot.alert", "account.unhealthy", "automation.paused",
+                  "estop"}
 
 
 def webhook_payload(ev: dict[str, Any]) -> dict[str, Any] | None:
@@ -222,11 +225,13 @@ def webhook_payload(ev: dict[str, Any]) -> dict[str, Any] | None:
                                        "simulated", "created_by", "brand")}
     elif t == "listening.hit":
         name, data = "mention.found", {k: d.get(k) for k in ("platform", "author", "text", "url", "category", "watch",
-                                                             "sentiment")}
+                                                             "sentiment", "brand")}
     elif t == "approval.created":
         name, data = "approval.needed", {k: d.get(k) for k in ("id", "agent_id", "tool_id", "action")}
     elif t == "autopilot.alert":
         name, data = "autopilot.alert", dict(d)
+    elif t == "automation.paused":
+        name, data = "automation.paused", {k: d.get(k) for k in ("id", "name", "reason", "brand")}
     elif t == "account.unhealthy":
         name, data = "account.unhealthy", {k: d.get(k) for k in ("platform", "message")}
     else:
@@ -253,7 +258,7 @@ class Webhooks:
     def status(self) -> dict[str, Any]:
         return {"count": len(self.urls), "signed": bool(self.settings.webhook_secret),
                 "events": ["post.drafted", "post.scheduled", "post.published", "post.failed", "mention.found",
-                           "approval.needed", "autopilot.alert", "account.unhealthy", "estop"]}
+                           "approval.needed", "autopilot.alert", "account.unhealthy", "automation.paused", "estop"]}
 
     def payload_for(self, ev: dict[str, Any]) -> dict[str, Any] | None:
         p = webhook_payload(ev)

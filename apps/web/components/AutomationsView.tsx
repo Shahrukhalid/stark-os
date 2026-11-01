@@ -1,6 +1,6 @@
 "use client";
 
-import { Bolt, CalendarClock, CheckCircle2, Copy, FlaskConical, History, Pencil, Play, Plus, Puzzle, Trash2, Webhook, XCircle, Zap } from "lucide-react";
+import { Bolt, CalendarClock, CheckCircle2, Copy, FlaskConical, History, Pencil, Play, Plus, Puzzle, RotateCcw, Trash2, Webhook, XCircle, Zap } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useStark } from "@/lib/store";
 import { Empty, timeAgo } from "./ui";
@@ -8,9 +8,10 @@ import { Empty, timeAgo } from "./ui";
 type Trigger = { type: "event" | "schedule" | "webhook"; event?: string; every?: "day" | "week"; weekday?: number; time?: string };
 type Cond = { field: string; op: string; value: string };
 type Action = { type: string; agent?: string; message?: string; platform?: string; text?: string; label?: string; url?: string; category?: string };
-type Automation = { id: string; name: string; enabled: boolean; trigger: Trigger; conditions: Cond[]; actions: Action[]; recipe: string; runs: number; last_run_at: string | null; hook_path: string | null };
+type Automation = { id: string; name: string; enabled: boolean; trigger: Trigger; conditions: Cond[]; actions: Action[]; recipe: string; runs: number; last_run_at: string | null; hook_path: string | null; paused_reason?: string; consecutive_failures?: number };
+type Health = { hours: number; runs: number; failed: number; success_rate: number | null; paused: { id: string; name: string; reason: string }[]; failing: { id: string; name: string; failures: number }[] };
 type Recipe = { recipe: string; name: string; description: string; trigger: Trigger; conditions: Cond[]; actions: Action[] };
-type Run = { id: string; automation_id: string; at: string; event: string; ok: boolean; steps: (Action & { result?: string; error?: string })[] };
+type Run = { id: string; automation_id: string; at: string; event: string; ok: boolean; steps: (Action & { result?: string; error?: string; retried?: boolean })[] };
 type Meta = { events: string[]; ops: string[]; actions: string[]; agents: string[]; platforms: string[] };
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -49,6 +50,7 @@ export function AutomationsView() {
   const { client, notify } = useStark();
   const [tab, setTab] = useState<"mine" | "gallery" | "history" | "connect">("mine");
   const [list, setList] = useState<Automation[]>([]);
+  const [health, setHealth] = useState<Health | null>(null);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [runs, setRuns] = useState<Run[]>([]);
@@ -56,7 +58,7 @@ export function AutomationsView() {
   const [testing, setTesting] = useState<{ id: string; sample: string; out?: any } | null>(null);
 
   const load = useCallback(() => {
-    client.get<Meta & { automations: Automation[] }>("/api/automations").then((r) => { setList(r.automations); setMeta(r); }).catch(() => {});
+    client.get<Meta & { automations: Automation[] }>("/api/automations").then((r) => { setList(r.automations); setMeta(r); setHealth((r as any).health || null); }).catch(() => {});
     client.get<{ recipes: Recipe[] }>("/api/automations/recipes").then((r) => setRecipes(r.recipes)).catch(() => {});
     client.get<{ runs: Run[] }>("/api/automations/runs?limit=60").then((r) => setRuns(r.runs)).catch(() => {});
   }, [client]);
@@ -75,6 +77,16 @@ export function AutomationsView() {
     } catch (e: any) {
       notify("error", e.message);
     }
+  }
+
+  async function retry(runId: string) {
+    try {
+      const r = await client.post<{ ok: boolean }>(`/api/automations/runs/${runId}/retry`);
+      notify(r.ok ? "success" : "error", r.ok ? "Run again: it worked" : "Run again: it failed again");
+    } catch (e: any) {
+      notify("error", e.message);
+    }
+    load();
   }
 
   async function toggle(a: Automation) {
@@ -138,7 +150,18 @@ export function AutomationsView() {
           <span className="rounded-full border border-cyan-400/25 bg-cyan-400/5 px-2.5 py-0.5 text-cyan-200">{list.filter((a) => a.enabled).length} on</span>
           <span className="rounded-full border border-cyan-400/25 bg-cyan-400/5 px-2.5 py-0.5 text-cyan-200">{runs.filter((r) => Date.now() - new Date(r.at).getTime() < 86400000).length} runs today</span>
           <span className="rounded-full border border-cyan-400/25 bg-cyan-400/5 px-2.5 py-0.5 text-cyan-200">{runs.filter((r) => !r.ok).length} with errors</span>
+          {health?.success_rate != null && (
+            <span className={`rounded-full border px-2.5 py-0.5 ${health.success_rate < 0.9 ? "border-amber-400/40 text-amber-200" : "border-emerald-400/30 text-emerald-200"}`}>
+              {Math.round(health.success_rate * 100)}% successful (24 h)
+            </span>
+          )}
         </div>
+        {health && (health.paused.length > 0 || health.failing.length > 0) && (
+          <ul className="mt-3 space-y-1 text-xs" aria-label="Automations that need attention">
+            {health.paused.map((p) => <li key={p.id} className="text-red-300">⏸ <b>{p.name}</b>: {p.reason} Fix it, then switch it on again.</li>)}
+            {health.failing.map((p) => <li key={p.id} className="text-amber-200">⚠ <b>{p.name}</b> failed {p.failures} time{p.failures > 1 ? "s" : ""} in a row; it pauses itself after 3.</li>)}
+          </ul>
+        )}
       </section>
 
       <div className="flex flex-wrap gap-2" role="tablist">
@@ -173,6 +196,7 @@ export function AutomationsView() {
                           {a.conditions.length > 0 && ` · ${a.conditions.length} condition${a.conditions.length > 1 ? "s" : ""}`} → {a.actions.map((x) => ACTION_LABEL[x.type] || x.type).join(", ")}
                         </div>
                         <div className="mt-1 text-[11px] text-[var(--color-mute)]">{a.runs} run{a.runs === 1 ? "" : "s"}{a.last_run_at && ` · last ${timeAgo(a.last_run_at)}`}</div>
+                        {a.paused_reason && <div className="mt-1 text-[11px] text-red-300">{a.paused_reason}</div>}
                       </div>
                       <label className="flex cursor-pointer items-center gap-1 text-xs">
                         <input type="checkbox" role="switch" checked={a.enabled} onChange={() => toggle(a)} aria-label={`Switch ${a.name} ${a.enabled ? "off" : "on"}`} />
@@ -268,10 +292,15 @@ export function AutomationsView() {
                     {r.ok ? <CheckCircle2 size={14} className="text-emerald-300" /> : <XCircle size={14} className="text-red-300" />}
                     <b className="text-sm">{names[r.automation_id] || r.automation_id}</b>
                     <span className="text-[var(--color-mute)]">{r.event} · {timeAgo(r.at)}</span>
+                    {!r.ok && (
+                      <button className="btn ml-auto !py-0.5 text-xs" onClick={() => retry(r.id)} aria-label={`Retry run of ${names[r.automation_id] || r.automation_id}`}>
+                        <RotateCcw size={11} /> Retry
+                      </button>
+                    )}
                   </div>
                   <ul className="mt-1 space-y-0.5 pl-6 text-[var(--color-mute)]">
                     {r.steps.map((s, i) => (
-                      <li key={i} className="break-anywhere">{ACTION_LABEL[s.type] || s.type}: {s.error ? <span className="text-red-300">{s.error}</span> : s.result}</li>
+                      <li key={i} className="break-anywhere">{ACTION_LABEL[s.type] || s.type}: {s.error ? <span className="text-red-300">{s.error}</span> : s.result}{s.retried && " (tried twice)"}</li>
                     ))}
                   </ul>
                 </li>

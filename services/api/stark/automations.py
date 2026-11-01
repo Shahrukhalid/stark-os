@@ -22,6 +22,7 @@ from typing import Any
 import httpx
 from sqlalchemy import func, select
 
+from . import brands as brand_mod
 from .core.db import Automation, AutomationRun, Mention, to_dict, utcnow
 from .core.observability import log
 from .hub import create_draft, webhook_payload
@@ -35,6 +36,8 @@ ACTIONS = ("ask_agent", "create_draft", "label_mention", "add_utm", "notify", "w
 AGENTS = ("jarvis", "friday", "edith", "ultron", "jocasta", "dum_e", "u")
 RATE_LIMIT = 20  # runs per automation per hour
 MAX_ACTIONS = 6
+PAUSE_AFTER = 3  # failed runs in a row before STARK OS pauses an automation
+RETRY_ERRORS = (httpx.HTTPError, asyncio.TimeoutError)  # network hiccups: a step is tried once more
 TEMPLATE = re.compile(r"\{\{\s*([\w.]+)\s*\}\}")
 
 
@@ -246,11 +249,28 @@ class Engine:
         self.settings = settings
         self.notifier = notifier
         self.transport = transport
+        self.retry_delay = 2.0
 
     # -- storage
-    def list(self) -> list[dict[str, Any]]:
+    def list(self, only: str | None = None) -> list[dict[str, Any]]:
         with self.kernel.db.session() as s:
-            return [self._out(to_dict(a)) for a in s.scalars(select(Automation).order_by(Automation.created_at)).all()]
+            q = brand_mod.where_visible(select(Automation).order_by(Automation.created_at), Automation.brand, only)
+            return [self._out(to_dict(a)) for a in s.scalars(q).all()]
+
+    def health(self, only: str | None = None, hours: int = 24) -> dict[str, Any]:
+        """Runs, failures and paused automations over the last `hours`, for the monitoring panel."""
+        autos = self.list(only)
+        ids = {a["id"] for a in autos}
+        with self.kernel.db.session() as s:
+            runs = [r for r in s.scalars(select(AutomationRun).where(
+                AutomationRun.at >= utcnow() - timedelta(hours=hours))).all() if r.automation_id in ids]
+            total, failed = len(runs), sum(1 for r in runs if not r.ok)
+        return {"hours": hours, "runs": total, "failed": failed,
+                "success_rate": round((total - failed) / total, 3) if total else None,
+                "paused": [{"id": a["id"], "name": a["name"], "reason": a["paused_reason"]}
+                           for a in autos if a.get("paused_reason")],
+                "failing": [{"id": a["id"], "name": a["name"], "failures": a["consecutive_failures"]}
+                            for a in autos if a.get("consecutive_failures") and not a.get("paused_reason")]}
 
     def get(self, automation_id: str) -> dict[str, Any] | None:
         with self.kernel.db.session() as s:
@@ -278,6 +298,8 @@ class Engine:
                 s.add(row)
             for k, v in c.items():
                 setattr(row, k, v)
+            if c["enabled"]:  # switching it back on clears an automatic pause
+                row.consecutive_failures, row.paused_reason = 0, ""
             if c["trigger"]["type"] == "webhook" and not row.hook_key:
                 row.hook_key = secrets.token_urlsafe(24)
             if c["trigger"]["type"] != "webhook":
@@ -332,17 +354,38 @@ class Engine:
             return None
         done, ok = [], True
         for step in p["steps"]:
-            try:
-                done.append({**step, "result": await self._do(a, step, payload)})
-            except Exception as exc:  # one failing step is recorded; the rest still run
-                ok = False
-                done.append({**step, "error": str(exc)[:300]})
+            for attempt in (1, 2):
+                try:
+                    done.append({**step, "result": await self._do(a, step, payload),
+                                 **({"retried": True} if attempt == 2 else {})})
+                    break
+                except RETRY_ERRORS as exc:
+                    if attempt == 1:
+                        await asyncio.sleep(self.retry_delay)
+                        continue
+                    ok = False
+                    done.append({**step, "error": str(exc)[:300] or exc.__class__.__name__, "retried": True})
+                except Exception as exc:  # one failing step is recorded; the rest still run
+                    ok = False
+                    done.append({**step, "error": str(exc)[:300]})
+                    break
+        paused = None
         with self.kernel.db.session() as s:
-            s.add(AutomationRun(automation_id=a["id"], event=payload.get("event", "?"), ok=ok, steps=done))
+            s.add(AutomationRun(automation_id=a["id"], event=payload.get("event", "?"), ok=ok, steps=done,
+                                payload=json.loads(json.dumps(payload, default=str))))
             row = s.get(Automation, a["id"])
             if row is not None:
                 row.runs = (row.runs or 0) + 1
                 row.last_run_at = utcnow()
+                row.consecutive_failures = 0 if ok else (row.consecutive_failures or 0) + 1
+                if row.consecutive_failures >= PAUSE_AFTER and row.enabled:
+                    errors = "; ".join(d["error"] for d in done if d.get("error"))[:200]
+                    row.enabled = False
+                    row.paused_reason = f"Paused after {row.consecutive_failures} failed runs in a row: {errors}"
+                    paused = {"id": row.id, "name": row.name, "reason": row.paused_reason, "brand": row.brand}
+        if paused:
+            log.warning(f"automation {a['id']} paused after repeated failures")
+            self.kernel.bus.publish("automation.paused", paused)
         self.kernel.bus.publish("automation.run", {"id": a["id"], "name": a["name"], "ok": ok, "steps": len(done)})
         return {"ok": ok, "steps": done}
 
@@ -379,6 +422,10 @@ class Engine:
             return "sent"
         async with httpx.AsyncClient(timeout=15, transport=self.transport) as client:
             r = await client.post(step["url"], json={"automation": a["name"], **payload})
+        if r.status_code >= 500:  # the other app is down: worth one more try
+            raise httpx.HTTPStatusError(f"HTTP {r.status_code}", request=r.request, response=r)
+        if r.status_code >= 400:
+            raise AutomationError(f"The webhook refused the call (HTTP {r.status_code})")
         return f"HTTP {r.status_code}"
 
     def automations_for(self, trigger_type: str, event: str | None = None) -> list[dict[str, Any]]:
@@ -396,7 +443,10 @@ class Engine:
         if ev["type"] == "listening.hit":  # give recipes the full mention (id, likes, kind, …)
             p["data"] = dict(ev["data"])
         n = 0
+        event_brand = str((p["data"] or {}).get("brand") or "")
         for a in self.automations_for("event", p["event"]):
+            if event_brand and (a.get("brand") or "") not in ("", event_brand):
+                continue  # another brand's automation never acts on this brand's posts or mentions
             if await self.run(a, p):
                 n += 1
         return n
@@ -423,6 +473,26 @@ class Engine:
                 if await self.run(a, {"event": "schedule", "at": now.isoformat(), "data": {}}):
                     n += 1
         return n
+
+    async def retry(self, run_id: str) -> dict[str, Any] | None:
+        """Run a failed run again with the same event (conditions and the hourly limit still apply)."""
+        with self.kernel.db.session() as s:
+            r = s.get(AutomationRun, run_id)
+            if r is None:
+                return None
+            if r.ok:
+                raise AutomationError("This run did not fail")
+            if not r.payload:
+                raise AutomationError("This run was recorded before retries existed")
+            row = s.get(Automation, r.automation_id)
+            a = to_dict(row) if row is not None else None
+            payload = dict(r.payload)
+        if a is None:
+            raise AutomationError("The automation was deleted")
+        res = await self.run(a, payload)
+        if res is None:
+            raise AutomationError("Not run: the conditions no longer match or the hourly limit was reached")
+        return res
 
     async def inbound(self, automation_id: str, key: str, body: Any) -> dict[str, Any] | None:
         with self.kernel.db.session() as s:

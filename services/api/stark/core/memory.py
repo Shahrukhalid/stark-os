@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import delete, or_, select
 
-from .db import Database, Memory, to_dict, utcnow
+from .db import ACTIVE_BRAND, Database, Memory, to_dict, utcnow
 from .events import EventBus
 
 if TYPE_CHECKING:
@@ -108,6 +108,9 @@ class MemoryService:
         self.purge_expired()
         with self.db.session() as s:
             stmt = select(Memory)
+            brand = ACTIVE_BRAND.get("name", "")
+            if brand:  # never recall another brand's memories
+                stmt = stmt.where(or_(Memory.brand == brand, Memory.brand == ""))
             if layers:
                 stmt = stmt.where(Memory.layer.in_(layers))
             rows = s.scalars(stmt).all()
@@ -143,8 +146,11 @@ class MemoryService:
         if not self.enabled or not can_access(actor.memory.read_namespaces, "user:preferences"):
             return []
         with self.db.session() as s:
-            rows = s.scalars(select(Memory).where(Memory.namespace == "user:preferences")
-                             .order_by(Memory.updated_at.desc()).limit(20)).all()
+            stmt = select(Memory).where(Memory.namespace == "user:preferences")
+            brand = ACTIVE_BRAND.get("name", "")
+            if brand:
+                stmt = stmt.where(or_(Memory.brand == brand, Memory.brand == ""))
+            rows = s.scalars(stmt.order_by(Memory.updated_at.desc()).limit(20)).all()
             return [to_dict(r) for r in rows]
 
     # ---------- user-facing (the user owns all memory) ----------
