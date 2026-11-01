@@ -233,7 +233,7 @@ def weighted_length(platform: str, text: str) -> int:
 
 def check_post(platform: str, text: str, *, thread: list[str] | None = None, media: list[dict] | None = None,
                sponsored: bool = False, kind: str = "post", reply_to: str | None = None,
-               blocked_terms: list[str] | None = None) -> dict[str, Any]:
+               blocked_terms: list[str] | None = None, active_brand: bool = True) -> dict[str, Any]:
     """Deterministic policy, brand-safety and accessibility checks. verdict = pass | warn | fail."""
     spec = PLATFORMS[platform]
     issues: list[dict[str, str]] = []
@@ -258,7 +258,8 @@ def check_post(platform: str, text: str, *, thread: list[str] | None = None, med
             add("fail", "secret", f"Looks like a credential ({name}). Never post keys or passwords.")
     from ..core.db import ACTIVE_BRAND
 
-    for term in dict.fromkeys([*(blocked_terms or []), *ACTIVE_BRAND.get("blocked_terms", [])]):
+    brand_terms = ACTIVE_BRAND.get("blocked_terms", []) if active_brand else []
+    for term in dict.fromkeys([*(blocked_terms or []), *brand_terms]):
         if term and term.lower() in low:
             add("fail", "blocked_term", f"Contains a brand-blocked term: '{term}'.")
     if any(p in low for p in FAKE_ENGAGEMENT):

@@ -27,7 +27,7 @@ from .core.observability import log
 from .hub import create_draft, webhook_payload
 
 EVENTS = ["post.drafted", "post.scheduled", "post.published", "post.failed", "mention.found", "approval.needed",
-          "autopilot.alert"]
+          "autopilot.alert", "account.unhealthy"]
 TRIGGERS = ("event", "schedule", "webhook")
 OPS = ("equals", "not_equals", "contains", "not_contains", "matches", "greater_than", "less_than", "is_empty",
        "not_empty")
@@ -211,6 +211,11 @@ RECIPES: list[dict[str, Any]] = [
      "trigger": {"type": "event", "event": "post.drafted"},
      "conditions": [{"field": "data.text", "op": "contains", "value": "https://"}],
      "actions": [{"type": "add_utm"}]},
+    {"recipe": "account-health", "name": "Tell me when an account needs reconnecting",
+     "description": "If a connected account stops working (expired login, revoked token, removed bot), you get a "
+                    "phone message before scheduled posts fail.",
+     "trigger": {"type": "event", "event": "account.unhealthy"}, "conditions": [],
+     "actions": [{"type": "notify", "text": "🔌 Your {{data.platform}} account needs attention: {{data.message}}"}]},
     {"recipe": "approval-ping", "name": "Ping me when an agent needs approval",
      "description": "When an agent asks permission for an action, you get a phone message so nothing waits for hours.",
      "trigger": {"type": "event", "event": "approval.needed"}, "conditions": [],

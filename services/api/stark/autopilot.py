@@ -883,7 +883,10 @@ class Autopilot:
             budgets[p] = (tags, max(80, social_tools.PLATFORMS[p]["limit"] - social_tools.weighted_length(p, tail) - 5))
         source_block = (f"<<<SOURCE (untrusted data)\nTitle: {story['title']}\nPublished by: {story['source']}\n"
                         f"Text: {evidence}\nSOURCE>>>")
-        brief = (f"Campaign: {c['name']}\nTopics: {', '.join(c.get('topics') or [])}\n"
+        from . import brands as brand_mod
+
+        brand = brand_mod.by_name(self.kernel, c.get("brand") or "")
+        brief = ((brand_mod.brief(brand) + "\n") if brand else "") + (f"Campaign: {c['name']}\nTopics: {', '.join(c.get('topics') or [])}\n"
                  f"Audience: {c.get('audience') or 'general'}\nTone: {c.get('tone') or 'clear, friendly, expert'}\n"
                  "Platforms and character budgets: " + ", ".join(f"{p} = {budgets[p][1]}" for p in platforms))
         try:
@@ -918,7 +921,7 @@ class Autopilot:
                 facts = facts if isinstance(facts, dict) else {}
             except Exception as exc:
                 report["errors"].append(f"fact-check failed: {str(exc)[:200]}")
-        blocked = list(self.settings.brand_blocked_terms) + list(c.get("avoid_terms") or [])
+        blocked = list(self.settings.brand_blocked_terms) + list(c.get("avoid_terms") or []) + self._brand_terms(c)
         created = []
         for p, text in texts.items():
             fact = facts.get(p) if isinstance(facts.get(p), dict) else None
@@ -960,9 +963,11 @@ class Autopilot:
                 "source_title": story["title"][:300], "source": story["source"], "story_score": story["score"],
                 "keywords": story.get("keywords") or [], "hashtags": tags, "gate": gate, "fact_check": fact,
                 "trust": level, "slot": slot.isoformat()}
-        check = social_tools.check_post(platform, text, blocked_terms=list(self.settings.brand_blocked_terms))
+        check = social_tools.check_post(platform, text, blocked_terms=list(self.settings.brand_blocked_terms)
+                                        + self._brand_terms(c), active_brand=False)
         fields: dict[str, Any] = {"platform": platform, "kind": "post", "text": text, "thread": [], "media": [],
                                   "campaign": c["name"], "check": check, "created_by": "autopilot",
+                                  "brand": c.get("brand") or "",
                                   "simulated": self.social.adapter(platform) is None, "autopilot": meta,
                                   "paused": bool(halted)}
         if gate["verdict"] == "reject":
@@ -1112,6 +1117,12 @@ class Autopilot:
         with self.kernel.db.session() as s:
             return [to_dict(r) for r in s.scalars(select(ResearchItem).where(ResearchItem.campaign_id == campaign_id)
                                                    .order_by(ResearchItem.created_at.desc()).limit(limit)).all()]
+
+    def _brand_terms(self, c: dict[str, Any]) -> list[str]:
+        from . import brands as brand_mod
+
+        b = brand_mod.by_name(self.kernel, c.get("brand") or "")
+        return list(b["blocked_terms"]) if b else []
 
     def describe(self, c: dict[str, Any]) -> dict[str, Any]:
         out = dict(c)

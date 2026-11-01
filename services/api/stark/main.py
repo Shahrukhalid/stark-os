@@ -45,6 +45,7 @@ from .core.runtime import TERMINAL, Kernel
 from .providers import ModelProvider
 from . import autopilot as ap
 from . import automations, brands, growth, hub, insights, reach
+from . import health as account_health
 from .core.db import Campaign
 from .tools import build_registry
 from .tools import social as social_tools
@@ -319,7 +320,8 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         background = [asyncio.create_task(holder["k"].notifier.run()), asyncio.create_task(holder["k"].webhooks.run()),
                       asyncio.create_task(hub.recycler_loop(holder["k"], social, settings)),
                       asyncio.create_task(_snapshot_loop(holder["k"], social)),
-                      asyncio.create_task(_feeds_loop(holder["k"], social))]
+                      asyncio.create_task(_feeds_loop(holder["k"], social)),
+                      asyncio.create_task(account_health.loop(holder["k"], social))]
         holder["k"].automations = automations.Engine(holder["k"], social, settings, holder["k"].notifier)
         background.append(asyncio.create_task(holder["k"].automations.loop()))
         yield
@@ -629,25 +631,36 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
 
     @app.get("/api/social/queue", dependencies=[api])
     async def social_queue(status: str = "all", platform: str | None = None, limit: int = Query(100, ge=1, le=500),
-                           k: Kernel = Depends(kernel)):
+                           brand: str | None = None, k: Kernel = Depends(kernel)):
         if status not in {"all", "draft", "scheduled", "published", "failed", "rejected"}:
             raise HTTPException(400, "bad status")
         if platform and platform not in social_tools.PLATFORMS:
             raise HTTPException(400, "unknown platform")
-        return {"items": social_tools.list_queue(k, status, platform, None, max(1, min(limit, 500))),
-                "paused": social_tools.queue_paused(k)}
+        items = social_tools.list_queue(k, status, platform, None, 500 if brand != "all" else max(1, min(limit, 500)))
+        only = brands.scope(k, brand)  # with a brand active, each brand sees only its own content
+        if only is not None:
+            items = [i for i in items if (i.get("brand") or "") == only]
+        return {"items": items[:max(1, min(limit, 500))], "paused": social_tools.queue_paused(k), "brand": only}
 
     analytics_cache: dict[str, Any] = {"at": 0.0, "data": None}
 
     @app.get("/api/social/analytics", dependencies=[api])
-    async def social_analytics(refresh: bool = False, k: Kernel = Depends(kernel)):
+    async def social_analytics(refresh: bool = False, brand: str | None = None, k: Kernel = Depends(kernel)):
         """Published posts with real engagement. Cached for 5 minutes to stay inside platform rate limits."""
         now = time.monotonic()
         if not refresh and analytics_cache["data"] is not None and now - analytics_cache["at"] < 300:
-            return analytics_cache["data"]
+            return _brand_analytics(analytics_cache["data"], brands.scope(k, brand))
         data = await social_tools.analytics_report(k, _social(k))
         analytics_cache.update(at=now, data=data)
-        return data
+        return _brand_analytics(data, brands.scope(k, brand))
+
+    def _brand_analytics(data: dict[str, Any], only: str | None) -> dict[str, Any]:
+        if only is None:
+            return data
+        posts = [p for p in data["posts"] if (p.get("brand") or "") == only]
+        measured = [p["engagement"] for p in posts if p["engagement"] is not None]
+        totals = {key: sum(e.get(key, 0) for e in measured) for key in ("likes", "reposts", "replies", "quotes")}
+        return {**data, "posts": posts, "totals": totals, "measured": len(measured), "brand": only}
 
     # ---------------------------------------------------------- listening, notifications, images
     @app.get("/api/listening/watches", dependencies=[api])
@@ -843,6 +856,14 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         if out is None:
             raise HTTPException(404, "no such content item")
         return out
+
+    @app.get("/api/social/health", dependencies=[api])
+    async def social_health(k: Kernel = Depends(kernel)):
+        return account_health.cached(k)
+
+    @app.post("/api/social/health/check", dependencies=[api])
+    async def social_health_check(k: Kernel = Depends(kernel)):
+        return await account_health.check_all(k, k.tools.get("social.publish").social)
 
     @app.get("/api/growth", dependencies=[api])
     async def growth_report(k: Kernel = Depends(kernel)):
@@ -1074,8 +1095,10 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
             raise HTTPException(400, str(exc)) from None
 
     @app.get("/api/autopilot/campaigns", dependencies=[api])
-    async def campaigns(k: Kernel = Depends(kernel)):
-        return {"campaigns": [_ap(k).describe(c) for c in _ap(k).all()], "auto_unlock": ap.AUTO_UNLOCK,
+    async def campaigns(brand: str | None = None, k: Kernel = Depends(kernel)):
+        only = brands.scope(k, brand)
+        rows = [c for c in _ap(k).all() if only is None or (c.get("brand") or "") == only]
+        return {"campaigns": [_ap(k).describe(c) for c in rows], "auto_unlock": ap.AUTO_UNLOCK,
                 "queue_paused": social_tools.queue_paused(k), "emergency_stop": k.perms.emergency_stop,
                 "can_write": bool(k.router.configured_providers()),
                 "search_configured": bool(settings.tavily_api_key or settings.brave_api_key)}

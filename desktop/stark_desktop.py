@@ -29,6 +29,8 @@ BUNDLE = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
 RESTART_CODE = 75
 MAX_CRASHES = 5          # restarts allowed within CRASH_WINDOW before giving up
 CRASH_WINDOW = 300
+INSTANCE_PORT = 47821    # local-only: a second launch asks the running app to come to the front instead
+HELLO, ACK = b"STARK-OS-SHOW\n", b"STARK-OS-OK\n"
 
 
 def resource(*parts: str) -> Path:
@@ -131,6 +133,60 @@ def run_backend() -> None:
     uvicorn.run(app, host=settings.host, port=settings.port, log_level="warning", access_log=False)
 
 
+# ---------------------------------------------------------------- one app at a time
+class SingleInstance:
+    """Holds a local port while the app runs. A second launch finds it taken, asks the first app to show its window
+    and exits, so two engines never share one database. If the port belongs to something else, the app just runs."""
+
+    def __init__(self, port: int = INSTANCE_PORT) -> None:
+        self.port = port
+        self.sock: socket.socket | None = None
+        self.on_show = lambda: None
+
+    def acquire(self) -> bool:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if sys.platform == "win32":
+            s.setsockopt(socket.SOL_SOCKET, getattr(socket, "SO_EXCLUSIVEADDRUSE", socket.SO_REUSEADDR), 1)
+        try:
+            s.bind(("127.0.0.1", self.port))
+            s.listen(4)
+        except OSError:
+            s.close()
+            return not self.notify_running()
+        self.sock = s
+        threading.Thread(target=self._serve, daemon=True).start()
+        return True
+
+    def notify_running(self) -> bool:
+        """True when a STARK OS app answered on the port (and was asked to show itself)."""
+        try:
+            with socket.create_connection(("127.0.0.1", self.port), timeout=2) as c:
+                c.sendall(HELLO)
+                return c.recv(32) == ACK
+        except OSError:
+            return False
+
+    def _serve(self) -> None:
+        while self.sock is not None:
+            try:
+                conn, _ = self.sock.accept()
+            except OSError:
+                return
+            with conn:
+                conn.settimeout(2)
+                try:
+                    if conn.recv(32) == HELLO:
+                        conn.sendall(ACK)
+                        self.on_show()
+                except OSError:
+                    pass
+
+    def release(self) -> None:
+        if self.sock is not None:
+            s, self.sock = self.sock, None
+            s.close()
+
+
 # ---------------------------------------------------------------- the app
 class Backend:
     """Starts, watches and stops the API process. Restarts it after a settings change or a crash."""
@@ -208,6 +264,9 @@ def error_page(message: str) -> str:
 def run_app() -> None:
     import webview
 
+    instance = SingleInstance()
+    if not instance.acquire():
+        return  # STARK OS is already open; its window was brought to the front
     backend = Backend()
     backend.start()
     window = webview.create_window(APP, html="<body style='background:#0b0f17'></body>", width=1440, height=920,
@@ -221,15 +280,42 @@ def run_app() -> None:
         else:
             window.load_html(error_page(f"The engine did not start. Details: {backend.log}"))
 
+    def show() -> None:
+        for step in (window.restore, window.show):
+            try:
+                step()
+            except Exception:  # noqa: BLE001 - not every platform supports both
+                pass
+
+    instance.on_show = show
     window.events.closed += backend.stop
     try:
         webview.start(boot, private_mode=False, storage_path=str(data_dir() / "webview"))
     finally:
         backend.stop()
+        instance.release()
+
+
+def single_instance_check() -> bool:
+    port = free_port()
+    first, second = SingleInstance(port), SingleInstance(port)
+    shown: list[bool] = []
+    first.on_show = lambda: shown.append(True)
+    try:
+        if not first.acquire() or second.acquire():
+            return False
+        time.sleep(0.2)
+        return shown == [True]
+    finally:
+        first.release()
+        second.release()
 
 
 def self_test() -> int:
     """Used by the release build: start the engine without a window, check the API and the dashboard, stop."""
+    if not single_instance_check():
+        print("self-test: single-instance guard failed")
+        return 1
     backend = Backend()
     backend.start()
     try:

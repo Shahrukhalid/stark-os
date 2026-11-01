@@ -167,3 +167,37 @@ def prompt_section(kernel) -> str:
     if b["guidelines"]:
         lines.append("- Brand guidelines:\n" + b["guidelines"][:3000])
     return "\n".join(lines)
+
+
+def by_name(kernel, name: str) -> dict[str, Any] | None:
+    if not name:
+        return None
+    with kernel.db.session() as s:
+        b = s.scalars(select(Brand).where(Brand.name == name)).first()
+        return to_dict(b) if b else None
+
+
+def scope(kernel, requested: str | None) -> str | None:
+    """Which brand a list should show: an explicit ?brand= ("all" = every brand), else the active brand."""
+    if requested == "all":
+        return None
+    if requested:
+        return requested
+    b = active(kernel)
+    return b["name"] if b else None
+
+
+def brief(b: dict[str, Any] | None) -> str:
+    """Short brand context for one-off writing prompts (Autopilot)."""
+    if not b:
+        return ""
+    parts = [f"Brand: {b['name']}"]
+    if b["voice"]:
+        parts.append(f"Brand voice: {b['voice']}")
+    if b["audience"]:
+        parts.append(f"Brand audience: {b['audience']}")
+    if b["blocked_terms"]:
+        parts.append(f"Never use: {', '.join(b['blocked_terms'])}")
+    if b["guidelines"]:
+        parts.append("Brand guidelines: " + b["guidelines"][:1500])
+    return "\n".join(parts)

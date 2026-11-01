@@ -204,7 +204,7 @@ class LibraryList(Tool):
 
 
 # ------------------------------------------------------------------ outgoing webhooks
-WEBHOOK_EVENTS = {"content.updated", "listening.hit", "approval.created", "autopilot.alert", "estop"}
+WEBHOOK_EVENTS = {"content.updated", "listening.hit", "approval.created", "autopilot.alert", "account.unhealthy", "estop"}
 
 
 def webhook_payload(ev: dict[str, Any]) -> dict[str, Any] | None:
@@ -219,7 +219,7 @@ def webhook_payload(ev: dict[str, Any]) -> dict[str, Any] | None:
         name = {"draft": "post.drafted", "scheduled": "post.scheduled", "published": "post.published",
                 "failed": "post.failed"}[status]
         data = {k: d.get(k) for k in ("id", "platform", "kind", "text", "campaign", "scheduled_for", "external_url",
-                                       "simulated", "created_by")}
+                                       "simulated", "created_by", "brand")}
     elif t == "listening.hit":
         name, data = "mention.found", {k: d.get(k) for k in ("platform", "author", "text", "url", "category", "watch",
                                                              "sentiment")}
@@ -227,6 +227,8 @@ def webhook_payload(ev: dict[str, Any]) -> dict[str, Any] | None:
         name, data = "approval.needed", {k: d.get(k) for k in ("id", "agent_id", "tool_id", "action")}
     elif t == "autopilot.alert":
         name, data = "autopilot.alert", dict(d)
+    elif t == "account.unhealthy":
+        name, data = "account.unhealthy", {k: d.get(k) for k in ("platform", "message")}
     else:
         name, data = "estop", dict(d)
     return {"event": name, "at": ev.get("ts"), "data": data}
@@ -251,7 +253,7 @@ class Webhooks:
     def status(self) -> dict[str, Any]:
         return {"count": len(self.urls), "signed": bool(self.settings.webhook_secret),
                 "events": ["post.drafted", "post.scheduled", "post.published", "post.failed", "mention.found",
-                           "approval.needed", "autopilot.alert", "estop"]}
+                           "approval.needed", "autopilot.alert", "account.unhealthy", "estop"]}
 
     def payload_for(self, ev: dict[str, Any]) -> dict[str, Any] | None:
         p = webhook_payload(ev)

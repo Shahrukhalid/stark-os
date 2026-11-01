@@ -4,6 +4,7 @@ import { ArrowRight, CalendarClock, CheckCircle2, Circle, MessageSquare, PenLine
 import { useEffect, useState } from "react";
 import { useStark } from "@/lib/store";
 import type { ContentItem, SocialAccount } from "@/lib/types";
+import { AccountHealth } from "./AccountHealth";
 import { AgentGlyph, Section } from "./ui";
 
 const STEPS = [
@@ -114,6 +115,8 @@ export function HomeView({ talkTo, go }: { talkTo: (agentId: string, text?: stri
           </p>
         </Section>
       </div>
+
+      <AccountHealth onReconnect={() => go("content")} />
 
       <Section title="Who does what" right={<button className="btn !py-1 text-xs" onClick={() => go("team")}>All details</button>}>
         <div className="grid gap-2 [&>*]:min-w-0 sm:grid-cols-2 lg:grid-cols-4">

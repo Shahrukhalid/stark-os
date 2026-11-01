@@ -13,6 +13,7 @@ import { ComposerView } from "./ComposerView";
 import { GrowthView } from "./GrowthView";
 import { LibraryView } from "./LibraryView";
 import { BrandsView } from "./BrandsView";
+import { BrandSwitcher } from "./BrandSwitcher";
 import { AutomationsView } from "./AutomationsView";
 import { ListeningView } from "./ListeningView";
 import { LiveView } from "./LiveView";
@@ -181,6 +182,7 @@ export function Shell({ onSignOut }: { onSignOut: () => void }) {
             <Sparkles size={13} className={fx === "max" ? "text-fuchsia-300" : fx === "calm" ? "text-cyan-300" : "text-[var(--color-mute)]"} />
             <span className="hidden capitalize sm:inline">FX {fx === "max" ? "Max" : fx}</span>
           </button>
+          <BrandSwitcher onChange={() => setBoot((b) => b + 1)} />
           <select
             aria-label="Execution mode"
             className="input !w-auto !py-1.5 text-xs"

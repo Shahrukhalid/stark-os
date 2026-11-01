@@ -354,6 +354,7 @@ class Campaign(Base):
     daily_cap: Mapped[int] = mapped_column(Integer, default=3)  # posts per platform per day
     min_gap_minutes: Mapped[int] = mapped_column(Integer, default=120)
     trust_level: Mapped[str] = mapped_column(String(16), default="copilot")  # copilot | veto | auto
+    brand: Mapped[str] = mapped_column(String(80), default=_active_brand_name)  # brand this campaign writes for
     veto_minutes: Mapped[int] = mapped_column(Integer, default=120)
     link_policy: Mapped[str] = mapped_column(String(16), default="always")  # always | never
     fact_check: Mapped[bool] = mapped_column(Boolean, default=True)

@@ -41,6 +41,17 @@ The agents are modelled on the AI personas in Vision's Mindspace from Marvel's *
 
 Everything below works today in the free, self-hosted version. Each feature has its own page in the dashboard (left menu) or can be reached with **Ctrl/⌘ K**.
 
+### New in 1.4
+- **Account health**: every connected account is checked every 6 hours without posting (expired logins, revoked
+  tokens, a bot removed from its channel, a deleted webhook) plus recent failed posts. Home shows the result with a
+  **Reconnect** button; an `account.unhealthy` event reaches automations and webhooks, and a new recipe alerts your
+  phone before scheduled posts fail.
+- **Brand isolation**: switch brands from the header. The active brand scopes the content queue, analytics and
+  Autopilot campaigns (choose "All brands" to see everything). Each campaign belongs to a brand and Autopilot writes
+  with that brand's voice and forbidden words, even when another brand is active. Webhooks include the brand.
+- **Desktop: one app at a time**: opening STARK OS again brings the running window to the front instead of starting a
+  second engine on the same data.
+
 ### New in 1.3
 - **Brands**: run several brands or clients from one STARK OS. Each brand has its own voice, audience, guidelines,
   hashtags, target platforms and words it never uses. The active brand steers all seven agents, the post checker

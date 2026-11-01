@@ -21,7 +21,7 @@ export function BrandsView() {
   const [form, setForm] = useState<Form>(EMPTY);
 
   const load = useCallback(() => {
-    client.get<{ brands: Brand[] }>("/api/brands").then((r) => setBrands(r.brands)).catch((e) => notify("error", e.message));
+    client.get<{ brands: Brand[] }>("/api/brands").then((r) => (setBrands(r.brands), window.dispatchEvent(new Event("stark:brands-changed")))).catch((e) => notify("error", e.message));
   }, [client, notify]);
   useEffect(load, [load]);
 
