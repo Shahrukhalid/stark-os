@@ -1,0 +1,70 @@
+# Desktop installers: macOS .dmg (Apple silicon and Intel) and Windows .exe, each with everything bundled.
+# Runs on version tags (v1.2.0) and attaches the installers to that release; run it by hand to just build them.
+name: Desktop
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            asset: STARK-OS-macOS-AppleSilicon.dmg
+          - os: macos-15-intel
+            asset: STARK-OS-macOS-Intel.dmg
+          - os: windows-latest
+            asset: STARK-OS-Windows-Setup.exe
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version: "22" }
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with: { python-version: "3.12" }
+      - name: Dashboard (static build for the app)
+        working-directory: apps/web
+        run: npm ci --no-audit --no-fund && STARK_DESKTOP_BUILD=1 npm run build
+      - name: Python packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install --require-hashes -r services/api/requirements.lock
+          pip install --no-deps ./services/api
+          pip install -r desktop/requirements.txt
+      - name: Build the app
+        run: pyinstaller desktop/stark.spec --noconfirm
+      - name: Self-test of the built app (engine and dashboard start without a window)
+        env:
+          STARK_DESKTOP_DATA: ${{ runner.temp }}/stark-selftest
+          PYTHON_KEYRING_BACKEND: keyring.backends.fail.Keyring
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then "dist/STARK OS.app/Contents/MacOS/STARK OS" --self-test
+          else "dist/STARK OS/STARK OS.exe" --self-test; fi
+      - name: macOS disk image
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p dmg && cp -R "dist/STARK OS.app" dmg/ && ln -s /Applications dmg/Applications
+          hdiutil create -volname "STARK OS" -srcfolder dmg -ov -format UDZO "dist/${{ matrix.asset }}"
+      - name: Windows installer
+        if: runner.os == 'Windows'
+        run: |
+          export STARK_VERSION=$(python -c "import re;print(re.search(r'__version__ = \"([^\"]+)\"',open('services/api/stark/__init__.py').read()).group(1))")
+          choco install innosetup -y --no-progress >/dev/null
+          "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" desktop/installer.iss
+      - name: Keep the installer with this run
+        run: echo "Built dist/${{ matrix.asset }} ($(du -h "dist/${{ matrix.asset }}" | cut -f1))"
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "STARK OS ${GITHUB_REF_NAME#v}" --notes "Desktop installers for macOS and Windows: download, install, open STARK OS and follow the setup." || true
+          gh release upload "$GITHUB_REF_NAME" "dist/${{ matrix.asset }}" --clobber

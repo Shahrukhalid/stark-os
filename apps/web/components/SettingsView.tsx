@@ -3,6 +3,7 @@
 import { PhoneSettings } from "./PhoneSettings";
 import { Monitor, Moon, Sun, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { isDesktop } from "@/lib/api";
 import { useStark } from "@/lib/store";
 import { applyTheme, readTheme, saveTheme, type ThemePreference } from "@/lib/theme";
 import { pickVoice, ttsSupported } from "@/lib/voice";
@@ -14,6 +15,49 @@ const MODES = [
   { id: "execute_approved", title: "Execute approved", text: "Reversible file changes inside scopes you grant below run without asking. Publishing, sensitive and destructive actions still always need approval." },
   { id: "scheduled", title: "Scheduled automation (planned)", text: "The scheduler is not implemented yet; selecting it behaves like Assist." },
 ];
+
+/** Desktop app: update notice and startup diagnostics. */
+function DesktopInfo() {
+  const { client } = useStark();
+  const [update, setUpdate] = useState<{ current: string; latest: string | null; update: boolean; url: string } | null>(null);
+  const [diag, setDiag] = useState<{ checks: { name: string; ok: boolean; detail: string }[]; last_crash: string } | null>(null);
+  useEffect(() => {
+    client.get("/api/desktop/update").then(setUpdate).catch(() => {});
+    client.get("/api/desktop/diagnostics").then(setDiag).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div className="mt-4 space-y-3 text-sm">
+      {update && (
+        <p>
+          Version {update.current}.{" "}
+          {update.update ? (
+            <a className="text-cyan-300 underline" href={update.url} target="_blank" rel="noreferrer">
+              Version {update.latest} is available: download it
+            </a>
+          ) : (
+            <span className="text-[var(--color-mute)]">You have the latest version.</span>
+          )}
+        </p>
+      )}
+      {diag && (
+        <ul className="space-y-1" aria-label="Diagnostics">
+          {diag.checks.map((c) => (
+            <li key={c.name} className="flex justify-between gap-3">
+              <span>{c.ok ? "✓" : "✗"} {c.name}</span>
+              <span className="truncate text-[var(--color-mute)]">{c.detail}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {diag?.last_crash && (
+        <details>
+          <summary className="cursor-pointer text-[var(--color-mute)]">Last engine restart log</summary>
+          <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs">{diag.last_crash}</pre>
+        </details>
+      )}
+    </div>
+  );
+}
 
 export function SettingsView({ onSignOut }: { onSignOut: () => void }) {
   const { status, client, notify, agents, refresh } = useStark();
@@ -44,6 +88,17 @@ export function SettingsView({ onSignOut }: { onSignOut: () => void }) {
 
   return (
     <div className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-2">
+      {isDesktop() && (
+        <Section title="Desktop app">
+          <p className="mb-3 text-sm text-[var(--color-mute)]">
+            Change your AI provider and key, or connect social accounts. Keys are kept in this computer&apos;s credential store.
+          </p>
+          <button type="button" className="btn btn-primary" onClick={() => window.dispatchEvent(new Event("stark:desktop-setup"))}>
+            Open setup
+          </button>
+          <DesktopInfo />
+        </Section>
+      )}
       <Section title="Appearance">
         <div className="space-y-3">
           <p className="text-sm text-[var(--color-mute)]">Choose how STARK OS looks. Your preference is saved in this browser.</p>

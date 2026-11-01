@@ -20,13 +20,20 @@ const csp = [
   "frame-ancestors 'none'",
 ].join("; ");
 
+// STARK_DESKTOP_BUILD=1: a static export that the desktop app serves itself (headers are then sent by the API).
+const desktop = process.env.STARK_DESKTOP_BUILD === "1";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  ...(desktop ? { output: "export", images: { unoptimized: true } } : {}),
   reactStrictMode: true,
   // pin the project root (a stray package-lock.json in a parent folder otherwise confuses Next.js)
   outputFileTracingRoot: dirname(fileURLToPath(import.meta.url)),
   poweredByHeader: false,
-  async headers() {
+  ...(desktop ? {} : { headers }),
+};
+
+async function headers() {
     return [
       {
         source: "/(.*)",
@@ -39,6 +46,5 @@ const nextConfig = {
         ],
       },
     ];
-  },
-};
+}
 export default nextConfig;

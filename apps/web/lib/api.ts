@@ -38,8 +38,32 @@ export interface Connection {
   remember?: boolean;
 }
 
+/** True inside the STARK OS desktop app (it opens the dashboard with ?desktop=1). */
+export function isDesktop(): boolean {
+  if (typeof window === "undefined") return false;
+  if (new URLSearchParams(window.location.search).has("desktop")) safeSetSession("stark.desktop", "1");
+  return safeGet("stark.desktop") === "1";
+}
+
+function safeSetSession(key: string, value: string) {
+  try {
+    window.sessionStorage.setItem(key, value);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function loadConnection(): Connection | null {
   if (typeof window === "undefined") return null;
+  // The desktop app hands over its token in the address fragment once; keep it for this session and remove it.
+  const m = window.location.hash.match(/stark-token=([^&]+)/);
+  if (m) {
+    const conn = { url: window.location.origin, token: decodeURIComponent(m[1]) };
+    saveConnection(conn);
+    isDesktop();
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    return conn;
+  }
   const url = safeGet(KEY_URL) || process.env.NEXT_PUBLIC_STARK_API_URL || "http://127.0.0.1:8000";
   const token = safeGet(KEY_TOKEN);
   return token ? { url, token } : null;

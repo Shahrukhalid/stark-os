@@ -1,0 +1,4 @@
+# Desktop app build (in addition to services/api/requirements.lock)
+pywebview>=5.3       # native window: WebKit on macOS, Edge WebView2 on Windows
+keyring>=25.0        # macOS Keychain / Windows Credential Manager
+pyinstaller>=6.10

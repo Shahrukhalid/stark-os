@@ -36,3 +36,9 @@ apps/web/e2e/screenshots/
 build/
 dist/
 docs/demo-raw/
+
+# Desktop app builds
+/dist/
+/build/
+/dmg/
+apps/web/out/

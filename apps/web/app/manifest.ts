@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 
+export const dynamic = "force-static"; // also works in the static export used by the desktop app
+
 /** Lets people install the dashboard as an app (desktop and phone). */
 export default function manifest(): MetadataRoute.Manifest {
   return {

@@ -156,6 +156,32 @@ Everything below works today in the free, self-hosted version. Each feature has 
 
 New here? Read the **[user guide](docs/USER_GUIDE.md)**. Exact status: **[docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md)**.
 
+## Download the desktop app (no setup)
+
+The easiest way to use STARK OS: one installer with everything inside, so you don't need Python, Node.js, Docker,
+Git or a terminal.
+
+| Your computer | Download |
+|---|---|
+| Mac with Apple silicon (M1 and newer) | [STARK-OS-macOS-AppleSilicon.dmg](https://github.com/Shahrukhalid/stark-os/releases/latest/download/STARK-OS-macOS-AppleSilicon.dmg) |
+| Mac with an Intel processor | [STARK-OS-macOS-Intel.dmg](https://github.com/Shahrukhalid/stark-os/releases/latest/download/STARK-OS-macOS-Intel.dmg) |
+| Windows 10 and 11 | [STARK-OS-Windows-Setup.exe](https://github.com/Shahrukhalid/stark-os/releases/latest/download/STARK-OS-Windows-Setup.exe) |
+
+1. Install it (Mac: drag STARK OS to Applications; Windows: run the installer) and open STARK OS.
+2. The setup wizard asks for an AI key: pick free models or allow paid ones with a spending limit, paste your key
+   and press **Test connection**. A free key takes a minute at openrouter.ai.
+3. Connect the accounts STARK OS may post to (Bluesky, Mastodon, Threads, Telegram, Discord, Slack); each has a
+   **Test** button and short instructions. X, LinkedIn and Instagram stay drafts-only because posting there needs
+   paid or reviewed developer apps.
+4. Press **Save and start**. You can change everything later under **Settings → Desktop app**, which also shows
+   update notices and startup checks.
+
+The app runs its engine in the background and restarts it if it ever stops. Your keys are stored in the macOS
+Keychain or the Windows Credential Manager, and your data stays in your user folder
+(`~/Library/Application Support/STARK OS` or `%LOCALAPPDATA%\STARK OS`). The installers aren't signed by Apple or
+Microsoft yet: on a Mac, right-click STARK OS and choose **Open** the first time; on Windows, choose **More info →
+Run anyway**.
+
 ## Quick start (macOS / Linux / Windows)
 
 Requirements (all free):
