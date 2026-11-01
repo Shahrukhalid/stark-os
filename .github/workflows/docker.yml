@@ -1,0 +1,41 @@
+# Builds the Docker images and starts STARK OS with docker compose (production override included),
+# then checks both services answer and that data survives stopping and starting the containers.
+name: Docker
+on:
+  push:
+    paths: ["docker-compose*.yml", "**/Dockerfile", ".env.example", ".github/workflows/docker.yml"]
+  pull_request:
+    paths: ["docker-compose*.yml", "**/Dockerfile", ".env.example", ".github/workflows/docker.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COMPOSE: docker compose -f docker-compose.yml -f docker-compose.prod.yml
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Create .env
+        run: python3 scripts/setup.py < /dev/null > /dev/null
+      - name: Build and start
+        run: $COMPOSE up -d --build --wait --wait-timeout 300
+      - name: Both services answer
+        run: |
+          curl -fsS http://127.0.0.1:8000/api/health
+          echo
+          curl -fsS -o /dev/null -w "web %{http_code}\n" http://127.0.0.1:3000/
+      - name: Data survives stopping and starting
+        run: |
+          $COMPOSE exec -T api ls -la /app/data
+          before=$($COMPOSE exec -T api python -c "import os;print(os.path.getsize('/app/data/stark.db'))")
+          $COMPOSE down
+          $COMPOSE up -d --wait --wait-timeout 300
+          after=$($COMPOSE exec -T api python -c "import os;print(os.path.getsize('/app/data/stark.db'))")
+          echo "database size before: $before, after: $after"
+          test "$after" -ge "$before"
+          curl -fsS http://127.0.0.1:8000/api/health
+      - name: Logs
+        if: always()
+        run: $COMPOSE logs --no-color | tail -200
