@@ -198,9 +198,30 @@ class EvergreenIn(BaseModel):
     days: int | None = None
 
 
-class VideoIn(BaseModel):
+class CaptionStyle(BaseModel):
+    size: int = Field(14, ge=8, le=40)
+    color: Literal["white", "yellow", "cyan"] = "white"
+    position: Literal["bottom", "middle", "top"] = "bottom"
+    box: bool = False
+
+
+class TranscribeIn(BaseModel):
     file: str = Field(..., max_length=200)
+    model: Literal["tiny", "base", "small"] = "base"
+    language: str = Field("auto", pattern=r"^(auto|[a-z]{2})$")
+
+
+class VideoIn(BaseModel):
+    file: str = Field("", max_length=200)
+    files: list[str] | None = Field(None, max_length=10)  # 2+ = join them
     preset: Literal["vertical", "square", "portrait", "landscape", "original"] = "vertical"
+    presets: list[Literal["vertical", "square", "portrait", "landscape", "original"]] | None = Field(None, max_length=5)
+    speed: float = Field(1.0, ge=0.5, le=2.0)
+    volume: float = Field(1.0, ge=0, le=3)
+    fade: float = Field(0, ge=0, le=1)
+    transition: float = Field(0, ge=0, le=1.5)
+    caption_source: Literal["script", "transcript", "srt"] = "script"
+    style: CaptionStyle | None = None
     format: Literal["mp4", "webm", "gif"] = "mp4"
     fit: Literal["pad", "crop"] = "pad"
     start: float | None = Field(None, ge=0)
@@ -1002,7 +1023,7 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
             raise HTTPException(404, "no such snippet")
         return {"ok": True}
 
-    # ---------------------------------------------------------- video studio (local FFmpeg)
+    # ---------------------------------------------------------- video studio (local FFmpeg, whisper.cpp)
     @app.get("/api/video", dependencies=[api])
     async def video_home(k: Kernel = Depends(kernel)):
         try:
@@ -1011,45 +1032,85 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
             files = []
         return {"ffmpeg": await asyncio.to_thread(video.status), "files": files, "jobs": k.video.list_jobs(),
                 "presets": {pid: {"label": p["label"], "size": p["size"], "max_s": p["max_s"]}
-                            for pid, p in video.PRESETS.items()}, "formats": list(video.FORMATS)}
+                            for pid, p in video.PRESETS.items()}, "formats": list(video.FORMATS),
+                "models": video.models_status(settings)}
 
     @app.post("/api/video/upload", dependencies=[api])
     async def video_upload(request: Request, name: str = "video.mp4"):
         if int(request.headers.get("content-length") or 0) > video.MAX_UPLOAD:
-            raise HTTPException(413, "Video too large (500 MB max)")
+            raise HTTPException(413, "Video too large (2 GB max)")
         try:
-            return video.save_upload(settings, await request.body(), name)
+            return await video.save_stream(settings, request.stream(), name)
+        except video.VideoError as exc:
+            raise HTTPException(400, str(exc)) from None
+
+    def _vid(call):
+        try:
+            return call()
         except video.VideoError as exc:
             raise HTTPException(400, str(exc)) from None
 
     @app.post("/api/video/export", dependencies=[api])
     async def video_export(body: VideoIn, k: Kernel = Depends(kernel)):
+        job = _vid(lambda: k.video.start(body.model_dump()))
+        k.obs.audit("user", "video.export", "ok", target=body.file or ", ".join(body.files or []),
+                    detail={"presets": body.presets or [body.preset], "format": body.format})
+        return job
+
+    @app.delete("/api/video/jobs/{job_id}", dependencies=[api])
+    async def video_cancel(job_id: str, k: Kernel = Depends(kernel)):
+        if not k.video.cancel(job_id):
+            raise HTTPException(404, "no running job with that id")
+        return {"cancelled": job_id}
+
+    @app.get("/api/video/info", dependencies=[api])
+    async def video_info(name: str, k: Kernel = Depends(kernel)):
+        return await asyncio.to_thread(lambda: _vid(lambda: k.video.info(name)))
+
+    @app.get("/api/video/preview", dependencies=[api])
+    async def video_preview(name: str, at: float = Query(0, ge=0), k: Kernel = Depends(kernel)):
         try:
-            job = k.video.start(body.model_dump())
+            data = await k.video.preview(name, at)
         except video.VideoError as exc:
             raise HTTPException(400, str(exc)) from None
-        k.obs.audit("user", "video.export", "ok", target=body.file, detail={"preset": body.preset, "format": body.format})
+        return Response(data, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=600"})
+
+    @app.post("/api/video/transcribe", dependencies=[api])
+    async def video_transcribe(body: TranscribeIn, k: Kernel = Depends(kernel)):
+        return _vid(lambda: k.video.transcribe(body.file, body.model, body.language))
+
+    @app.get("/api/video/transcript", dependencies=[api])
+    async def video_transcript(name: str, k: Kernel = Depends(kernel)):
+        try:
+            return k.video.transcript(name)
+        except video.VideoError as exc:
+            raise HTTPException(404, str(exc)) from None
+
+    @app.post("/api/video/models/{name}", dependencies=[api])
+    async def video_model(name: str, k: Kernel = Depends(kernel)):
+        job = _vid(lambda: k.video.download_model(name))
+        k.obs.audit("user", "video.model_download", "ok", target=name)
         return job
 
     @app.post("/api/video/thumbnail", dependencies=[api])
-    async def video_thumbnail(body: ThumbIn):
+    async def video_thumbnail(body: ThumbIn, k: Kernel = Depends(kernel)):
         try:
-            return await video.Studio(settings).thumbnail(body.file, body.at)
+            return await k.video.thumbnail(body.file, body.at)
         except video.VideoError as exc:
             raise HTTPException(400, str(exc)) from None
 
     @app.get("/api/video/file", dependencies=[api])
-    async def video_file(name: str):
+    async def video_file(name: str, k: Kernel = Depends(kernel)):
         try:
-            path = video.Studio(settings).path(name)
+            path = k.video.path(name)
         except video.VideoError as exc:
             raise HTTPException(404, str(exc)) from None
         return FileResponse(path, filename=path.name)
 
     @app.delete("/api/video/file", dependencies=[api])
-    async def video_delete(name: str):
+    async def video_delete(name: str, k: Kernel = Depends(kernel)):
         try:
-            video.Studio(settings).path(name).unlink()
+            k.video.delete(name)
         except video.VideoError as exc:
             raise HTTPException(404, str(exc)) from None
         return {"deleted": name}

@@ -323,16 +323,12 @@ def video_check() -> str:
     if not exe:
         return "FFmpeg not found"
     with tempfile.TemporaryDirectory() as tmp:
-        out = Path(tmp) / "check.mp4"
-        r = subprocess.run([exe, "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=size=320x240:rate=10",
-                            "-t", "1", "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2",
-                            "-c:v", "libx264", "-pix_fmt", "yuv420p", str(out)], capture_output=True, text=True, timeout=120)
-        if r.returncode != 0:
-            return "FFmpeg failed: " + r.stderr[-300:]
-        info = video.probe(exe, out)
-        if (info["width"], info["height"]) != (1080, 1920):
-            return f"unexpected size {info}"
-    print("self-test: video", video.status())
+        res = video.self_check(exe, Path(tmp))
+    print("self-test: video", {**video.status(), **res})
+    if not res["ok"]:
+        return res["error"]
+    if not res["transcribe"]:
+        return "speech-to-text (whisper.cpp) is not bundled"
     return ""
 
 

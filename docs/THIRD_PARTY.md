@@ -4,6 +4,9 @@
 |---|---|---|
 | [FFmpeg](https://ffmpeg.org) (static build shipped by imageio-ffmpeg) | Video studio: trim, resize, convert, captions, thumbnails | GPL v3 (the builds include GPL components such as x264) |
 | [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg) | Provides the FFmpeg binary | BSD-2-Clause |
+| [whisper.cpp](https://github.com/ggml-org/whisper.cpp) via [pywhispercpp](https://github.com/absadiki/pywhispercpp) | Speech to text in the video studio | MIT |
+| Whisper models (ggml, downloaded on request) | Speech recognition weights | MIT (OpenAI Whisper) |
+| [NumPy](https://numpy.org) | Audio samples for speech to text | BSD-3-Clause |
 | [pywebview](https://github.com/r0x0r/pywebview) | Native window | BSD-3-Clause |
 | [keyring](https://github.com/jaraco/keyring) | macOS Keychain / Windows Credential Manager | MIT |
 | [PyInstaller](https://pyinstaller.org) | Packaging | GPL v2 with bootloader exception |

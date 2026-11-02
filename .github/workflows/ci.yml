@@ -19,8 +19,15 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with: { python-version: "3.12" }
       - run: pip install --require-hashes -r services/api/requirements.lock && pip install --no-deps -e "services/api" && pip install "pytest>=8" "pytest-asyncio>=0.23" "playwright>=1.45" "psycopg[binary]>=3.1" && python -m playwright install --with-deps chromium
+      - name: Video tools for the video studio tests (FFmpeg, a test voice, speech-to-text and its smallest model)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg espeak-ng >/dev/null
+          pip install "pywhispercpp>=1.2"
+          curl -sSfL -o "$RUNNER_TEMP/ggml-tiny.bin" https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin
       - run: cd services/api && python -m pytest -q
-        env: { TEST_DATABASE_URL: "postgresql+psycopg://stark:ci-only-password@127.0.0.1:5432/stark_test" }
+        env:
+          TEST_DATABASE_URL: "postgresql+psycopg://stark:ci-only-password@127.0.0.1:5432/stark_test"
+          STARK_TEST_WHISPER_MODEL: ${{ runner.temp }}/ggml-tiny.bin
   web:
     runs-on: ubuntu-latest
     steps:

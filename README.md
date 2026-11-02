@@ -42,7 +42,13 @@ Each agent has its own free model with automatic fallback, its own prompt, memor
 - **12 platforms**: Bluesky, Mastodon, X, Threads, LinkedIn, Instagram, Facebook, TikTok, YouTube, Telegram, Discord, Slack.
 - **Translate** into 13 languages.
 - **Quote cards and carousels** made on your computer.
-- **Video studio**: trim, resize for each platform (9:16, 1:1, 4:5, 16:9, crop or bars), convert to MP4, WebM or GIF, remove sound, captions (burned in, as a switchable track or a separate .srt, from your script or your own SRT) and thumbnails into the media library. Runs on your computer with FFmpeg (included in the desktop app).
+- **Video studio** (on your computer, FFmpeg included in the desktop app):
+  - Trim with start/end frame previews, join up to 10 videos with cross-fades, speed 0.5–2×, volume, fade in/out, remove sound.
+  - Platform sizes (9:16, 1:1, 4:5, 16:9; bars or crop), several sizes in one go, MP4, WebM or GIF.
+  - **Speech to text** with timestamps (whisper.cpp). The speech model (75–466 MB) is downloaded once when you ask, then works offline.
+  - Captions timed to the speech, a script or your own SRT: burned in with size, colour, position and box, as a switchable track or as an .srt file.
+  - **Clips for Shorts, Reels and TikTok**: the transcript is split into short clips at sentence ends; export them all at once, or ask U for the best moments.
+  - Progress bars, cancel, uploads up to 2 GB streamed to disk, thumbnails into the media library.
 - **Repurpose**: blog post, video or text → posts, threads and a video script.
 - **AI images**: free illustrations with alt text.
 - **Library**: templates, hashtag groups, signatures. **Bulk import** of up to 500 posts (CSV).
@@ -154,4 +160,4 @@ Fan-made project, not affiliated with Marvel or Disney. Agent names are used des
 
 [MIT](LICENSE)
 
-The desktop app includes FFmpeg (via imageio-ffmpeg, BSD-2-Clause), which is licensed under the GPL; see [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md).
+The desktop app includes FFmpeg (via imageio-ffmpeg, BSD-2-Clause; FFmpeg itself is GPL) and whisper.cpp (via pywhispercpp, MIT); see [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md).
