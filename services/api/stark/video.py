@@ -37,6 +37,8 @@ PRESETS: dict[str, dict[str, Any]] = {
 FORMATS = ("mp4", "webm", "gif")
 COLOURS = {"white": "&H00FFFFFF", "yellow": "&H0000FFFF", "cyan": "&H00FFFF00"}
 ALIGN = {"bottom": 2, "middle": 5, "top": 8}  # ASS numpad positions
+ANIMATIONS = ("none", "fade", "pop", "karaoke")
+TRANSITIONS = ("fade", "dissolve", "wipeleft", "wiperight", "slideleft", "slideup", "circleopen", "fadeblack", "zoomin")
 
 # whisper.cpp models (ggml), downloaded on request into the data folder.
 WHISPER_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-{name}.bin"
@@ -295,6 +297,70 @@ def style_string(style: dict[str, Any] | None) -> str:
     return ",".join(parts)
 
 
+def parse_srt(text: str) -> list[dict[str, Any]]:
+    out = []
+    for block in re.split(r"\n\s*\n", text.replace("\r\n", "\n").strip()):
+        m = re.search(r"(\d\d):(\d\d):(\d\d),(\d{3}) --> (\d\d):(\d\d):(\d\d),(\d{3})\n(.+)", block, re.S)
+        if m:
+            g = [int(x) for x in m.groups()[:8]]
+            out.append({"start": g[0] * 3600 + g[1] * 60 + g[2] + g[3] / 1000,
+                        "end": g[4] * 3600 + g[5] * 60 + g[6] + g[7] / 1000, "text": m.group(9).strip()})
+    return out
+
+
+def _ass_time(t: float) -> str:
+    cs = int(round(max(0.0, t) * 100))
+    h, cs = divmod(cs, 360_000)
+    m, cs = divmod(cs, 6000)
+    s, cs = divmod(cs, 100)
+    return f"{h}:{m:02}:{s:02}.{cs:02}"
+
+
+def ass_from_segments(segments: list[dict[str, Any]], style: dict[str, Any] | None, animation: str,
+                      size: tuple[int, int]) -> str:
+    """Animated captions as an ASS file (libass renders it): fade, pop or word-by-word karaoke highlight."""
+    st = style or {}
+    w, h = size
+    font = round(min(40, max(8, int(st.get("size") or 14))) * h / 288)  # same look as the SRT FontSize scale
+    colour = COLOURS.get(str(st.get("color") or "white"), COLOURS["white"])
+    align = ALIGN.get(str(st.get("position") or "bottom"), 2)
+    box = bool(st.get("box"))
+    primary, secondary = (colour, "&H00FFFFFF") if animation == "karaoke" else (colour, colour)
+    if animation == "karaoke" and colour == COLOURS["white"]:
+        primary = COLOURS["yellow"]  # the spoken word stands out
+    head = ("[Script Info]\nScriptType: v4.00+\nWrapStyle: 0\nScaledBorderAndShadow: yes\n"
+            f"PlayResX: {w}\nPlayResY: {h}\n\n[V4+ Styles]\n"
+            "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, "
+            "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, "
+            "MarginR, MarginV, Encoding\n"
+            f"Style: Default,Arial,{font},{primary},{secondary},&H00000000,&H80000000,1,0,0,0,100,100,0,0,"
+            f"{3 if box else 1},{max(1, font // 14)},0,{align},{w // 20},{w // 20},{h // 14},1\n\n"
+            "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n")
+    lines = []
+    for s in segments:
+        text = re.sub(r"[{}\\]", "", s["text"]).strip()
+        if not text:
+            continue
+        if animation == "fade":
+            body = "{\\fad(150,100)}" + text
+        elif animation == "pop":
+            body = "{\\fscx70\\fscy70\\t(0,160,\\fscx100\\fscy100)}" + text
+        elif animation == "karaoke":
+            words = text.split()
+            total_cs = max(len(words), int((s["end"] - s["start"]) * 100))
+            chars = sum(len(x) for x in words) or 1
+            parts, used = [], 0
+            for i, word in enumerate(words):
+                k = total_cs - used if i == len(words) - 1 else max(1, round(total_cs * len(word) / chars))
+                used += k
+                parts.append(f"{{\\k{k}}}{word}")
+            body = " ".join(parts)
+        else:
+            body = text
+        lines.append(f"Dialogue: 0,{_ass_time(s['start'])},{_ass_time(s['end'])},Default,,0,0,0,,{body}")
+    return head + "\n".join(lines) + "\n"
+
+
 # ------------------------------------------------------------------ commands
 def _speed(opts: dict[str, Any]) -> float:
     return min(2.0, max(0.5, float(opts.get("speed") or 1.0)))
@@ -321,7 +387,8 @@ def build_command(exe: str, src: Path, out: Path, info: dict[str, Any], opts: di
         else:  # whole picture, bars where needed
             vf.append(f"scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=black")
     if srt_name and opts.get("captions") == "burn":
-        vf.append(f"subtitles={srt_name}:force_style='{style_string(opts.get('style'))}'")
+        vf.append(f"subtitles={srt_name}" if srt_name.endswith(".ass")
+                  else f"subtitles={srt_name}:force_style='{style_string(opts.get('style'))}'")
     if speed != 1.0:
         vf.append(f"setpts=PTS/{speed:g}")
     fade = min(1.0, float(opts.get("fade") or 0), out_len / 3)
@@ -382,7 +449,8 @@ def build_merge_command(exe: str, srcs: list[Path], infos: list[dict[str, Any]],
         offset, vprev, aprev = 0.0, "[v0]", "[a0]"
         for i in range(1, len(srcs)):
             offset += infos[i - 1]["duration"] - fade
-            parts.append(f"{vprev}[v{i}]xfade=transition=fade:duration={fade:.2f}:offset={offset:.3f}[x{i}]")
+            kind = opts.get("transition_type") if opts.get("transition_type") in TRANSITIONS else "fade"
+            parts.append(f"{vprev}[v{i}]xfade=transition={kind}:duration={fade:.2f}:offset={offset:.3f}[x{i}]")
             vprev = f"[x{i}]"
             if audio:
                 parts.append(f"{aprev}[a{i}]acrossfade=d={fade:.2f}[y{i}]")
@@ -440,7 +508,8 @@ def decode_audio(exe: str, src: Path):
 
 
 def transcribe_audio(model_path: Path, samples, language: str = "auto",
-                     on_segment: Callable[[float], None] | None = None) -> list[dict[str, Any]]:
+                     on_segment: Callable[[float], None] | None = None,
+                     should_stop: Callable[[], bool] | None = None) -> list[dict[str, Any]]:
     """Speech to text with timestamps (whisper.cpp). Times are seconds."""
     from pywhispercpp.model import Model
 
@@ -454,7 +523,14 @@ def transcribe_audio(model_path: Path, samples, language: str = "auto",
     def cb(seg) -> None:
         if on_segment:
             on_segment(seg.t1 / 100)
-    segs = model.transcribe(samples, new_segment_callback=cb)
+    import inspect
+
+    kwargs: dict[str, Any] = {"new_segment_callback": cb}
+    if should_stop and "abort_callback" in inspect.signature(model.transcribe).parameters:
+        kwargs["abort_callback"] = should_stop  # newer whisper.cpp builds stop mid-run
+    segs = model.transcribe(samples, **kwargs)
+    if should_stop and should_stop():
+        raise VideoError("cancelled")
     return [{"start": round(s.t0 / 100, 2), "end": round(s.t1 / 100, 2), "text": s.text.strip()}
             for s in segs if s.text.strip() and not re.fullmatch(r"\[.*\]|\(.*\)", s.text.strip())]
 
@@ -513,7 +589,17 @@ class Studio:
             text = captions_from_script(str(opts.get("script") or ""), end - start)
         srt = src.with_name(f"{src.stem}-captions-{uuid.uuid4().hex[:4]}.srt")
         srt.write_text(text, encoding="utf-8")
+        animation = opts.get("animation") if opts.get("animation") in ANIMATIONS else "none"
+        if mode == "burn" and animation != "none":
+            size = PRESETS[opts["preset"]]["size"] or self._size(src)
+            ass = srt.with_suffix(".ass")
+            ass.write_text(ass_from_segments(parse_srt(text), opts.get("style"), animation, size), encoding="utf-8")
+            return ass  # the .srt stays next to it for platforms that take a captions file
         return srt
+
+    def _size(self, src: Path) -> tuple[int, int]:
+        info = probe(self._exe(), src)
+        return info["width"], info["height"]
 
     def start(self, opts: dict[str, Any]) -> dict[str, Any]:
         """One export, or one per preset in ``opts['presets']`` (batch)."""
@@ -624,6 +710,7 @@ class Studio:
         if not info["audio"]:
             raise VideoError("This video has no sound to transcribe")
         job = self._new_job("transcribe", file=src.name, duration=info["duration"], model=model)
+        job["abort"] = threading.Event()
         asyncio.get_running_loop().create_task(self._run_transcribe(job, exe, src, mpath, language))
         return job
 
@@ -637,9 +724,12 @@ class Studio:
                 job["progress"] = min(0.99, t / (job["duration"] or 1))
             try:
                 samples = await asyncio.to_thread(decode_audio, exe, src)
-                segs = await asyncio.to_thread(transcribe_audio, mpath, samples, language, progress)
+                segs = await asyncio.to_thread(transcribe_audio, mpath, samples, language, progress,
+                                               job["abort"].is_set)
+                del samples  # free the audio right away
             except Exception as exc:  # noqa: BLE001 - reported on the job
-                job.update(status="failed", error=str(exc)[:300])
+                if job["status"] != "cancelled":
+                    job.update(status="failed", error=str(exc)[:300])
                 return
             if job["status"] == "cancelled":  # whisper.cpp can't be stopped mid-run; the result is dropped
                 return
@@ -741,6 +831,7 @@ class Studio:
         p = _find(self.settings, name)
         p.unlink()
         _transcript_path(p).unlink(missing_ok=True)
+        p.with_name(p.name + ".packages.json").unlink(missing_ok=True)
 
 
 def self_check(exe: str, workdir: Path) -> dict[str, Any]:

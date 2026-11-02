@@ -6,7 +6,8 @@ import { useStark } from "@/lib/store";
 import { Section } from "./ui";
 
 type VFile = { name: string; bytes: number; kind: "video" | "image" | "captions"; transcript?: boolean };
-type Job = { id: string; kind: string; status: "queued" | "running" | "done" | "failed" | "cancelled"; progress: number; file: string; output: string | null; captions: string | null; error: string | null; preset?: string; format?: string; model?: string };
+type Pick = { title: string; hook: string; hashtags: string[]; video: string; thumbnail: string; start: number; end: number; drafts: { platform: string; id?: string; error?: string }[] };
+type Job = { clips?: Pick[]; picked_by?: string | null; id: string; kind: string; status: "queued" | "running" | "done" | "failed" | "cancelled"; progress: number; file: string; output: string | null; captions: string | null; error: string | null; preset?: string; format?: string; model?: string };
 type Model = { name: string; label: string; installed: boolean };
 type FF = { available: boolean; message?: string; version?: string; burn_captions?: boolean; transitions?: boolean; transcribe?: boolean };
 type Home = { ffmpeg: FF; files: VFile[]; jobs: Job[]; presets: Record<string, { label: string }>; formats: string[]; models: Model[] };
@@ -15,7 +16,8 @@ type Transcript = { file: string; segments: Seg[]; clips: Seg[]; text: string };
 
 const mb = (n: number) => `${(n / 1048576).toFixed(1)} MB`;
 const t = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
-const KIND: Record<string, string> = { export: "Export", merge: "Join", transcribe: "Transcribe", model: "Speech model" };
+const KIND: Record<string, string> = { export: "Export", merge: "Join", transcribe: "Transcribe", model: "Speech model", package: "Shorts package" };
+const PKG_PLATFORMS = ["tiktok", "instagram", "youtube", "x", "threads", "bluesky", "linkedin", "facebook"];
 
 /** Trim, join, speed, captions from speech, platform sizes, thumbnails: all on this computer. */
 export function VideoStudio({ talkTo }: { talkTo: (agentId: string, text?: string) => void }) {
@@ -26,9 +28,10 @@ export function VideoStudio({ talkTo }: { talkTo: (agentId: string, text?: strin
   const [tr, setTr] = useState<Transcript | null>(null);
   const [frames, setFrames] = useState<{ a?: string; b?: string }>({});
   const [model, setModel] = useState("base");
+  const [pkg, setPkg] = useState({ count: 3, platforms: ["tiktok", "instagram", "youtube"], animation: "pop" });
   const [o, setO] = useState({
     file: "", presets: ["vertical"] as string[], format: "mp4", fit: "pad", start: "", end: "", mute: false, speed: 1, volume: 1, fade: 0, transition: 0.5,
-    captions: "none", caption_source: "script", script: "", srt: "", style: { size: 14, color: "white", position: "bottom", box: false },
+    captions: "none", caption_source: "script", animation: "none", transition_type: "fade", script: "", srt: "", style: { size: 14, color: "white", position: "bottom", box: false },
   });
   const set = (k: keyof typeof o, v: any) => setO((x) => ({ ...x, [k]: v }));
 
@@ -211,6 +214,9 @@ export function VideoStudio({ talkTo }: { talkTo: (agentId: string, text?: strin
                     <select className="input !w-auto !py-1" aria-label="Caption colour" value={o.style.color} onChange={(e) => set("style", { ...o.style, color: e.target.value })}><option value="white">White</option><option value="yellow">Yellow</option><option value="cyan">Cyan</option></select>
                     <select className="input !w-auto !py-1" aria-label="Caption position" value={o.style.position} onChange={(e) => set("style", { ...o.style, position: e.target.value })}><option value="bottom">Bottom</option><option value="middle">Middle</option><option value="top">Top</option></select>
                     <label className="flex items-center gap-1"><input type="checkbox" checked={o.style.box} onChange={(e) => set("style", { ...o.style, box: e.target.checked })} /> Dark box</label>
+                    <select className="input !w-auto !py-1" aria-label="Caption animation" value={o.animation} onChange={(e) => set("animation", e.target.value)}>
+                      <option value="none">No animation</option><option value="fade">Fade in</option><option value="pop">Pop in</option><option value="karaoke">Word by word</option>
+                    </select>
                   </div>
                 )}
               </div>
@@ -226,7 +232,14 @@ export function VideoStudio({ talkTo }: { talkTo: (agentId: string, text?: strin
                       {join.includes(f.name) && <b>{join.indexOf(f.name) + 1}.</b>} <span className="truncate">{f.name}</span>
                     </label>
                   ))}
-                  {ff.transitions && <label className="flex items-center gap-2 pt-1">Cross-fade {o.transition}s <input type="range" min={0} max={1.5} step={0.25} value={o.transition} onChange={(e) => set("transition", Number(e.target.value))} /></label>}
+                  {ff.transitions && (
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <select className="input !w-auto !py-1" aria-label="Transition" value={o.transition_type} onChange={(e) => set("transition_type", e.target.value)}>
+                        {["fade", "dissolve", "wipeleft", "wiperight", "slideleft", "slideup", "circleopen", "fadeblack", "zoomin"].map((x) => <option key={x} value={x}>{x}</option>)}
+                      </select>
+                      <label className="flex items-center gap-2">{o.transition}s <input type="range" min={0} max={1.5} step={0.25} value={o.transition} onChange={(e) => set("transition", Number(e.target.value))} /></label>
+                    </div>
+                  )}
                 </div>
               </details>
             )}
@@ -271,6 +284,28 @@ export function VideoStudio({ talkTo }: { talkTo: (agentId: string, text?: strin
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[var(--color-mute)]">{tr.clips.length} short clips found at sentence ends</span>
                         <button className="btn !py-0.5" onClick={exportClips}><Scissors size={11} /> Export all clips</button>
+                      </div>
+                      <div className="space-y-2 rounded border border-cyan-400/30 p-2">
+                        <div className="font-medium text-cyan-200">Shorts package</div>
+                        <p className="text-[var(--color-mute)]">Picks the best moments, makes vertical clips with animated captions and a thumbnail, and writes a title, hook and hashtags as drafts for each platform. Nothing is posted until you approve it.</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <label className="flex items-center gap-1">Clips <input className="input !w-14 !py-1" type="number" min={1} max={5} value={pkg.count} onChange={(e) => setPkg({ ...pkg, count: Number(e.target.value) })} /></label>
+                          <select className="input !w-auto !py-1" aria-label="Package caption animation" value={pkg.animation} onChange={(e) => setPkg({ ...pkg, animation: e.target.value })}>
+                            <option value="pop">Pop in</option><option value="karaoke">Word by word</option><option value="fade">Fade in</option><option value="none">No animation</option>
+                          </select>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {PKG_PLATFORMS.map((p) => (
+                            <label key={p} className={`chip cursor-pointer ${pkg.platforms.includes(p) ? "!border-cyan-400 !text-cyan-200" : ""}`}>
+                              <input type="checkbox" className="sr-only" checked={pkg.platforms.includes(p)} onChange={(e) => setPkg({ ...pkg, platforms: e.target.checked ? [...pkg.platforms, p] : pkg.platforms.filter((x) => x !== p) })} />{p}
+                            </label>
+                          ))}
+                        </div>
+                        <button className="btn btn-primary !py-1" disabled={busy === "pkg" || pkg.platforms.length === 0} onClick={() => act("pkg", () => client.post("/api/video/package", { file: o.file, ...pkg }), "Making your Shorts package")}>
+                          <Scissors size={11} /> Make Shorts package
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
                         <button className="btn !py-0.5" onClick={() => talkTo("u", `U, pick the 3 best moments for Shorts from this transcript and give start/end seconds and a hook for each:\n${tr.segments.map((s) => `[${s.start}-${s.end}] ${s.text}`).join("\n").slice(0, 6000)}`)}>Ask U for the best moments</button>
                       </div>
                     </>
@@ -295,6 +330,18 @@ export function VideoStudio({ talkTo }: { talkTo: (agentId: string, text?: strin
                   </div>
                 )}
                 {j.captions && <button className="mt-1 text-cyan-300 underline" onClick={() => download(j.captions!)}>{j.captions}</button>}
+                {j.kind === "package" && (j.clips || []).map((c) => (
+                  <div key={c.video} className="mt-1 rounded border border-[var(--color-line)] p-1.5">
+                    <div className="font-medium">{c.title}</div>
+                    <div className="text-[var(--color-mute)]">{t(c.start)}–{t(c.end)} · {c.hashtags.join(" ")}</div>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      <button className="text-cyan-300 underline" onClick={() => download(c.video)}>Clip</button>
+                      <span className="text-emerald-300">{c.drafts.filter((d) => d.id).length} drafts in Content</span>
+                      {c.drafts.filter((d) => d.error).map((d) => <span key={d.platform} className="text-red-300">{d.platform}: {d.error}</span>)}
+                    </div>
+                  </div>
+                ))}
+                {j.kind === "package" && j.picked_by && <p className="mt-1 text-[var(--color-mute)]">Moments picked {j.picked_by === "agent" ? "by U" : "by a rule (no AI model connected)"}.</p>}
                 {j.error && <p className="mt-1 break-anywhere text-red-300">{j.error}</p>}
               </div>
             ))}

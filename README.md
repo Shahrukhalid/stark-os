@@ -47,6 +47,8 @@ Each agent has its own free model with automatic fallback, its own prompt, memor
   - Platform sizes (9:16, 1:1, 4:5, 16:9; bars or crop), several sizes in one go, MP4, WebM or GIF.
   - **Speech to text** with timestamps (whisper.cpp). The speech model (75–466 MB) is downloaded once when you ask, then works offline.
   - Captions timed to the speech, a script or your own SRT: burned in with size, colour, position and box, as a switchable track or as an .srt file.
+  - **Shorts package**: from a long video, U picks the best moments from the transcript (a clear rule does it when no AI model is connected), then STARK OS makes vertical clips with animated captions and thumbnails and writes a title, hook, description and hashtags as drafts for each platform you choose. Every draft still waits for your approval.
+  - Caption animations (fade, pop, word-by-word) and 9 transitions between joined videos.
   - **Clips for Shorts, Reels and TikTok**: the transcript is split into short clips at sentence ends; export them all at once, or ask U for the best moments.
   - Progress bars, cancel, uploads up to 2 GB streamed to disk, thumbnails into the media library.
 - **Repurpose**: blog post, video or text → posts, threads and a video script.

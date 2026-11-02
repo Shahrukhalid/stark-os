@@ -46,7 +46,7 @@ from .providers import ModelProvider
 from . import autopilot as ap
 from . import automations, brands, growth, hub, insights, reach
 from . import health as account_health
-from . import video
+from . import shorts, video
 from .core.db import Campaign
 from .tools import build_registry
 from .tools import social as social_tools
@@ -221,6 +221,9 @@ class VideoIn(BaseModel):
     fade: float = Field(0, ge=0, le=1)
     transition: float = Field(0, ge=0, le=1.5)
     caption_source: Literal["script", "transcript", "srt"] = "script"
+    animation: Literal["none", "fade", "pop", "karaoke"] = "none"
+    transition_type: Literal["fade", "dissolve", "wipeleft", "wiperight", "slideleft", "slideup", "circleopen",
+                             "fadeblack", "zoomin"] = "fade"
     style: CaptionStyle | None = None
     format: Literal["mp4", "webm", "gif"] = "mp4"
     fit: Literal["pad", "crop"] = "pad"
@@ -230,6 +233,15 @@ class VideoIn(BaseModel):
     captions: Literal["none", "burn", "track", "file"] = "none"
     script: str | None = Field(None, max_length=20_000)
     srt: str | None = Field(None, max_length=200_000)
+
+
+class PackageIn(BaseModel):
+    file: str = Field(..., max_length=200)
+    count: int = Field(3, ge=1, le=5)
+    platforms: list[str] = Field(default_factory=lambda: ["tiktok", "instagram", "youtube"], max_length=12)
+    max_seconds: float = Field(60, ge=15, le=90)
+    animation: Literal["none", "fade", "pop", "karaoke"] = "pop"
+    style: CaptionStyle | None = None
 
 
 class ThumbIn(BaseModel):
@@ -1091,6 +1103,22 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         job = _vid(lambda: k.video.download_model(name))
         k.obs.audit("user", "video.model_download", "ok", target=name)
         return job
+
+    @app.post("/api/video/package", dependencies=[api])
+    async def video_package(body: PackageIn, k: Kernel = Depends(kernel)):
+        if k.perms.emergency_stop:
+            raise HTTPException(409, "Emergency stop is engaged")
+        social = k.tools.get("social.publish").social
+        job = _vid(lambda: shorts.start(k, social, settings, k.video, body.model_dump()))
+        k.obs.audit("user", "video.package", "ok", target=body.file, detail={"count": body.count})
+        return job
+
+    @app.get("/api/video/packages", dependencies=[api])
+    async def video_packages(name: str, k: Kernel = Depends(kernel)):
+        try:
+            return {"packages": shorts.packages(k.video, name)}
+        except video.VideoError as exc:
+            raise HTTPException(404, str(exc)) from None
 
     @app.post("/api/video/thumbnail", dependencies=[api])
     async def video_thumbnail(body: ThumbIn, k: Kernel = Depends(kernel)):
