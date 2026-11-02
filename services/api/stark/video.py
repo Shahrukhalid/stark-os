@@ -712,7 +712,7 @@ class Studio:
         job = self._new_job("transcribe", file=src.name, duration=info["duration"], model=model)
         job["abort"] = threading.Event()
         asyncio.get_running_loop().create_task(self._run_transcribe(job, exe, src, mpath, language))
-        return job
+        return {k: v for k, v in job.items() if k != "abort"}  # the stop signal stays inside
 
     async def _run_transcribe(self, job, exe, src: Path, mpath: Path, language: str) -> None:
         async with self._lock:

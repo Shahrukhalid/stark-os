@@ -122,3 +122,20 @@ def test_video_to_shorts_package(client, settings, tmp_path):
         assert all(i.kind == "video" for i in items)
     assert client.get(f"/api/video/packages?name={name}").json()["packages"][0]["brand"] == "Acme"
     assert brands.active(k) is None
+
+
+@needs_ffmpeg
+def test_transcribe_endpoint_answers_json(client, settings, tmp_path, monkeypatch):
+    """1.8.0 regression: the job's internal stop signal must never reach the JSON answer."""
+    clip = tmp_path / "s.mp4"
+    subprocess.run([EXE, "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=size=320x240:rate=10",
+                    "-f", "lavfi", "-i", "sine", "-t", "2", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
+                    "-shortest", str(clip)], check=True, timeout=60)
+    name = client.post("/api/video/upload?name=s.mp4", content=clip.read_bytes()).json()["name"]
+    monkeypatch.setattr(video, "whisper_available", lambda: True)
+    monkeypatch.setattr(video, "transcribe_audio", lambda *a, **k: [{"start": 0.0, "end": 1.0, "text": "Hi"}])
+    video.model_file(settings, "tiny").write_bytes(b"lmgg")
+    r = client.post("/api/video/transcribe", json={"file": name, "model": "tiny"})
+    assert r.status_code == 200 and "abort" not in r.json(), r.text
+    assert wait(client, r.json()["id"])["status"] == "done"
+    assert client.get("/api/video").status_code == 200
