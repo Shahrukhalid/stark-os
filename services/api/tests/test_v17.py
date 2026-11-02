@@ -169,9 +169,10 @@ async def test_model_download_is_checked(settings):
 MODEL = os.environ.get("STARK_TEST_WHISPER_MODEL")
 
 
-@pytest.mark.skipif(not (EXE and MODEL and shutil.which("espeak-ng") and video.whisper_available()),
-                    reason="needs ffmpeg, espeak-ng, pywhispercpp and STARK_TEST_WHISPER_MODEL (run in CI)")
+@pytest.mark.skipif(not MODEL, reason="set STARK_TEST_WHISPER_MODEL to a ggml model file (CI does)")
 def test_real_speech_to_text(client, settings, tmp_path):
+    # with a model given (CI) everything else must be there: this test never silently skips in CI
+    assert EXE and shutil.which("espeak-ng") and video.whisper_available(), video.WHISPER_ERROR
     wav = tmp_path / "speech.wav"
     subprocess.run(["espeak-ng", "-s", "140", "-w", str(wav), "Hello world. This is a test of the video studio."],
                    check=True, timeout=60)

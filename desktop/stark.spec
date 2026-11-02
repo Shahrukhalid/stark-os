@@ -4,7 +4,7 @@ import re
 import sys
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
 
 ROOT = Path(SPECPATH).parent
 VERSION = re.search(r'__version__ = "([^"]+)"', (ROOT / "services/api/stark/__init__.py").read_text()).group(1)
@@ -17,7 +17,8 @@ hidden = ["imageio_ffmpeg", "pywhispercpp", "pywhispercpp.model", "_pywhispercpp
 a = Analysis(
     [str(ROOT / "desktop/stark_desktop.py")],
     pathex=[str(ROOT / "services/api")],
-    datas=[(str(ROOT / "agents"), "agents"), (str(WEB), "web")] + collect_data_files("stark"),
+    datas=[(str(ROOT / "agents"), "agents"), (str(WEB), "web")] + collect_data_files("stark")
+    + copy_metadata("pywhispercpp"),  # it reads its own version at import time
     hiddenimports=hidden,
     excludes=["playwright", "tkinter", "pytest"],
 )

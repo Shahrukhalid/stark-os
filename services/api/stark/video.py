@@ -62,12 +62,16 @@ def ffmpeg_path() -> str | None:
         return shutil.which("ffmpeg")
 
 
+WHISPER_ERROR: dict[str, str] = {}
+
+
 def whisper_available() -> bool:
     try:
         import pywhispercpp.model  # noqa: F401
 
         return True
-    except Exception:  # noqa: BLE001 - optional: not installed or no build for this computer
+    except Exception as exc:  # noqa: BLE001 - optional: not installed or no build for this computer
+        WHISPER_ERROR["error"] = f"{exc.__class__.__name__}: {exc}"[:300]
         return False
 
 
@@ -756,4 +760,5 @@ def self_check(exe: str, workdir: Path) -> dict[str, Any]:
                            f"subtitles=c.srt:force_style='{style_string(None)}'", "-c:v", "libx264", "burn.mp4"],
                           cwd=str(workdir), capture_output=True, text=True, timeout=120)
     return {"ok": True, "burn_captions": burn.returncode == 0 and (workdir / "burn.mp4").is_file(),
-            "burn_error": burn.stderr[-200:] if burn.returncode else "", "transcribe": whisper_available()}
+            "burn_error": burn.stderr[-200:] if burn.returncode else "", "transcribe": whisper_available(),
+            "transcribe_error": WHISPER_ERROR.get("error", "")}
