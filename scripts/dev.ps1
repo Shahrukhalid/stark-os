@@ -51,6 +51,10 @@ try {
     Wait-Process -Id $api.Id, $web.Id
 } finally {
     foreach ($p in @($api, $web)) {
-        if ($p -and -not $p.HasExited) { & taskkill /PID $p.Id /T /F 2>$null | Out-Null }
+        # a child that is already exiting makes taskkill print an error; stopping is best effort, never a failure
+        if ($p -and -not $p.HasExited) {
+            $ErrorActionPreference = "Continue"
+            try { & taskkill /PID $p.Id /T /F 2>&1 | Out-Null } catch { }
+        }
     }
 }
