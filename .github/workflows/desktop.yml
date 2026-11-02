@@ -38,7 +38,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install --require-hashes -r services/api/requirements.lock
           pip install --no-deps ./services/api
-          pip install -r desktop/requirements.txt
+          pip install --only-binary pywhispercpp -r desktop/requirements.txt  # prebuilt whisper.cpp only
       - name: Build the app
         run: pyinstaller desktop/stark.spec --noconfirm
       - name: Self-test of the built app (engine and dashboard start without a window)

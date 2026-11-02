@@ -13,10 +13,22 @@ if not (WEB / "index.html").exists():
     sys.exit("Build the dashboard first: cd apps/web && STARK_DESKTOP_BUILD=1 npm run build")
 
 # imageio_ffmpeg's FFmpeg binary (video studio) is collected by its PyInstaller hook (pyinstaller-hooks-contrib).
+# whisper.cpp's shared libraries sit next to the extension module in site-packages; collect them explicitly so
+# the extension finds them through @rpath / the DLL search path in the bundle.
+import glob
+import sysconfig
+
+WHISPER_LIBS = []
+for base in {sysconfig.get_paths()["platlib"], sysconfig.get_paths()["purelib"]}:
+    for pat in ("libwhisper*", "libggml*", "whisper*.dll", "ggml*.dll", "pywhispercpp/.dylibs/*", "pywhispercpp.libs/*"):
+        WHISPER_LIBS += [(p, ".") for p in glob.glob(str(Path(base) / pat)) if Path(p).is_file()]
+print("whisper libraries:", [Path(p).name for p, _ in WHISPER_LIBS])
+
 hidden = ["imageio_ffmpeg", "pywhispercpp", "pywhispercpp.model", "_pywhispercpp", "numpy"] + collect_submodules("stark") + collect_submodules("uvicorn") + ["keyring.backends.macOS", "keyring.backends.Windows"]
 a = Analysis(
     [str(ROOT / "desktop/stark_desktop.py")],
     pathex=[str(ROOT / "services/api")],
+    binaries=WHISPER_LIBS,
     datas=[(str(ROOT / "agents"), "agents"), (str(WEB), "web")] + collect_data_files("stark")
     + copy_metadata("pywhispercpp"),  # it reads its own version at import time
     hiddenimports=hidden,
