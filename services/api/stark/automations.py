@@ -23,7 +23,7 @@ import httpx
 from sqlalchemy import func, select
 
 from . import brands as brand_mod
-from .core.db import Automation, AutomationRun, Mention, to_dict, utcnow
+from .core.db import TASK_BRAND, Automation, AutomationRun, Mention, to_dict, utcnow
 from .core.observability import log
 from .hub import create_draft, webhook_payload
 
@@ -346,6 +346,18 @@ class Engine:
         return {"would_run": not failed, "failed_conditions": failed, "steps": steps}
 
     async def run(self, a: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any] | None:
+        """Runs with the automation's brand (else the event's): drafts, agent tasks and blocked words use it,
+        whatever brand is switched on in the dashboard meanwhile."""
+        brand = a.get("brand") or str(((payload.get("data") or {}) if isinstance(payload.get("data"), dict)
+                                       else {}).get("brand") or "")
+        token = TASK_BRAND.set(brand_mod.task_context(self.kernel, brand)) if brand else None
+        try:
+            return await self._run(a, payload)
+        finally:
+            if token is not None:
+                TASK_BRAND.reset(token)
+
+    async def _run(self, a: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any] | None:
         p = self.plan(a, payload)
         if not p["would_run"]:
             return None

@@ -16,7 +16,7 @@ from typing import Any, Literal
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, PlainTextResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import case, func, select
 
@@ -46,6 +46,7 @@ from .providers import ModelProvider
 from . import autopilot as ap
 from . import automations, brands, growth, hub, insights, reach
 from . import health as account_health
+from . import video
 from .core.db import Campaign
 from .tools import build_registry
 from .tools import social as social_tools
@@ -197,6 +198,24 @@ class EvergreenIn(BaseModel):
     days: int | None = None
 
 
+class VideoIn(BaseModel):
+    file: str = Field(..., max_length=200)
+    preset: Literal["vertical", "square", "portrait", "landscape", "original"] = "vertical"
+    format: Literal["mp4", "webm", "gif"] = "mp4"
+    fit: Literal["pad", "crop"] = "pad"
+    start: float | None = Field(None, ge=0)
+    end: float | None = Field(None, ge=0)
+    mute: bool = False
+    captions: Literal["none", "burn", "track", "file"] = "none"
+    script: str | None = Field(None, max_length=20_000)
+    srt: str | None = Field(None, max_length=200_000)
+
+
+class ThumbIn(BaseModel):
+    file: str = Field(..., max_length=200)
+    at: float = Field(1.0, ge=0)
+
+
 class SnippetIn(BaseModel):
     kind: str
     name: str = Field(..., max_length=120)
@@ -317,6 +336,7 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         holder["k"].notifier = growth.Notifier(holder["k"], social, settings)
         scheduler = asyncio.create_task(_scheduler_loop(holder["k"]))
         holder["k"].webhooks = hub.Webhooks(holder["k"], settings)
+        holder["k"].video = video.Studio(settings)
         background = [asyncio.create_task(holder["k"].notifier.run()), asyncio.create_task(holder["k"].webhooks.run()),
                       asyncio.create_task(hub.recycler_loop(holder["k"], social, settings)),
                       asyncio.create_task(_snapshot_loop(holder["k"], social)),
@@ -981,6 +1001,58 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         if not hub.delete_snippet(k, snippet_id):
             raise HTTPException(404, "no such snippet")
         return {"ok": True}
+
+    # ---------------------------------------------------------- video studio (local FFmpeg)
+    @app.get("/api/video", dependencies=[api])
+    async def video_home(k: Kernel = Depends(kernel)):
+        try:
+            files = video.list_files(settings)
+        except video.VideoError:
+            files = []
+        return {"ffmpeg": await asyncio.to_thread(video.status), "files": files, "jobs": k.video.list_jobs(),
+                "presets": {pid: {"label": p["label"], "size": p["size"], "max_s": p["max_s"]}
+                            for pid, p in video.PRESETS.items()}, "formats": list(video.FORMATS)}
+
+    @app.post("/api/video/upload", dependencies=[api])
+    async def video_upload(request: Request, name: str = "video.mp4"):
+        if int(request.headers.get("content-length") or 0) > video.MAX_UPLOAD:
+            raise HTTPException(413, "Video too large (500 MB max)")
+        try:
+            return video.save_upload(settings, await request.body(), name)
+        except video.VideoError as exc:
+            raise HTTPException(400, str(exc)) from None
+
+    @app.post("/api/video/export", dependencies=[api])
+    async def video_export(body: VideoIn, k: Kernel = Depends(kernel)):
+        try:
+            job = k.video.start(body.model_dump())
+        except video.VideoError as exc:
+            raise HTTPException(400, str(exc)) from None
+        k.obs.audit("user", "video.export", "ok", target=body.file, detail={"preset": body.preset, "format": body.format})
+        return job
+
+    @app.post("/api/video/thumbnail", dependencies=[api])
+    async def video_thumbnail(body: ThumbIn):
+        try:
+            return await video.Studio(settings).thumbnail(body.file, body.at)
+        except video.VideoError as exc:
+            raise HTTPException(400, str(exc)) from None
+
+    @app.get("/api/video/file", dependencies=[api])
+    async def video_file(name: str):
+        try:
+            path = video.Studio(settings).path(name)
+        except video.VideoError as exc:
+            raise HTTPException(404, str(exc)) from None
+        return FileResponse(path, filename=path.name)
+
+    @app.delete("/api/video/file", dependencies=[api])
+    async def video_delete(name: str):
+        try:
+            video.Studio(settings).path(name).unlink()
+        except video.VideoError as exc:
+            raise HTTPException(404, str(exc)) from None
+        return {"deleted": name}
 
     @app.get("/api/media", dependencies=[api])
     async def media_list():

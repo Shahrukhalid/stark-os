@@ -243,6 +243,11 @@ def diagnostics() -> dict[str, Any]:
     free = shutil.disk_usage(d if d.exists() else Path.home()).free
     checks.append({"name": "Free disk space", "ok": free > 500_000_000, "detail": f"{free // 1_000_000} MB"})
     checks.append({"name": "AI key saved", "ok": bool(get_secret("OPENROUTER_API_KEY")), "detail": ""})
+    from .video import status as video_status
+
+    v = video_status()
+    checks.append({"name": "Video tools (FFmpeg)", "ok": v["available"],
+                   "detail": v.get("version") or v.get("message", "")})
     crash = d / "logs" / "crash.log"
     return {"version": __version__, "python": sys.version.split()[0], "os": f"{platform.system()} {platform.release()}",
             "machine": platform.machine(), "checks": checks,

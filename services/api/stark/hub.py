@@ -21,7 +21,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from . import brands as brand_mod
-from .core.db import ACTIVE_BRAND, ContentItem, Snippet, to_dict, utcnow
+from .core.db import ContentItem, current_brand, Snippet, to_dict, utcnow
 from .core.observability import log
 from .core.tool_registry import Risk, Tool, ToolResult
 from .tools import social as social_tools
@@ -199,7 +199,7 @@ class LibraryList(Tool):
     risk = Risk.READ
 
     async def run(self, args: LibraryInput, ctx) -> ToolResult:
-        items = [x for x in snippets(ctx.kernel, ACTIVE_BRAND.get("name") or None) if not args.kind or x["kind"] == args.kind]
+        items = [x for x in snippets(ctx.kernel, current_brand().get("name") or None) if not args.kind or x["kind"] == args.kind]
         rows = [{"kind": x["kind"], "name": x["name"], "body": x["body"], "platforms": x["platforms"] or "all"}
                 for x in items]
         return ToolResult(True, f"{len(rows)} snippet(s) in the Library", {"snippets": rows})

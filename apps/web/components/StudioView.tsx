@@ -6,6 +6,7 @@ import { useStark } from "@/lib/store";
 import type { AnalyticsReport } from "@/lib/types";
 import { CardMaker } from "./CardMaker";
 import { Section } from "./ui";
+import { VideoStudio } from "./VideoStudio";
 
 const PLATFORMS = ["bluesky", "mastodon", "x", "linkedin", "threads", "instagram", "tiktok", "youtube", "telegram", "discord", "slack"];
 const NAMES: Record<string, string> = { bluesky: "Bluesky", mastodon: "Mastodon", x: "X", linkedin: "LinkedIn", threads: "Threads", instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube", telegram: "Telegram", discord: "Discord", slack: "Slack" };
@@ -167,6 +168,7 @@ export function StudioView({ talkTo }: { talkTo: (agentId: string, text?: string
           </button>
         </Section>
       </div>
+      <VideoStudio talkTo={talkTo} />
       <CardMaker talkTo={talkTo} />
     </div>
   );

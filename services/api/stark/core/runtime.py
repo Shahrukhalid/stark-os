@@ -165,7 +165,9 @@ class Kernel:
         return data
 
     # ------------------------------------------------------------- user entry
-    def submit_chat(self, agent_id: str, text: str, conversation_id: str | None = None) -> dict[str, Any]:
+    def submit_chat(self, agent_id: str, text: str, conversation_id: str | None = None,
+                    brand: str | None = None) -> dict[str, Any]:
+        """``brand``: the brand this work is for (an automation's brand); default = the brand in use now."""
         agent = self.registry.get(agent_id)
         if self.perms.emergency_stop:
             raise RuntimeError("Emergency stop is engaged. Reset it in the dashboard before starting new work.")
@@ -179,7 +181,8 @@ class Kernel:
 
         task_id = new_id("tsk")
         task = self._create_task(id=task_id, root_id=task_id, conversation_id=conversation_id, agent_id=agent.id,
-                                 kind="chat", requested_by="user", instruction=text, agent_chain=[agent.id])
+                                 kind="chat", requested_by="user", instruction=text, agent_chain=[agent.id],
+                                 **({"brand": brand} if brand is not None else {}))
         with self.db.session() as s:
             s.add(Turn(conversation_id=conversation_id, role="user", agent_id=agent.id, content=text,
                        task_id=task_id))
@@ -219,6 +222,11 @@ class Kernel:
         assert task is not None
         agent = self.registry.get(task["agent_id"])
         try:
+            # this asyncio task's own brand context: voice, memories, library and blocked words of the task's brand
+            from ..brands import task_context
+            from .db import TASK_BRAND
+
+            TASK_BRAND.set(task_context(self, task.get("brand") or ""))
             self._transition(task_id, "thinking")
             result = await asyncio.wait_for(self._agent_loop(task, agent), timeout=agent.limits.timeout_s)
             text, meta = post_process(agent.workflow, result, self.get_task(task_id)["sources"],
@@ -332,7 +340,12 @@ class Kernel:
             other = self.registry.get(other_id)
             team.append(f"- {other.id}: {other.name} -- {other.role}")
         prefs = self.memory.preferences_for(agent)
-        relevant = self.memory.search(actor=agent, query=task["instruction"], limit=5, root_id=task["root_id"])
+        query = task["instruction"]
+        if task.get("parent_id"):  # a helper also recalls what the whole job is about, not just its own step
+            root = self.get_task(task["root_id"])
+            if root is not None:
+                query = f"{query}\n{root['instruction']}"
+        relevant = self.memory.search(actor=agent, query=query, limit=5, root_id=task["root_id"])
         mem_lines = [f"- ({m['layer']}, {m['namespace']}) {m['content'][:300]}" for m in relevant
                      if m["namespace"] != "user:preferences"]
         mode = self.perms.global_mode.value
@@ -640,7 +653,8 @@ class Kernel:
         child = self._create_task(id=child_id, root_id=parent["root_id"], parent_id=parent["id"],
                                   agent_id=recipient_id, kind=kind, requested_by=sender.id,
                                   instruction=instruction, depth=parent["depth"] + 1,
-                                  agent_chain=chain + [recipient_id], dedup_key=dedup)
+                                  agent_chain=chain + [recipient_id], dedup_key=dedup,
+                                  brand=parent.get("brand") or "")  # helpers work for the same brand
         corr = child["id"]
         self.messages.send(AgentMessage(sender=sender.id, recipient=recipient_id, task_id=child_id,
                                         root_id=parent["root_id"], type=msg_type, correlation_id=corr,

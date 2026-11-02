@@ -256,9 +256,9 @@ def check_post(platform: str, text: str, *, thread: list[str] | None = None, med
     for name, rx, _sev in SECRET_RULES:
         if rx.search(full):
             add("fail", "secret", f"Looks like a credential ({name}). Never post keys or passwords.")
-    from ..core.db import ACTIVE_BRAND
+    from ..core.db import current_brand
 
-    brand_terms = ACTIVE_BRAND.get("blocked_terms", []) if active_brand else []
+    brand_terms = current_brand().get("blocked_terms", []) if active_brand else []
     for term in dict.fromkeys([*(blocked_terms or []), *brand_terms]):
         if term and term.lower() in low:
             add("fail", "blocked_term", f"Contains a brand-blocked term: '{term}'.")

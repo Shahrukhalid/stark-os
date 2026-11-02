@@ -149,8 +149,8 @@ def load(kernel) -> None:
 
 
 def prompt_section(kernel) -> str:
-    """Authoritative brand context for the agents' system prompts ("" when no brand is active)."""
-    b = active(kernel)
+    """Authoritative brand context for the agents' system prompts: the running task's brand ("" for none)."""
+    b = by_name(kernel, dbm.current_brand().get("name", ""))
     if not b:
         return ""
     lines = [f"## Active brand: {b['name']} (write as this brand; authoritative)"]
@@ -201,6 +201,12 @@ def brief(b: dict[str, Any] | None) -> str:
     if b["guidelines"]:
         parts.append("Brand guidelines: " + b["guidelines"][:1500])
     return "\n".join(parts)
+
+
+def task_context(kernel, name: str) -> dict[str, Any]:
+    """What a task working for brand ``name`` needs at run time (``core.db.TASK_BRAND``)."""
+    b = by_name(kernel, name) if name else None
+    return {"name": b["name"] if b else "", "blocked_terms": list(b["blocked_terms"]) if b else []}
 
 
 def where_visible(stmt, column, only: str | None):

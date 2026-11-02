@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import uuid
 from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from typing import Any, Iterator
 
@@ -35,8 +36,18 @@ def new_id(prefix: str) -> str:
 ACTIVE_BRAND: dict[str, Any] = {"name": "", "blocked_terms": []}
 
 
+# The brand a running task works for. Each agent task (an asyncio task) sets its own value, so switching
+# brands in the dashboard or two brands' tasks running at once never mix voices, memories or blocked words.
+TASK_BRAND: ContextVar[dict[str, Any] | None] = ContextVar("stark_task_brand", default=None)
+
+
+def current_brand() -> dict[str, Any]:
+    """The running task's brand, else the brand active in the dashboard: {"name", "blocked_terms"}."""
+    return TASK_BRAND.get() or ACTIVE_BRAND
+
+
 def _active_brand_name() -> str:
-    return ACTIVE_BRAND.get("name", "")
+    return current_brand().get("name", "")
 
 
 class Base(DeclarativeBase):
@@ -78,6 +89,7 @@ class Task(Base):
     result: Mapped[str | None] = mapped_column(Text, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     depth: Mapped[int] = mapped_column(Integer, default=0)
+    brand: Mapped[str] = mapped_column(String(80), default=_active_brand_name)  # brand the task works for
     agent_chain: Mapped[list[Any]] = mapped_column(JSON, default=list)
     dedup_key: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     provider: Mapped[str | None] = mapped_column(String(32), nullable=True)

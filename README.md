@@ -42,6 +42,7 @@ Each agent has its own free model with automatic fallback, its own prompt, memor
 - **12 platforms**: Bluesky, Mastodon, X, Threads, LinkedIn, Instagram, Facebook, TikTok, YouTube, Telegram, Discord, Slack.
 - **Translate** into 13 languages.
 - **Quote cards and carousels** made on your computer.
+- **Video studio**: trim, resize for each platform (9:16, 1:1, 4:5, 16:9, crop or bars), convert to MP4, WebM or GIF, remove sound, captions (burned in, as a switchable track or a separate .srt, from your script or your own SRT) and thumbnails into the media library. Runs on your computer with FFmpeg (included in the desktop app).
 - **Repurpose**: blog post, video or text → posts, threads and a video script.
 - **AI images**: free illustrations with alt text.
 - **Library**: templates, hashtag groups, signatures. **Bulk import** of up to 500 posts (CSV).
@@ -71,6 +72,7 @@ Each agent has its own free model with automatic fallback, its own prompt, memor
 ### Brands
 - Several brands or clients in one app: voice, audience, guidelines, hashtags, platforms, blocked words.
 - **Brand switcher** in the header: queue, analytics, campaigns, listening, library and automations show only the active brand; items without a brand are shared.
+- Every agent task keeps the brand it was started for, even if you switch brands while it runs or two brands work at once (voice, memories, library and blocked words). Automations act as their own brand.
 - Agents only recall the active brand's memories. Each campaign writes with its own brand's voice and blocked words.
 - A brand's automations never act on another brand's posts or mentions.
 
@@ -151,3 +153,5 @@ Fan-made project, not affiliated with Marvel or Disney. Agent names are used des
 ## License
 
 [MIT](LICENSE)
+
+The desktop app includes FFmpeg (via imageio-ffmpeg, BSD-2-Clause), which is licensed under the GPL; see [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md).

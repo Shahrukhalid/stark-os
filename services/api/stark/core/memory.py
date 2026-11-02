@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import delete, or_, select
 
-from .db import ACTIVE_BRAND, Database, Memory, to_dict, utcnow
+from .db import Database, current_brand, Memory, to_dict, utcnow
 from .events import EventBus
 
 if TYPE_CHECKING:
@@ -39,8 +39,16 @@ class MemoryAccessError(PermissionError):
     pass
 
 
+def _stem(w: str) -> str:
+    """Very small English stemmer so "posts", "posting" and "posted" find a memory about a "post"."""
+    for suffix in ("ing", "ies", "ed", "es", "s"):
+        if len(w) > len(suffix) + 2 and w.endswith(suffix):
+            return w[: -len(suffix)] + ("y" if suffix == "ies" else "")
+    return w
+
+
 def _tokens(text: str) -> list[str]:
-    return [w for w in _WORD.findall(text.lower()) if w not in _STOP]
+    return [_stem(w) for w in _WORD.findall(text.lower()) if w not in _STOP]
 
 
 def _hash(namespace: str, content: str) -> str:
@@ -108,7 +116,7 @@ class MemoryService:
         self.purge_expired()
         with self.db.session() as s:
             stmt = select(Memory)
-            brand = ACTIVE_BRAND.get("name", "")
+            brand = current_brand().get("name", "")
             if brand:  # never recall another brand's memories
                 stmt = stmt.where(or_(Memory.brand == brand, Memory.brand == ""))
             if layers:
@@ -147,7 +155,7 @@ class MemoryService:
             return []
         with self.db.session() as s:
             stmt = select(Memory).where(Memory.namespace == "user:preferences")
-            brand = ACTIVE_BRAND.get("name", "")
+            brand = current_brand().get("name", "")
             if brand:
                 stmt = stmt.where(or_(Memory.brand == brand, Memory.brand == ""))
             rows = s.scalars(stmt.order_by(Memory.updated_at.desc()).limit(20)).all()

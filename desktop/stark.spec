@@ -12,7 +12,8 @@ WEB = ROOT / "apps/web/out"
 if not (WEB / "index.html").exists():
     sys.exit("Build the dashboard first: cd apps/web && STARK_DESKTOP_BUILD=1 npm run build")
 
-hidden = collect_submodules("stark") + collect_submodules("uvicorn") + ["keyring.backends.macOS", "keyring.backends.Windows"]
+# imageio_ffmpeg's FFmpeg binary (video studio) is collected by its PyInstaller hook (pyinstaller-hooks-contrib).
+hidden = ["imageio_ffmpeg"] + collect_submodules("stark") + collect_submodules("uvicorn") + ["keyring.backends.macOS", "keyring.backends.Windows"]
 a = Analysis(
     [str(ROOT / "desktop/stark_desktop.py")],
     pathex=[str(ROOT / "services/api")],
