@@ -30,7 +30,7 @@ class _Base:
         self.transport = transport
 
     def _client(self, **kw) -> httpx.AsyncClient:
-        return httpx.AsyncClient(timeout=30, transport=self.transport, **kw)
+        return httpx.AsyncClient(**{"timeout": 30, **kw}, transport=self.transport)
 
     async def metrics(self, external_ids: list[str]) -> dict[str, dict[str, int]]:
         return {}  # these channels have no public engagement counts for posts
@@ -333,7 +333,289 @@ class LinkedInAdapter(_Base):
         return ref
 
 
+
+# ---------------------------------------------------------------- media platforms (images and video)
+IG = "https://graph.instagram.com/v23.0"
+
+
+async def _file_chunks(path: str, start: int = 0, length: int | None = None, size: int = 1 << 20):
+    """Stream part of a file without loading it into memory."""
+    left = length
+    with open(path, "rb") as fh:
+        fh.seek(start)
+        while left is None or left > 0:
+            chunk = fh.read(size if left is None else min(size, left))
+            if not chunk:
+                return
+            if left is not None:
+                left -= len(chunk)
+            yield chunk
+
+
+def _title(text: str, limit: int = 100) -> str:
+    first = next((ln.strip() for ln in text.splitlines() if ln.strip()), "Untitled")
+    return first[:limit]
+
+
+class InstagramAdapter(_Base):
+    """Instagram professional (Business/Creator) account through the Instagram API with Instagram Login
+    (your own Meta app; Standard Access needs no review for your own account). Videos become Reels and are
+    uploaded straight from this computer. Instagram fetches images from a public address, so images go
+    through your connected Facebook Page as an unpublished photo first."""
+
+    platform = "instagram"
+    poll_s = 3.0
+
+    def connected(self) -> bool:
+        return bool(self.settings.instagram_access_token and self.settings.instagram_user_id)
+
+    def _p(self, **kw) -> dict[str, Any]:
+        return {"access_token": self.settings.instagram_access_token, **kw}
+
+    async def _image_url(self, client: httpx.AsyncClient, meta: dict[str, Any], data: bytes) -> str:
+        from .tools.social import AdapterError
+
+        s = self.settings
+        if not (s.facebook_page_token and s.facebook_page_id):
+            raise AdapterError("Instagram downloads images from a public address. Connect your Facebook Page too "
+                               "(STARK hosts the image there as an unpublished photo), or post a video as a Reel.")
+        r = await client.post(f"{GRAPH}/{s.facebook_page_id}/photos",
+                              data={"access_token": s.facebook_page_token, "published": "false", "temporary": "true"},
+                              files={"source": (meta["file"].rsplit("/", 1)[-1], data, meta["mime"])})
+        if r.status_code != 200:
+            raise AdapterError(f"Could not stage the image on your Facebook Page: {_meta_error(r)}")
+        r = await client.get(f"{GRAPH}/{r.json()['id']}",
+                             params={"fields": "images", "access_token": s.facebook_page_token})
+        images = r.json().get("images") if r.status_code == 200 else None
+        if not images:
+            raise AdapterError("Facebook did not return an address for the staged image")
+        return max(images, key=lambda i: i.get("width", 0))["source"]
+
+    async def publish(self, item: dict[str, Any], on_part: OnPart) -> dict[str, Any]:
+        import asyncio
+
+        from .tools.social import AdapterError, load_attachments, load_video
+
+        uid = self.settings.instagram_user_id
+        caption = "\n\n".join(_parts(item))
+        video = load_video(self.settings, item)
+        images = load_attachments(self.settings, item)
+        if not video and not images:
+            raise AdapterError("Instagram posts need an image or a video")
+        async with self._client(timeout=httpx.Timeout(300, connect=30)) as client:
+            if video:
+                r = await client.post(f"{IG}/{uid}/media", params=self._p(
+                    media_type="REELS", upload_type="resumable", caption=caption))
+                if r.status_code != 200:
+                    raise AdapterError(f"Instagram refused the Reel ({r.status_code}): {_meta_error(r)}")
+                container, uri = r.json()["id"], r.json().get("uri") or f"https://rupload.facebook.com/ig-api-upload/v23.0/{r.json()['id']}"
+                up = await client.post(uri, content=_file_chunks(video["path"]), headers={
+                    "Authorization": f"OAuth {self.settings.instagram_access_token}", "offset": "0",
+                    "file_size": str(video["bytes"])})
+                if up.status_code != 200:
+                    raise AdapterError(f"Instagram video upload failed ({up.status_code}): {up.text[:200]}")
+            else:
+                meta, data = images[0]
+                url = await self._image_url(client, meta, data)
+                r = await client.post(f"{IG}/{uid}/media", params=self._p(image_url=url, caption=caption))
+                if r.status_code != 200:
+                    raise AdapterError(f"Instagram refused the image ({r.status_code}): {_meta_error(r)}")
+                container = r.json()["id"]
+            for _ in range(200):  # Instagram processes the media before it can be published
+                st = await client.get(f"{IG}/{container}", params=self._p(fields="status_code"))
+                code = st.json().get("status_code") if st.status_code == 200 else None
+                if code in (None, "FINISHED", "PUBLISHED"):
+                    break
+                if code in ("ERROR", "EXPIRED"):
+                    raise AdapterError(f"Instagram could not process the media ({code})")
+                await asyncio.sleep(self.poll_s)
+            r = await client.post(f"{IG}/{uid}/media_publish", params=self._p(creation_id=container))
+            if r.status_code != 200:
+                raise AdapterError(f"Instagram could not publish ({r.status_code}): {_meta_error(r)}")
+            mid = r.json()["id"]
+            link = await client.get(f"{IG}/{mid}", params=self._p(fields="permalink"))
+        ref = {"external_id": mid, "url": link.json().get("permalink") if link.status_code == 200 else None}
+        on_part(0, ref)
+        return ref
+
+
+class PinterestAdapter(_Base):
+    """Pins on one of your boards (Pinterest API v5, your own app). With Trial access Pins are visible
+    only to you; Pinterest grants Standard access on request."""
+
+    platform = "pinterest"
+    base = "https://api.pinterest.com/v5"
+
+    def connected(self) -> bool:
+        return bool(self.settings.pinterest_access_token and self.settings.pinterest_board_id)
+
+    async def publish(self, item: dict[str, Any], on_part: OnPart) -> dict[str, Any]:
+        import base64
+
+        from .tools.social import AdapterError, find_urls, load_attachments
+
+        images = load_attachments(self.settings, item)
+        if not images:
+            raise AdapterError("A Pin needs an image (Pinterest video Pins are not supported yet)")
+        meta, data = images[0]
+        text = item["text"]
+        spans = find_urls(text)
+        body: dict[str, Any] = {
+            "board_id": self.settings.pinterest_board_id, "title": _title(text), "description": text[:500],
+            "media_source": {"source_type": "image_base64", "content_type": meta["mime"],
+                             "data": base64.b64encode(data).decode()}}
+        if meta.get("alt_text"):
+            body["alt_text"] = meta["alt_text"][:500]
+        if spans:
+            body["link"] = text[spans[0][0]:spans[0][1]]
+        async with self._client() as client:
+            r = await client.post(f"{self.base}/pins", json=body,
+                                  headers={"Authorization": f"Bearer {self.settings.pinterest_access_token}"})
+        if r.status_code not in (200, 201):
+            raise AdapterError(f"Pinterest refused the Pin ({r.status_code}): {r.text[:200]}")
+        pid = r.json()["id"]
+        ref = {"external_id": pid, "url": f"https://www.pinterest.com/pin/{pid}/"}
+        on_part(0, ref)
+        return ref
+
+
+class _OAuthAdapter(_Base):
+    """Platforms with short-lived access tokens: a refresh token (from Connect → sign in) buys new ones."""
+
+    token_url = ""
+    fields: tuple[str, str, str] = ("", "", "")  # client id, client secret, refresh token setting names
+    persist: Callable[[str, str], None] | None = None  # saves a rotated refresh token
+
+    def __init__(self, settings, transport=None) -> None:
+        super().__init__(settings, transport)
+        self._access: tuple[str, float] | None = None
+
+    def connected(self) -> bool:
+        return all(getattr(self.settings, f, "") for f in self.fields)
+
+    def _refresh_body(self) -> dict[str, str]:
+        cid, secret, refresh = (getattr(self.settings, f) for f in self.fields)
+        return {"client_id": cid, "client_secret": secret, "refresh_token": refresh, "grant_type": "refresh_token"}
+
+    async def access_token(self, client: httpx.AsyncClient) -> str:
+        import time
+
+        from .tools.social import AdapterError
+
+        if self._access and self._access[1] > time.time() + 60:
+            return self._access[0]
+        r = await client.post(self.token_url, data=self._refresh_body())
+        body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+        if r.status_code != 200 or not body.get("access_token"):
+            raise AdapterError(f"{self.platform.title()} sign-in expired or was revoked; connect it again "
+                               f"({body.get('error_description') or body.get('error') or r.status_code})")
+        self._access = (body["access_token"], time.time() + float(body.get("expires_in") or 3600))
+        new_refresh = body.get("refresh_token")
+        if new_refresh and new_refresh != getattr(self.settings, self.fields[2]):
+            setattr(self.settings, self.fields[2], new_refresh)
+            if self.persist:
+                self.persist(self.fields[2], new_refresh)
+        return body["access_token"]
+
+
+class TikTokAdapter(_OAuthAdapter):
+    """TikTok Content Posting API (Direct Post, video uploaded from this computer). Until TikTok audits
+    your app every post is private (SELF_ONLY); set TIKTOK_PRIVACY after the audit."""
+
+    platform = "tiktok"
+    token_url = "https://open.tiktokapis.com/v2/oauth/token/"
+    fields = ("tiktok_client_key", "tiktok_client_secret", "tiktok_refresh_token")
+    base = "https://open.tiktokapis.com/v2"
+
+    def _refresh_body(self) -> dict[str, str]:
+        b = super()._refresh_body()
+        b["client_key"] = b.pop("client_id")
+        return b
+
+    @staticmethod
+    def chunks(total: int) -> tuple[int, int]:
+        """(chunk_size, count) within TikTok's rules: one chunk up to 64 MB, else 10 MB chunks with the
+        remainder added to the last one."""
+        if total <= 64 * 1024 * 1024:
+            return total, 1
+        size = 10 * 1024 * 1024
+        return size, total // size
+
+    async def publish(self, item: dict[str, Any], on_part: OnPart) -> dict[str, Any]:
+        from .tools.social import AdapterError, load_video
+
+        video = load_video(self.settings, item)
+        if not video:
+            raise AdapterError("TikTok posts need a video (MP4 or MOV)")
+        total = video["bytes"]
+        size, count = self.chunks(total)
+        async with self._client(timeout=httpx.Timeout(600, connect=30)) as client:
+            token = await self.access_token(client)
+            r = await client.post(f"{self.base}/post/publish/video/init/", headers={
+                "Authorization": f"Bearer {token}", "Content-Type": "application/json; charset=UTF-8"}, json={
+                "post_info": {"title": item["text"][:2200], "privacy_level": self.settings.tiktok_privacy,
+                              "disable_comment": False, "disable_duet": False, "disable_stitch": False},
+                "source_info": {"source": "FILE_UPLOAD", "video_size": total, "chunk_size": size,
+                                "total_chunk_count": count}})
+            body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+            err = body.get("error") or {}
+            if r.status_code != 200 or err.get("code", "ok") != "ok":
+                raise AdapterError(f"TikTok refused the post: {err.get('message') or r.status_code}")
+            publish_id, upload_url = body["data"]["publish_id"], body["data"]["upload_url"]
+            for n in range(count):
+                start = n * size
+                length = total - start if n == count - 1 else size
+                up = await client.put(upload_url, content=_file_chunks(video["path"], start, length), headers={
+                    "Content-Type": video["mime"], "Content-Length": str(length),
+                    "Content-Range": f"bytes {start}-{start + length - 1}/{total}"})
+                if up.status_code not in (200, 201, 206):
+                    raise AdapterError(f"TikTok video upload failed at part {n + 1} ({up.status_code})")
+        ref = {"external_id": publish_id, "url": None}
+        on_part(0, ref)
+        return ref
+
+
+class YouTubeAdapter(_OAuthAdapter):
+    """YouTube upload from this computer (resumable). Vertical clips under three minutes appear as Shorts.
+    Uploads from Google-unaudited apps stay private; set YOUTUBE_PRIVACY after the audit."""
+
+    platform = "youtube"
+    token_url = "https://oauth2.googleapis.com/token"
+    fields = ("youtube_client_id", "youtube_client_secret", "youtube_refresh_token")
+
+    async def publish(self, item: dict[str, Any], on_part: OnPart) -> dict[str, Any]:
+        from .tools.social import HASHTAG_RE, AdapterError, load_video
+
+        video = load_video(self.settings, item)
+        if not video:
+            raise AdapterError("YouTube needs a video (MP4 or MOV)")
+        text = "\n\n".join(_parts(item))
+        clean = text.replace("<", "").replace(">", "")
+        meta = {"snippet": {"title": _title(clean), "description": clean[:5000], "categoryId": "22",
+                            "tags": [t.lstrip("#") for t in HASHTAG_RE.findall(text)][:15]},
+                "status": {"privacyStatus": self.settings.youtube_privacy, "selfDeclaredMadeForKids": False}}
+        async with self._client(timeout=httpx.Timeout(900, connect=30)) as client:
+            token = await self.access_token(client)
+            r = await client.post("https://www.googleapis.com/upload/youtube/v3/videos",
+                                  params={"uploadType": "resumable", "part": "snippet,status"}, json=meta, headers={
+                                      "Authorization": f"Bearer {token}", "X-Upload-Content-Type": video["mime"],
+                                      "X-Upload-Content-Length": str(video["bytes"])})
+            if r.status_code != 200 or not r.headers.get("location"):
+                raise AdapterError(f"YouTube refused the upload ({r.status_code}): {r.text[:200]}")
+            up = await client.put(r.headers["location"], content=_file_chunks(video["path"]), headers={
+                "Authorization": f"Bearer {token}", "Content-Type": video["mime"],
+                "Content-Length": str(video["bytes"])})
+            if up.status_code not in (200, 201):
+                raise AdapterError(f"YouTube video upload failed ({up.status_code}): {up.text[:200]}")
+        vid = up.json()["id"]
+        ref = {"external_id": vid, "url": f"https://www.youtube.com/watch?v={vid}"}
+        on_part(0, ref)
+        return ref
+
+
 def build(settings, transport=None) -> dict[str, Any]:
     return {"threads": ThreadsAdapter(settings, transport), "telegram": TelegramChannelAdapter(settings, transport),
             "discord": DiscordAdapter(settings, transport), "slack": SlackAdapter(settings, transport),
-            "facebook": FacebookPageAdapter(settings, transport), "linkedin": LinkedInAdapter(settings, transport)}
+            "facebook": FacebookPageAdapter(settings, transport), "linkedin": LinkedInAdapter(settings, transport),
+            "instagram": InstagramAdapter(settings, transport), "pinterest": PinterestAdapter(settings, transport),
+            "tiktok": TikTokAdapter(settings, transport), "youtube": YouTubeAdapter(settings, transport)}

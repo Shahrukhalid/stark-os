@@ -8,7 +8,7 @@ import type { AnalyticsReport, ContentItem } from "@/lib/types";
 import { PlanEditor } from "./PlanEditor";
 import { Section } from "./ui";
 
-const PLATFORM_COLOR: Record<string, string> = { bluesky: "#38bdf8", mastodon: "#a78bfa", x: "#e5e7eb", linkedin: "#60a5fa", instagram: "#f472b6", tiktok: "#2dd4bf", youtube: "#f87171", threads: "#d4d4d8" };
+const PLATFORM_COLOR: Record<string, string> = { bluesky: "#38bdf8", mastodon: "#a78bfa", x: "#e5e7eb", linkedin: "#60a5fa", instagram: "#f472b6", tiktok: "#2dd4bf", pinterest: "#f87171", youtube: "#f87171", threads: "#d4d4d8" };
 const DAY = 86400000;
 
 function startOfDay(d: Date) {

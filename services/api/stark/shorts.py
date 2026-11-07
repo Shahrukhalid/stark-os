@@ -186,8 +186,10 @@ async def _run(kernel, social, settings, studio, job, src: Path, tp: Path, opts,
         drafts = []
         for p in platforms:
             try:
+                media = ([{"file": f"{video.VIDEO_DIR}/{done['output']}", "alt_text": str(pick.get("title") or "")[:200]}]
+                         if p in social_tools.VIDEO_PLATFORMS and done.get("output") else [])
                 d = hub.create_draft(kernel, social, settings, {"platform": p, "kind": "video", "text": post_text(p, pick),
-                                                               "campaign": f"shorts: {src.stem}"[:120]},
+                                                               "campaign": f"shorts: {src.stem}"[:120], "media": media},
                                      created_by="video-autopilot")
                 drafts.append({"platform": p, "id": d["id"]})
             except Exception as exc:  # noqa: BLE001 - one platform failing doesn't lose the clip

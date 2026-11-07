@@ -8,9 +8,9 @@ import type { AnalyticsReport, ContentItem, PostingPlan, Snippet, SocialAccount 
 import { PostPreview } from "./PostPreview";
 import { Section } from "./ui";
 
-const PLATFORMS = ["bluesky", "mastodon", "x", "threads", "linkedin", "instagram", "facebook", "tiktok", "youtube", "telegram", "discord", "slack"];
+const PLATFORMS = ["bluesky", "mastodon", "x", "threads", "linkedin", "instagram", "facebook", "tiktok", "youtube", "pinterest", "telegram", "discord", "slack"];
 const LANGS = ["Spanish", "French", "German", "Portuguese", "Italian", "Arabic", "Hindi", "Urdu", "Japanese", "Chinese", "Korean", "Indonesian", "Turkish"];
-const NAMES: Record<string, string> = { bluesky: "Bluesky", mastodon: "Mastodon", x: "X", threads: "Threads", linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", youtube: "YouTube", telegram: "Telegram", discord: "Discord", slack: "Slack" };
+const NAMES: Record<string, string> = { bluesky: "Bluesky", mastodon: "Mastodon", x: "X", threads: "Threads", linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", youtube: "YouTube", pinterest: "Pinterest", telegram: "Telegram", discord: "Discord", slack: "Slack" };
 const REPLIES = [
   ["everyone", "Everyone can reply"],
   ["followers", "Only my followers"],

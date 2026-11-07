@@ -341,6 +341,24 @@ function AccountsPanel({ accounts, onChange }: { accounts: SocialAccount[]; onCh
   const [open, setOpen] = useState<string | null>(null);
   const [form, setForm] = useState({ a: "", b: "" });
   const [vals, setVals] = useState<Record<string, string>>({});
+  const [waiting, setWaiting] = useState<string | null>(null);
+  const [authUrl, setAuthUrl] = useState("");
+
+  async function refresh() {
+    try {
+      const res = await client.get<{ accounts: SocialAccount[] }>("/api/social/accounts");
+      onChange(res.accounts);
+      const acc = res.accounts.find((x) => x.platform === waiting);
+      if (acc?.mode === "connected") {
+        notify("success", `Connected as ${acc.connected_as}`);
+        setWaiting(null);
+        setOpen(null);
+        setVals({});
+      } else notify("warn", "Not connected yet. Finish the sign-in in your browser, or start again.");
+    } catch (e: unknown) {
+      notify("error", errorText(e, "Could not refresh accounts."));
+    }
+  }
   const [busy, setBusy] = useState(false);
   const live = accounts.filter((a) => a.can_connect);
   const others = accounts.filter((a) => !a.can_connect);
@@ -348,6 +366,13 @@ function AccountsPanel({ accounts, onChange }: { accounts: SocialAccount[]; onCh
   async function connect(platform: string) {
     setBusy(true);
     try {
+      const acc = accounts.find((x) => x.platform === platform);
+      if (acc?.form?.oauth) {
+        const res = await client.post<{ auth_url: string }>(`/api/oauth/${platform}/start`, { values: vals });
+        setAuthUrl(res.auth_url);
+        setWaiting(platform);
+        return;
+      }
       const body =
         platform === "bluesky" ? { handle: form.a, app_password: form.b }
         : platform === "mastodon" ? { base_url: form.a, access_token: form.b }
@@ -421,10 +446,18 @@ function AccountsPanel({ accounts, onChange }: { accounts: SocialAccount[]; onCh
                     autoComplete="off"
                   />
                 ))}
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button className="btn btn-primary" disabled={busy || a.form.fields.some((f) => !vals[f.key])}>
-                    <Link2 size={14} /> {busy ? "Checking…" : "Connect"}
+                    <Link2 size={14} /> {busy ? "Checking…" : a.form.oauth ? `Sign in with ${a.name}` : "Connect"}
                   </button>
+                  {waiting === a.platform && (
+                    <>
+                      <a className="btn" href={authUrl} target="_blank" rel="noreferrer noopener">
+                        <ExternalLink size={13} /> Open sign-in page
+                      </a>
+                      <button type="button" className="btn" onClick={refresh}>I&apos;ve signed in</button>
+                    </>
+                  )}
                   <button type="button" className="btn" onClick={() => setOpen(null)}>Cancel</button>
                 </div>
               </form>

@@ -26,6 +26,8 @@ const LABELS: Record<string, string> = {
   TELEGRAM_CHAT_ID: "Chat for alerts (optional)",
   TELEGRAM_CHANNEL_ID: "Channel to post in (@name)",
   FACEBOOK_PAGE_ID: "Facebook Page ID",
+  INSTAGRAM_USER_ID: "Instagram account ID",
+  PINTEREST_BOARD_ID: "Pinterest board ID",
 };
 
 /** First-run setup of the desktop app: AI provider and key, social accounts, then the engine restarts with them. */
