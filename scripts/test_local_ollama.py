@@ -40,6 +40,7 @@ async def prepare(url, root):
         print('Real model download verified', flush=True)
     finally:
         await service.close()
+        service.k.db.engine.dispose()
 
 
 def main():

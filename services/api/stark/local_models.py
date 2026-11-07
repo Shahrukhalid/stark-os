@@ -23,6 +23,8 @@ class Selection(BaseModel):
     agent: str
     provider: str
     model: str = Field(min_length=1, max_length=200)
+    allow_cloud_fallback: bool = False
+    cloud_fallback_model: str | None = Field(default=None, max_length=200)
 
 
 class Pull(BaseModel):
@@ -141,7 +143,8 @@ class LocalModels:
             return {'enabled': available, 'models': models, 'error': error,
                     'jobs': list(self.jobs.values()), 'agents': [
                         {'id': a.id, 'name': a.name, 'provider': a.model.provider or self.k.router.settings.default_provider,
-                         'model': a.model.model or ''} for a in self.k.registry.all()]}
+                         'model': a.model.model or '', 'allow_cloud_fallback':a.model.allow_cloud_fallback,
+                         'cloud_fallback_model':a.model.cloud_fallback_model} for a in self.k.registry.all()]}
 
         @r.put('/selection')
         async def select(body: Selection):
@@ -156,11 +159,18 @@ class LocalModels:
                     raise HTTPException(400, str(exc)) from None
             elif body.provider != 'openrouter':
                 raise HTTPException(400, 'Unsupported provider selection')
+            if body.allow_cloud_fallback and (body.provider != 'ollama' or not body.cloud_fallback_model or not (
+                    body.cloud_fallback_model.endswith(':free') or body.cloud_fallback_model == 'openrouter/free')):
+                raise HTTPException(400, 'Cloud fallback requires explicit selection of a free OpenRouter model')
             agent = self.k.registry.get(body.agent)
             overrides = self.k.db.get_setting('agent_model_overrides', {})
-            overrides[body.agent] = {'provider': body.provider, 'model': body.model}
+            overrides[body.agent] = {'provider': body.provider, 'model': body.model,
+                                     'allow_cloud_fallback':body.allow_cloud_fallback,
+                                     'cloud_fallback_model':body.cloud_fallback_model if body.allow_cloud_fallback else None}
             self.k.db.set_setting('agent_model_overrides', overrides)
             agent.model.provider, agent.model.model = body.provider, body.model
+            agent.model.allow_cloud_fallback = body.allow_cloud_fallback
+            agent.model.cloud_fallback_model = body.cloud_fallback_model if body.allow_cloud_fallback else None
             self.k.obs.audit('user', 'models.selection', 'saved', detail={'agent': body.agent, 'provider': body.provider})
             return {'ok': True}
 

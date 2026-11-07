@@ -24,6 +24,8 @@ class ModelConfig(BaseModel):
     model: str | None = None  # pin a model id; otherwise tier mapping
     # The agent's own "brain": free models it tries first, in order, before the shared tier list.
     preferred: list[str] = Field(default_factory=list)
+    allow_cloud_fallback: bool = False
+    cloud_fallback_model: str | None = None
     temperature: float = 0.5
     max_output_tokens: int = 2048
 

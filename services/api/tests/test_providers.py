@@ -238,3 +238,47 @@ async def test_local_team_review_does_not_request_cloud_quota(settings, monkeypa
     context = ToolContext(kernel=k, agent=sender, task_id=task['id'], root_id=task['id'], settings=settings)
     result = await k.team_review(context, 'Review this draft', reviewers=['edith'])
     assert result and local.requests
+
+async def test_cloud_fallback_requires_explicit_agent_policy(settings):
+    from .conftest import ScriptedProvider
+    from stark.main import build_kernel
+    def fail(*args):
+        raise ProviderError('local offline')
+    local = ScriptedProvider(fail, name='ollama')
+    local.default_model = 'test'
+    cloud = ScriptedProvider(lambda *_: [{'type':'text','text':'Cloud answer'}])
+    k = build_kernel(settings, {'ollama':local, 'openrouter':cloud})
+    agent = k.registry.get('jarvis')
+    agent.model.provider = 'ollama'
+    agent.limits.max_retries = 0
+    task = k._create_task(agent_id='jarvis', instruction='Synthetic test')
+    with pytest.raises(ProviderError, match='local offline'):
+        await k._call_model(agent, task, 'System', [{'role':'user','content':'test'}], [])
+    assert not cloud.requests
+    agent.model.allow_cloud_fallback = True
+    agent.model.cloud_fallback_model = 'test:free'
+    result = await k._call_model(agent, task, 'System', [{'role':'user','content':'test'}], [])
+    assert result.text == 'Cloud answer' and len(cloud.requests) == 1
+    agent.model.allow_cloud_fallback = False
+    with pytest.raises(ProviderError):
+        await k._call_model(agent, task, 'System', [], [])
+    assert len(cloud.requests) == 1
+
+async def test_emergency_stop_prevents_authorized_cloud_fallback(settings):
+    from .conftest import ScriptedProvider
+    from stark.main import build_kernel
+    def fail(*args): raise ProviderError('offline')
+    local = ScriptedProvider(fail, name='ollama')
+    local.default_model = 'test'
+    cloud = ScriptedProvider(lambda *_: [])
+    k = build_kernel(settings, {'ollama':local,'openrouter':cloud})
+    agent = k.registry.get('jarvis')
+    agent.model.provider = 'ollama'
+    agent.model.allow_cloud_fallback = True
+    agent.model.cloud_fallback_model = 'test:free'
+    k.perms.emergency_stop = True
+    task = k._create_task(agent_id='jarvis', instruction='test')
+    import asyncio
+    with pytest.raises(asyncio.CancelledError):
+        await k._call_model(agent, task, 'System', [], [])
+    assert not cloud.requests

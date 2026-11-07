@@ -391,10 +391,35 @@ class Kernel:
 
     async def _call_model(self, agent: AgentConfig, task: dict[str, Any], system: str,
                           messages: list[dict[str, Any]], tools: list[dict[str, Any]]) -> ModelResponse:
+        try:
+            return await self._call_selected_model(agent, task, system, messages, tools)
+        except ProviderError:
+            selected = agent.model.provider or self.settings.default_provider
+            model = agent.model.cloud_fallback_model
+            if (selected != "ollama" or not agent.model.allow_cloud_fallback or not model
+                    or not (model.endswith(":free") or model == "openrouter/free")):
+                raise
+            self._check_cancel(task["id"])
+            fallback = agent.model_copy(deep=True)
+            fallback.model.provider = "openrouter"
+            fallback.model.model = model
+            fallback.model.allow_cloud_fallback = False
+            self.obs.audit(agent.id, "model.cloud_fallback", "authorized", task_id=task["id"],
+                           detail={"provider": "openrouter", "model": model})
+            self.bus.publish("task.provider_fallback", {"task_id": task["id"], "provider": "openrouter"})
+            return await self._call_selected_model(fallback, task, system, messages, tools, free_only=True)
+
+    async def _call_selected_model(self, agent: AgentConfig, task: dict[str, Any], system: str,
+                          messages: list[dict[str, Any]], tools: list[dict[str, Any]], *, free_only: bool = False) -> ModelResponse:
         """Try the route's free models in order; fail over on rate limits / unavailable models."""
         from ..providers.openrouter import OpenRouterProvider, classify_failure
 
         route = self.router.select(agent)
+        if free_only:
+            route.candidates = [m for m in route.candidates if m.endswith(":free") or m == "openrouter/free"]
+            if not route.candidates:
+                raise ProviderError("No free model is available for the authorized fallback")
+            route.model = route.candidates[0]
         pool = route.provider if isinstance(route.provider, OpenRouterProvider) else None
         last_exc: ProviderError | None = None
         resp: ModelResponse | None = None

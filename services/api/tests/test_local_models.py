@@ -71,3 +71,24 @@ async def test_missing_local_provider_is_not_cloud_fallback(settings):
     with pytest.raises(HTTPException) as exc:
         service.start(Pull(model='test', license_reviewed=True))
     assert exc.value.status_code == 409
+
+
+def test_cloud_fallback_policy_persists_and_can_be_revoked(settings):
+    p = provider(lambda r: httpx.Response(200, json={'capabilities':['tools']}))
+    with TestClient(create_app(settings, {'ollama':p})) as c:
+        c.headers['authorization'] = 'Bearer ' + settings.api_token
+        selection = {'agent':'jarvis','provider':'ollama','model':'test:latest',
+                     'allow_cloud_fallback':True,'cloud_fallback_model':'paid-model'}
+        assert c.put('/api/models/local/selection', json=selection).status_code == 400
+        selection['cloud_fallback_model'] = 'openrouter/free'
+        assert c.put('/api/models/local/selection', json=selection).status_code == 200
+        assert c.app.state.kernel.registry.get('jarvis').model.allow_cloud_fallback
+    k = build_kernel(settings, {'ollama':p})
+    assert k.registry.get('jarvis').model.allow_cloud_fallback
+    with TestClient(create_app(settings, {'ollama':p})) as c:
+        c.headers['authorization'] = 'Bearer ' + settings.api_token
+        selection['allow_cloud_fallback'] = False
+        assert c.put('/api/models/local/selection', json=selection).status_code == 200
+    k = build_kernel(settings, {'ollama':p})
+    assert not k.registry.get('jarvis').model.allow_cloud_fallback
+    assert k.registry.get('jarvis').model.cloud_fallback_model is None

@@ -78,6 +78,8 @@ def build_kernel(settings: Settings, providers: dict[str, ModelProvider] | None 
         if agent_id in registry and isinstance(override, dict):
             registry.get(agent_id).model.provider = override.get("provider")
             registry.get(agent_id).model.model = override.get("model")
+            registry.get(agent_id).model.allow_cloud_fallback = override.get("allow_cloud_fallback", False) is True
+            registry.get(agent_id).model.cloud_fallback_model = override.get("cloud_fallback_model")
     router = ModelRouter(settings, providers)
     kernel = Kernel(settings=settings, db=db, bus=bus, registry=registry, tools=tools, router=router)
     # emergency stop = fire suppression: nothing in the content queue can go out until resumed (with approval)
@@ -392,11 +394,11 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         background.append(asyncio.create_task(holder["k"].automations.loop()))
         yield
         await holder["k"].local_models.close()
-        scheduler.cancel()
-        for job in background:
+        stopping = [scheduler, *background, *list(holder["k"]._running.values())]
+        for job in stopping:
             job.cancel()
-        for job in list(holder["k"]._running.values()):
-            job.cancel()
+        await asyncio.gather(*stopping, return_exceptions=True)
+        holder["k"].db.engine.dispose()
 
     async def _snapshot_loop(k: Kernel, social) -> None:
         """Follower counts of connected accounts, a few times a day (the latest one each day is kept)."""
