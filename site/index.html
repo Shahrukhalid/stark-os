@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>STARK AI: free open-source AI social media manager with 7 AI agents</title>
-<meta name="description" content="STARK AI is a free, self-hosted AI social media manager. Seven AI agents draft, fact-check, red-team and schedule posts for Bluesky, Mastodon, X, LinkedIn and more on free LLMs, and nothing is posted without your approval." />
+<title>STARK AI: free open-source AI social media manager with AI assistants and agents</title>
+<meta name="description" content="STARK AI is a free, self-hosted AI social media manager. Two AI assistants, Vision and Wanda, and seven specialist agents draft, fact-check, red-team, schedule and publish posts to Bluesky, Mastodon, Threads, Instagram, LinkedIn, YouTube and more on free LLMs. Nothing is posted without your approval." />
 <meta name="robots" content="index, follow, max-image-preview:large" />
 <link rel="canonical" href="https://shahrukhalid.github.io/stark-ai/" />
 <meta name="theme-color" content="#071018" />
 <meta property="og:site_name" content="STARK AI" />
 <meta property="og:title" content="STARK AI: an AI social media team that asks before it posts" />
-<meta property="og:description" content="Free, open-source and self-hosted. Seven AI agents write, check and schedule your posts on free models. Real posting to Bluesky and Mastodon." />
+<meta property="og:description" content="Free, open-source and self-hosted. Vision, Wanda and seven specialist agents write, check, schedule and publish your posts on free models." />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://shahrukhalid.github.io/stark-ai/" />
 <meta property="og:image" content="https://shahrukhalid.github.io/stark-ai/assets/social-preview.png" />
@@ -27,7 +27,7 @@
   "@type": "SoftwareApplication",
   "name": "STARK AI",
   "url": "https://shahrukhalid.github.io/stark-ai/",
-  "description": "Free, open-source, self-hosted AI social media manager. Seven AI agents draft, fact-check, red-team and schedule social media posts on free OpenRouter models, with human approval for every post.",
+  "description": "Free, open-source, self-hosted AI social media manager. AI assistants Vision and Wanda and seven specialist agents draft, fact-check, red-team, schedule and publish social media posts on free OpenRouter models, with human approval for every post.",
   "applicationCategory": "BusinessApplication",
   "applicationSubCategory": "Social media management",
   "operatingSystem": "macOS, Linux, Windows (WSL)",
@@ -38,7 +38,7 @@
   "sameAs": ["https://github.com/Shahrukhalid/stark-ai"],
   "author": { "@type": "Person", "name": "Shahrukhalid", "url": "https://github.com/Shahrukhalid" },
   "image": "https://shahrukhalid.github.io/stark-ai/assets/social-preview.png",
-  "featureList": ["Seven AI agents with separate roles", "Live view of the agents working in real time", "Drag-and-drop content calendar", "Engagement analytics with a best-time-to-post heatmap and CSV export", "Command palette", "Social listening for keywords, hashtags and competitors", "Repurpose links into posts, threads and video scripts", "Free AI images", "A/B hook tests", "Approve posts from your phone with Telegram", "Library of templates, hashtag groups and signatures", "Bulk CSV import", "Evergreen post recycling", "MCP server and webhooks for automation", "Autopilot: automatic research, SEO hashtags, writing, fact-checking and scheduling", "Free LLMs via OpenRouter with automatic failover", "Human approval for every post", "Real posting to Bluesky and Mastodon", "Policy checks for length, leaked keys, personal data and ad disclosure", "Content calendar with scheduled auto-publish", "Inbox triage and reply drafts"]
+  "featureList": ["Vision and Wanda: AI assistants for social media and everyday help", "Seven specialist AI agents with separate roles", "Desktop apps for Mac and Windows", "Logins renewed automatically", "Encrypted logins on your computer", "Live view of the agents working in real time", "Drag-and-drop content calendar", "Engagement analytics with a best-time-to-post heatmap and CSV export", "Command palette", "Social listening for keywords, hashtags and competitors", "Repurpose links into posts, threads and video scripts", "Free AI images", "A/B hook tests", "Approve posts from your phone with Telegram", "Library of templates, hashtag groups and signatures", "Bulk CSV import", "Evergreen post recycling", "MCP server and webhooks for automation", "Autopilot: automatic research, SEO hashtags, writing, fact-checking and scheduling", "Free LLMs via OpenRouter with automatic failover", "Human approval for every post", "Real posting to Bluesky, Mastodon, Threads, Facebook, LinkedIn, Instagram, Pinterest, TikTok, YouTube, Telegram, Discord and Slack", "Policy checks for length, leaked keys, personal data and ad disclosure", "Content calendar with scheduled auto-publish", "Inbox triage and reply drafts"]
 }
 </script>
 <script type="application/ld+json">
@@ -47,9 +47,9 @@
   "@type": "FAQPage",
   "mainEntity": [
     { "@type": "Question", "name": "Is STARK AI free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. STARK AI is MIT licensed and runs on free OpenRouter models. It never calls a paid model unless you turn that on." } },
-    { "@type": "Question", "name": "Which social networks does it support?", "acceptedAnswer": { "@type": "Answer", "text": "It posts for real to Bluesky and Mastodon through their free APIs, and writes ready-to-paste posts for X, LinkedIn, Instagram, Facebook, Threads, TikTok and YouTube." } },
+    { "@type": "Question", "name": "Which social networks does it support?", "acceptedAnswer": { "@type": "Answer", "text": "It posts for real to Bluesky, Mastodon, Threads, Facebook Pages, LinkedIn, Instagram, Pinterest, TikTok, YouTube, Telegram, Discord and Slack once you connect them, and writes ready-to-paste posts for X." } },
     { "@type": "Question", "name": "Can the AI post without me?", "acceptedAnswer": { "@type": "Answer", "text": "No. Every post needs your approval of the exact text. Scheduled posts go out automatically only if you approved that text for that time, and any edit cancels the approval." } },
-    { "@type": "Question", "name": "Where are my social media logins stored?", "acceptedAnswer": { "@type": "Answer", "text": "Only on your computer, in a file readable by your user account. STARK AI runs locally and has no cloud service." } }
+    { "@type": "Question", "name": "Where are my social media logins stored?", "acceptedAnswer": { "@type": "Answer", "text": "Only on your computer. The desktop app encrypts them, with the key kept in the macOS Keychain or Windows Credential Manager. STARK AI runs locally and has no cloud service." } }
   ]
 }
 </script>
@@ -109,12 +109,12 @@ footer{padding-block:28px;color:var(--mute);font-size:14px;border-top:1px solid 
     <div class="hero">
       <span class="kicker">Free · open source · self-hosted</span>
       <h1>An AI social media team that <em>asks before it posts</em></h1>
-      <p class="lead">STARK AI is a free AI social media manager you run on your own computer. Seven AI agents plan campaigns, write platform-native posts, triage mentions, research trends, stress-test content for backlash and schedule it, on free AI models. Nothing goes out until you approve the exact text.</p>
+      <p class="lead">STARK AI is a free AI social media manager you run on your own computer. Talk to Vision and Wanda, two AI assistants, while seven specialist agents plan campaigns, write platform-native posts, triage mentions, research trends, stress-test content for backlash and schedule it, on free AI models. Nothing goes out until you approve the exact text.</p>
       <div class="cta">
-        <a class="btn primary" href="https://github.com/Shahrukhalid/stark-ai#quick-start-macos--linux">Get started</a>
+        <a class="btn primary" href="https://github.com/Shahrukhalid/stark-ai#download">Download for Mac or Windows</a>
         <a class="btn" href="https://github.com/Shahrukhalid/stark-ai/blob/main/docs/USER_GUIDE.md">Read the user guide</a>
       </div>
-      <div class="chips"><span><b>✓</b> No subscription</span><span><b>✓</b> Free LLMs (OpenRouter)</span><span><b>✓</b> Posts to Bluesky &amp; Mastodon</span><span><b>✓</b> Your logins stay on your computer</span></div>
+      <div class="chips"><span><b>✓</b> No subscription</span><span><b>✓</b> Free LLMs (OpenRouter)</span><span><b>✓</b> Posts to 12 platforms</span><span><b>✓</b> Your logins stay on your computer</span></div>
     </div>
     <div class="demo"><img src="assets/demo.gif" width="960" height="600" alt="STARK AI dashboard: asking an AI agent to write a Bluesky post, then reviewing and publishing it" /></div>
 
@@ -124,22 +124,25 @@ footer{padding-block:28px;color:var(--mute);font-size:14px;border-top:1px solid 
         <div class="card"><h3>Free, not a subscription</h3><p>A self-hosted alternative to paid social media schedulers and AI writing tools. It runs on free OpenRouter models with automatic failover.</p></div>
         <div class="card"><h3>Autopilot</h3><p>Set a campaign once. It finds fresh stories, picks SEO keywords and hashtags, writes and fact-checks a post per platform and schedules it. Approve the batch in one click, or let posts go out unless you cancel.</p></div>
         <div class="card"><h3>You stay in control</h3><p>Every post is approved by you, or by a trust level you chose. Sensitive news always waits for you, any edit cancels an approval, and campaigns pause themselves if something looks wrong.</p></div>
-        <div class="card"><h3>A team, not one chatbot</h3><p>Seven agents with separate jobs check each other's work, including a red-team agent that asks "how could this backfire?".</p></div>
+        <div class="card"><h3>Vision and Wanda</h3><p>Two assistants you talk to by name. Vision handles strategy and analytics, Wanda writes posts and campaigns, and both help with everyday questions too.</p></div>
+        <div class="card"><h3>A team, not one chatbot</h3><p>Seven specialist agents with separate jobs check each other's work, including a red-team agent that asks "how could this backfire?".</p></div>
         <div class="card"><h3>Rules in code</h3><p>Every draft is checked for length limits, leaked passwords and keys, personal data, missing #ad disclosure and giveaway rules.</p></div>
-        <div class="card"><h3>Real posting</h3><p>Publishes threads and replies to Bluesky and Mastodon. For X, LinkedIn, Instagram, Threads, TikTok and YouTube it writes ready-to-paste posts.</p></div>
+        <div class="card"><h3>Real posting</h3><p>Publishes to Bluesky, Mastodon, Threads, Facebook Pages, LinkedIn, Instagram, Pinterest, TikTok, YouTube, Telegram, Discord and Slack. For X it writes ready-to-paste posts.</p></div>
         <div class="card"><h3>Watch the AI work</h3><p>A live view shows every agent thinking, calling tools and handing work to a teammate on an animated agent network, as it happens.</p></div>
-        <div class="card"><h3>Calendar and analytics</h3><p>Drag posts onto a content calendar. See real likes, reposts and replies, your best time to post, your top posts, and export it all as CSV.</p></div>
+        <div class="card"><h3>Calendar and analytics</h3><p>Drag posts onto a content calendar. See real likes, replies and views from your connected platforms, your best time to post, your top posts, and export it all as CSV.</p></div>
         <div class="card"><h3>Listen and repurpose</h3><p>Follow keywords, hashtags and competitors, get replies drafted for you, and turn one blog post or video into posts for every platform, with free AI images.</p></div>
         <div class="card"><h3>Approve from your phone</h3><p>Telegram messages with Approve and Publish buttons, a daily digest, and A/B hook tests that teach the team what works.</p></div>
-        <div class="card"><h3>Private by design</h3><p>Runs on your machine with a local database. The API only listens on 127.0.0.1 and needs a random token.</p></div>
+        <div class="card"><h3>Private by design</h3><p>Runs on your machine with a local database. Logins are encrypted, renewed before they expire, and only ever sent to their own platform.</p></div>
       </div>
     </section>
 
     <section>
-      <h2>Meet the seven agents</h2>
+      <h2>Meet the team</h2>
       <div class="tbl"><table>
         <thead><tr><th>Agent</th><th>Job on your social team</th></tr></thead>
         <tbody>
+          <tr><td>Vision</td><td>Assistant: social strategy, analytics and account health, plus technical questions and planning.</td></tr>
+          <tr><td>Wanda</td><td>Assistant: posts, captions, campaigns and replies, plus writing, research and everyday tasks.</td></tr>
           <tr><td>J.A.R.V.I.S.</td><td>Director: briefs, campaign plans, delegation, and a security and brand review of every post.</td></tr>
           <tr><td>F.R.I.D.A.Y.</td><td>Community manager: inbox triage, human-sounding replies, escalation of legal or safety issues.</td></tr>
           <tr><td>E.D.I.T.H.</td><td>Engagement and campaigns: hooks, posts, polls, challenges and giveaways.</td></tr>
@@ -163,8 +166,9 @@ footer{padding-block:28px;color:var(--mute);font-size:14px;border-top:1px solid 
     </section>
 
     <section id="install">
-      <h2>Install in two commands</h2>
-      <p style="color:var(--mute)">Needs Python 3.11+, Node.js 20+ and a free <a href="https://openrouter.ai/keys">OpenRouter key</a>.</p>
+      <h2>Install</h2>
+      <p><a href="https://github.com/Shahrukhalid/stark-ai/releases/latest/download/STARK-AI-macOS-AppleSilicon.dmg">Mac (Apple silicon)</a> · <a href="https://github.com/Shahrukhalid/stark-ai/releases/latest/download/STARK-AI-macOS-Intel.dmg">Mac (Intel)</a> · <a href="https://github.com/Shahrukhalid/stark-ai/releases/latest/download/STARK-AI-Windows-Setup.exe">Windows 10/11</a>: everything included, then paste a free <a href="https://openrouter.ai/keys">OpenRouter key</a>. Updating from version 1.11 or older? Download once; your data is kept.</p>
+      <p style="color:var(--mute)">From source (Python 3.11+, Node.js 20+):</p>
 <pre>git clone https://github.com/Shahrukhalid/stark-ai.git &amp;&amp; cd stark-ai
 make setup   # then add OPENROUTER_API_KEY to .env
 make dev     # open the dashboard it prints</pre>
@@ -173,9 +177,9 @@ make dev     # open the dashboard it prints</pre>
     <section>
       <h2>Questions</h2>
       <details><summary>Is STARK AI free?</summary><p>Yes. It is MIT licensed and runs on free OpenRouter models. It never calls a paid model unless you turn that on.</p></details>
-      <details><summary>Which social networks does it support?</summary><p>It posts for real to Bluesky and Mastodon through their free APIs, and writes ready-to-paste posts for X, LinkedIn, Instagram, Facebook, Threads, TikTok and YouTube.</p></details>
+      <details><summary>Which social networks does it support?</summary><p>It posts for real to Bluesky, Mastodon, Threads, Facebook Pages, LinkedIn, Instagram, Pinterest, TikTok, YouTube, Telegram, Discord and Slack once you connect them, and writes ready-to-paste posts for X.</p></details>
       <details><summary>Can the AI post without me?</summary><p>No. Every post needs your approval of the exact text. Scheduled posts go out automatically only if you approved that text for that time.</p></details>
-      <details><summary>Where are my logins stored?</summary><p>Only on your computer, in a file readable by your user account. There is no cloud service.</p></details>
+      <details><summary>Where are my logins stored?</summary><p>Only on your computer. The desktop app encrypts them, with the key kept in the macOS Keychain or Windows Credential Manager. There is no cloud service.</p></details>
     </section>
   </main>
 

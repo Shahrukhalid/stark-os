@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Shahrukhalid/stark-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/Shahrukhalid/stark-ai/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/Shahrukhalid/stark-ai?color=22d3ee)](https://github.com/Shahrukhalid/stark-ai/releases/latest) [![License: MIT](https://img.shields.io/badge/License-MIT-22d3ee.svg)](LICENSE) [![Website](https://img.shields.io/badge/website-stark--ai-22d3ee)](https://shahrukhalid.github.io/stark-ai/)
 
-Free, self-hosted AI social media manager. Seven AI agents write, check, schedule and publish your posts. Nothing goes out without your approval. Runs on your computer with free AI models.
+Free, self-hosted AI social media manager. Talk to two assistants, Vision and Wanda, and a team of seven specialist agents that write, check, schedule and publish your posts. Nothing goes out without your approval. Runs on your computer with free AI models.
 
 ![STARK AI demo](docs/demo.gif)
 
@@ -20,7 +20,18 @@ Free, self-hosted AI social media manager. Seven AI agents write, check, schedul
 
 First launch: Mac, right-click → **Open**. Windows, **More info → Run anyway** (installers are not signed yet).
 
-## The team
+Updating from version 1.11 or older? Download the installer above once; it installs over the old app and keeps your settings, accounts and posts. Later updates arrive inside the app.
+
+## Your assistants
+
+| Assistant | Social media | Everything else |
+|---|---|---|
+| **Vision** | Strategy, analytics, account health | Technical questions, projects, planning |
+| **Wanda** | Posts, captions, campaigns, replies | Writing, research, everyday tasks |
+
+Say "Vision, how did last week's posts do?" or "Hey Wanda, draft three posts about the launch". They draft and check posts and read analytics themselves, and call in the specialists below when needed (you approve what they share). Separate histories, personal notes only with your consent. [More](docs/ASSISTANTS.md)
+
+## The specialist team
 
 | Agent | Job | Limit |
 |---|---|---|
@@ -87,6 +98,7 @@ Each agent has its own free model with automatic fallback, its own prompt, memor
 ![Brands](docs/screenshots/brands.png)
 
 ### Accounts
+- **Logins that don't run out**: Instagram and Threads logins are renewed about once a week, Pinterest through STARK Connect; LinkedIn (which can't be renewed) warns you 10 days before it ends.
 - **Account health**: connected accounts checked every 6 hours without posting (expired login, revoked token, bot removed, deleted webhook, failed posts).
 - **Reconnect** button on Start and a phone alert when an account breaks.
 
@@ -99,7 +111,7 @@ Each agent has its own free model with automatic fallback, its own prompt, memor
 - **Bluesky messages**, saved replies, inbox labels.
 
 ### Measure
-- **Analytics**: real likes, reposts, replies, 30-day chart, best-time heatmap, top posts, per campaign and brand, CSV.
+- **Analytics**: real likes, reposts, replies and views from Bluesky, Mastodon, Threads, Facebook, Instagram, YouTube and Pinterest; 30-day chart, best-time heatmap, top posts, per campaign and brand, CSV.
 - **Report** download, **A/B hook tests**, **learn my voice**.
 - **Growth**: followers, posting streak, top fans, rising hashtags, proven ideas, Bluesky starter packs.
 
@@ -108,7 +120,7 @@ Each agent has its own free model with automatic fallback, its own prompt, memor
 - **E-STOP** cancels everything and pauses the queue.
 - **Modes**: Observe, Assist, Execute approved.
 - **Live** view of the agents working, full task traces, memory and audit log.
-- **Desktop app**: keys in a private file in your data folder (readable only by you), engine restarts on crash, one window at a time.
+- **Desktop app**: logins and keys encrypted on your computer (key kept in the macOS Keychain or Windows Credential Manager), engine restarts on crash, one window at a time.
 
 ### Connect
 - **MCP server** for AI assistants and editors (cannot publish).
