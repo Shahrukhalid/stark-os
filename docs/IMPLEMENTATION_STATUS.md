@@ -67,7 +67,7 @@ Legend: ✅ **Implemented & tested** · 🟡 **Implemented, not fully live-teste
 
 ✅ **Live view**: animated agent network (signals fly along every real agent message), live counters and a streaming feed of thoughts, tool calls, results and approvals, filterable by agent and pausable.
 ✅ **Calendar**: month and week views of scheduled and published posts; drag a scheduled post or a draft onto a day to (re)schedule it through the same checked API as the Content page. An auto-publish approval is kept only when the post already had one for that exact text.
-✅ **Analytics**: `GET /api/social/analytics` (cached 5 minutes) returns queue counts and real engagement for published Bluesky/Mastodon posts; the page shows totals, a 30-day chart, a best-time-to-post heatmap in the viewer's time zone, top posts and CSV export. Simulated posts never get numbers.
+✅ **Analytics**: `GET /api/social/analytics` (cached 5 minutes) returns queue counts and real engagement for published posts on Bluesky, Mastodon, Threads, Facebook, Instagram, YouTube and Pinterest, plus TikTok and LinkedIn when the extra scopes are granted; the page shows totals, a 30-day chart, a best-time-to-post heatmap in the viewer's time zone, top posts and CSV export. Simulated posts never get numbers.
 ✅ **Command palette** (Ctrl/⌘ K) and the **FX** switch (Maximum: particle network, scanlines and boot-up sequences; Calm: animations only; Off). Reduce-motion is respected.
 ✅ Light theme contrast fixes for accent colours and the active navigation item.
 

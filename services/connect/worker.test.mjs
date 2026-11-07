@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import worker from "./worker.js";
+import worker, { scopes } from "./worker.js";
 
 const env = { STATE_KEY: "k".repeat(32), PUBLIC_ORIGIN: "https://connect.test", TIKTOK_CLIENT_ID: "ck",
   TIKTOK_CLIENT_SECRET: "cs", FACEBOOK_CLIENT_ID: "fb", FACEBOOK_CLIENT_SECRET: "fs" };
@@ -43,4 +43,10 @@ test("refuses foreign return addresses, forged state and unset platforms", async
   assert.equal(unset.status, 503);
   const refresh = await worker.fetch(new Request("https://connect.test/refresh/facebook", { method: "POST", body: "{}" }), env);
   assert.equal(refresh.status, 400);
+});
+
+test("approved extra scopes are added from variables, anything odd is ignored", () => {
+  assert.equal(scopes({}, "tiktok"), "user.info.basic,video.upload,video.publish");
+  assert.equal(scopes({ TIKTOK_EXTRA_SCOPES: "video.list" }, "tiktok"), "user.info.basic,video.upload,video.publish,video.list");
+  assert.equal(scopes({ LINKEDIN_EXTRA_SCOPES: "r_member_social &x=1" }, "linkedin"), "openid profile w_member_social r_member_social");
 });
