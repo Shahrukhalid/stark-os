@@ -1,0 +1,2 @@
+# Fake value in a test (removed in the next commit); not a real credential.
+d20e273c6dad0040dd372c37187bcc66853c4aee:services/api/tests/test_desktop.py:generic-api-key:227
