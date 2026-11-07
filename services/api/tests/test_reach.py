@@ -49,7 +49,7 @@ async def test_threads_telegram_discord_slack_publish(settings):
         await a["threads"].publish({**ITEM, "media": [{"file": "x.png"}]}, lambda n, r: None)
     accounts = {x["platform"]: x for x in Social(settings).accounts()}
     assert all(accounts[p]["mode"] == "connected" for p in ("threads", "telegram", "discord", "slack"))
-    assert accounts["slack"]["can_connect"] is False  # set in .env, no dashboard form
+    assert accounts["slack"]["can_connect"] is True and accounts["slack"]["source"] == "env"  # set in .env
 
 
 def test_utm_tags_only_own_links():

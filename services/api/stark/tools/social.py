@@ -669,7 +669,42 @@ SAMPLE_INBOX = [
 
 APP_PASSWORD_RE = re.compile(r"^[a-z0-9]{4}(-[a-z0-9]{4}){3}$")
 ACCOUNT_FIELDS = {"bluesky": ("bluesky_handle", "bluesky_app_password"),
-                  "mastodon": ("mastodon_base_url", "mastodon_access_token")}
+                  "mastodon": ("mastodon_base_url", "mastodon_access_token"),
+                  "threads": ("threads_user_id", "threads_access_token"),
+                  "facebook": ("facebook_page_id", "facebook_page_token"),
+                  "linkedin": ("linkedin_access_token",),
+                  "telegram": ("telegram_channel_id", "telegram_bot_token"),
+                  "discord": ("discord_post_webhook_url",),
+                  "slack": ("slack_webhook_url",)}
+
+# Dashboard connect forms for the platforms without a dedicated endpoint: (field, label, placeholder, secret),
+# plus short steps. The last field of each platform is the secret one.
+CONNECT_FORMS: dict[str, dict[str, Any]] = {
+    "threads": {"fields": [("threads_user_id", "Threads user ID", "1784…", False),
+                           ("threads_access_token", "Threads access token", "access token", True)],
+                "steps": ["Create a Meta developer app with the Threads use case.",
+                          "Generate a user token with threads_basic and threads_content_publish.",
+                          "Paste your Threads user ID and the token."]},
+    "facebook": {"fields": [("facebook_page_id", "Facebook Page ID", "Page ID (numbers)", False),
+                            ("facebook_page_token", "Page access token", "Page access token", True)],
+                 "steps": ["Create a Meta developer app (Business type); you need no review for Pages you manage.",
+                           "In the Graph API Explorer, pick your Page and add pages_manage_posts and "
+                           "pages_read_engagement, then generate a Page access token.",
+                           "Paste the Page ID (Page → About → Page transparency) and the token."]},
+    "linkedin": {"fields": [("linkedin_access_token", "LinkedIn access token", "access token", True)],
+                 "steps": ["Create a LinkedIn developer app and add the free products Share on LinkedIn and "
+                           "Sign In with LinkedIn using OpenID Connect.",
+                           "In the token generator, create a token with openid, profile and w_member_social.",
+                           "Paste the token. It lasts 60 days; reconnect when it expires."]},
+    "telegram": {"fields": [("telegram_channel_id", "Channel (@name or -100…)", "@yourchannel", False),
+                            ("telegram_bot_token", "Bot token", "123456:ABC…", True)],
+                 "steps": ["Create a bot with @BotFather and copy its token.",
+                           "Add the bot to your channel as an admin.", "Paste the channel and the token."]},
+    "discord": {"fields": [("discord_post_webhook_url", "Webhook URL", "https://discord.com/api/webhooks/…", True)],
+                "steps": ["Channel settings → Integrations → Webhooks → New webhook.", "Copy its URL and paste it."]},
+    "slack": {"fields": [("slack_webhook_url", "Incoming webhook URL", "https://hooks.slack.com/services/…", True)],
+              "steps": ["Create an incoming webhook for the channel in your Slack workspace.", "Paste its URL."]},
+}
 
 
 class AccountStore:
@@ -696,7 +731,7 @@ class AccountStore:
 
         for f in ACCOUNT_FIELDS[pid]:
             setattr(self.settings, f, values.get(f, ""))
-        register_secret(values.get(ACCOUNT_FIELDS[pid][1], ""))
+        register_secret(values.get(ACCOUNT_FIELDS[pid][-1], ""))
 
     def _write(self) -> None:
         import json
@@ -723,8 +758,18 @@ class AccountStore:
 
     def connected_as(self, pid: str) -> str | None:
         if self.from_env.get(pid):
-            return self.settings.bluesky_handle if pid == "bluesky" else self.settings.mastodon_base_url
+            if pid in ("bluesky", "mastodon"):
+                return self.settings.bluesky_handle if pid == "bluesky" else self.settings.mastodon_base_url
+            return "settings in .env"
         return (self.data.get(pid) or {}).get("connected_as")
+
+
+def _form(pid: str) -> dict[str, Any] | None:
+    spec = CONNECT_FORMS.get(pid)
+    if not spec:
+        return None
+    return {"fields": [{"key": k, "label": lbl, "placeholder": ph, "secret": sec} for k, lbl, ph, sec in spec["fields"]],
+            "steps": spec["steps"]}
 
 
 class Social:
@@ -755,9 +800,35 @@ class Social:
             out.append({"platform": pid, "name": spec["name"], "mode": mode, "char_limit": spec["limit"],
                         "detail": spec.get("adapter") if real else why,
                         "can_connect": pid in ACCOUNT_FIELDS,
+                        "form": _form(pid),
                         "connected_as": self.store.connected_as(pid) if real and pid in ACCOUNT_FIELDS else None,
                         "source": ("env" if self.store.from_env.get(pid) else "dashboard") if real else None})
         return out
+
+    async def connect_generic(self, platform: str, values: dict[str, str]) -> str:
+        """Check the details with the platform (nothing is posted), then store them. Returns who is connected."""
+        import copy
+
+        from .. import channels, health
+
+        fields = ACCOUNT_FIELDS[platform]
+        clean = {f: str(values.get(f, "")).strip() for f in fields}
+        if not all(clean.values()):
+            raise AdapterError("Fill in every field.")
+        probe_settings = copy.copy(self.settings)
+        for f, v in clean.items():
+            setattr(probe_settings, f, v)
+        probe = channels.build(probe_settings, self.transport)[platform]
+        if not probe.connected():
+            raise AdapterError("Those details don't look right; check the format.")
+        status, message = await health._check(probe)
+        if status == health.BAD:
+            raise AdapterError(message)
+        who = PLATFORMS[platform]["name"] if status != health.OK else re.sub(
+            r"^(Connected as|Signed in as|Posting to the Page|Bot can post in|Webhook for)\s+", "", message
+        ).removesuffix(" is active")
+        self.store.save(platform, clean, who)
+        return who
 
     async def connect_bluesky(self, handle: str, app_password: str) -> str:
         """Verify the login with Bluesky, then store it. Returns the handle."""

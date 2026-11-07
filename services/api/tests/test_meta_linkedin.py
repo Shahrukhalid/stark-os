@@ -93,7 +93,8 @@ def test_unconnected_platforms_explain_why(settings):
     acc = {a["platform"]: a for a in Social(settings).accounts()}
     for p in ("x", "instagram", "tiktok", "youtube", "facebook", "linkedin"):
         assert acc[p]["mode"] == "simulation" and acc[p]["detail"]
-    assert "FACEBOOK_PAGE_TOKEN" in acc["facebook"]["detail"] and "LINKEDIN_ACCESS_TOKEN" in acc["linkedin"]["detail"]
+    assert acc["facebook"]["can_connect"] and acc["linkedin"]["can_connect"]
+    assert "public web address" in acc["instagram"]["detail"] and "every post" in acc["x"]["detail"]
 
 
 async def test_images_upload_to_facebook_and_linkedin(settings, monkeypatch):
@@ -126,3 +127,29 @@ async def test_images_upload_to_facebook_and_linkedin(settings, monkeypatch):
     assert (await channels.FacebookPageAdapter(settings, t).publish(one, lambda n, r: None))["external_id"] == "99_5"
     assert (await channels.LinkedInAdapter(settings, t).publish(one, lambda n, r: None))["external_id"] == "urn:li:share:8"
     assert "PUT www.linkedin.com/dms-uploads/x" in paths
+
+
+async def test_dashboard_connect_checks_then_saves(settings):
+    def handler(req: httpx.Request) -> httpx.Response:
+        if req.url.host == "graph.facebook.com":
+            ok = parse_qs(req.url.query.decode())["access_token"] == ["good"]
+            return httpx.Response(200, json={"name": "Nexonic"}) if ok else httpx.Response(400, json={})
+        return httpx.Response(200, json={"name": "general"})
+
+    social = Social(settings, httpx.MockTransport(handler))
+    with pytest.raises(AdapterError, match="rejected"):
+        await social.connect_generic("facebook", {"facebook_page_id": "99", "facebook_page_token": "bad"})
+    assert social.adapter("facebook") is None
+    who = await social.connect_generic("facebook", {"facebook_page_id": "99", "facebook_page_token": "good"})
+    assert who == "Nexonic" and social.adapter("facebook") is not None
+    with pytest.raises(AdapterError, match="format"):
+        await social.connect_generic("discord", {"discord_post_webhook_url": "https://example.com/hook"})
+    assert await social.connect_generic(
+        "discord", {"discord_post_webhook_url": "https://discord.com/api/webhooks/1/x"}) == "#general"
+    acc = {a["platform"]: a for a in social.accounts()}
+    assert acc["facebook"]["connected_as"] == "Nexonic" and acc["facebook"]["source"] == "dashboard"
+    assert acc["linkedin"]["can_connect"] and acc["linkedin"]["form"]["fields"][0]["secret"]
+    assert not acc["x"]["can_connect"] and acc["x"]["form"] is None
+    # saved values survive a restart and the secret is never in the accounts list
+    again = {a["platform"]: a for a in Social(settings).accounts()}
+    assert again["facebook"]["mode"] == "connected" and "good" not in json.dumps(again)

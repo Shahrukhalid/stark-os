@@ -3,6 +3,7 @@
 import { CalendarClock, Check, Download, Copy, ExternalLink, Link2, PauseCircle, PlayCircle, RefreshCw, Send, Sparkles, Trash2, Unlink, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStark } from "@/lib/store";
+import { errorText } from "@/lib/errors";
 import type { ContentItem, SocialAccount } from "@/lib/types";
 import { Empty, Section, timeAgo } from "./ui";
 
@@ -339,6 +340,7 @@ function AccountsPanel({ accounts, onChange }: { accounts: SocialAccount[]; onCh
   const { client, notify } = useStark();
   const [open, setOpen] = useState<string | null>(null);
   const [form, setForm] = useState({ a: "", b: "" });
+  const [vals, setVals] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const live = accounts.filter((a) => a.can_connect);
   const others = accounts.filter((a) => !a.can_connect);
@@ -346,14 +348,18 @@ function AccountsPanel({ accounts, onChange }: { accounts: SocialAccount[]; onCh
   async function connect(platform: string) {
     setBusy(true);
     try {
-      const body = platform === "bluesky" ? { handle: form.a, app_password: form.b } : { base_url: form.a, access_token: form.b };
+      const body =
+        platform === "bluesky" ? { handle: form.a, app_password: form.b }
+        : platform === "mastodon" ? { base_url: form.a, access_token: form.b }
+        : { values: vals };
       const res = await client.post<{ connected_as: string; accounts: SocialAccount[] }>(`/api/social/accounts/${platform}`, body);
       onChange(res.accounts);
       notify("success", `Connected as ${res.connected_as}`);
       setOpen(null);
       setForm({ a: "", b: "" });
-    } catch (e: any) {
-      notify("error", e.message);
+      setVals({});
+    } catch (e: unknown) {
+      notify("error", errorText(e, "Could not connect."));
     } finally {
       setBusy(false);
     }
@@ -392,6 +398,36 @@ function AccountsPanel({ accounts, onChange }: { accounts: SocialAccount[]; onCh
                   <span className="ml-auto">set in .env</span>
                 )}
               </div>
+            ) : open === a.platform && a.form ? (
+              <form
+                className="mt-2 space-y-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  connect(a.platform);
+                }}
+              >
+                <ol className="list-decimal space-y-0.5 pl-4 text-xs text-[var(--color-mute)]">
+                  {a.form.steps.map((s) => <li key={s}>{s}</li>)}
+                </ol>
+                {a.form.fields.map((f) => (
+                  <input
+                    key={f.key}
+                    className={`input ${f.secret ? "font-mono" : ""}`}
+                    type={f.secret ? "password" : "text"}
+                    aria-label={f.label}
+                    placeholder={f.placeholder}
+                    value={vals[f.key] || ""}
+                    onChange={(e) => setVals({ ...vals, [f.key]: e.target.value })}
+                    autoComplete="off"
+                  />
+                ))}
+                <div className="flex gap-2">
+                  <button className="btn btn-primary" disabled={busy || a.form.fields.some((f) => !vals[f.key])}>
+                    <Link2 size={14} /> {busy ? "Checking…" : "Connect"}
+                  </button>
+                  <button type="button" className="btn" onClick={() => setOpen(null)}>Cancel</button>
+                </div>
+              </form>
             ) : open === a.platform ? (
               <form
                 className="mt-2 space-y-2"
@@ -435,7 +471,7 @@ function AccountsPanel({ accounts, onChange }: { accounts: SocialAccount[]; onCh
             ) : (
               <div className="mt-2 flex items-center gap-2 text-xs text-[var(--color-mute)]">
                 <span className="min-w-0 flex-1">{a.detail}</span>
-                <button className="btn btn-primary !py-1 text-xs" onClick={() => { setOpen(a.platform); setForm({ a: "", b: "" }); }}>
+                <button className="btn btn-primary !py-1 text-xs" onClick={() => { setOpen(a.platform); setForm({ a: "", b: "" }); setVals({}); }}>
                   <Link2 size={13} /> Connect
                 </button>
               </div>
@@ -446,7 +482,7 @@ function AccountsPanel({ accounts, onChange }: { accounts: SocialAccount[]; onCh
       <div className="mt-4">
         <div className="hud-label mb-1 text-[var(--color-mute)]">Draft only (copy &amp; post yourself)</div>
         <p className="mb-2 text-xs text-[var(--color-mute)]">
-          These platforms charge for, or tightly restrict, posting from other apps. Your team still writes and checks posts for them; use <b>Copy text</b> and post in their app.
+          These platforms charge for posting from other apps, or only allow it for reviewed apps. Your team still writes and checks posts for them; use <b>Copy text</b> and post in their app. Hover a name to see why.
         </p>
         <div className="flex flex-wrap gap-1.5">
           {others.map((a) => (

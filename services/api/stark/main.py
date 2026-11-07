@@ -131,6 +131,10 @@ class BlueskyIn(BaseModel):
     app_password: str = Field(..., min_length=8, max_length=64)
 
 
+class AccountIn(BaseModel):
+    values: dict[str, str] = Field(..., max_length=4)
+
+
 class MastodonIn(BaseModel):
     base_url: str = Field(..., min_length=4, max_length=300)
     access_token: str = Field(..., min_length=8, max_length=300)
@@ -592,6 +596,22 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
                                 else "Could not reach that Mastodon server. Check the address.")
         k.obs.audit("user", "social.connect", "ok", target=f"mastodon {who}")
         return {"connected_as": who, "accounts": _social(k).accounts()}
+
+    @app.post("/api/social/accounts/{platform}", dependencies=[api])
+    async def connect_platform(platform: str, body: AccountIn, k: Kernel = Depends(kernel)):
+        if platform not in social_tools.CONNECT_FORMS:
+            raise HTTPException(404, "unknown platform")
+        social = _social(k)
+        if social.store.from_env.get(platform):
+            raise HTTPException(409, "This account is set in your .env file; change it there.")
+        try:
+            who = await social.connect_generic(platform, body.values)
+        except (social_tools.AdapterError, httpx.HTTPError) as exc:
+            k.obs.audit("user", "social.connect", "error", target=platform)
+            raise HTTPException(400, str(exc) if isinstance(exc, social_tools.AdapterError)
+                                else "Could not reach the platform. Check your internet connection.")
+        k.obs.audit("user", "social.connect", "ok", target=platform)
+        return {"connected_as": who, "accounts": social.accounts()}
 
     @app.delete("/api/social/accounts/{platform}", dependencies=[api])
     async def disconnect(platform: str, k: Kernel = Depends(kernel)):
