@@ -159,7 +159,15 @@ def environment() -> dict[str, str]:
 
 # ---------------------------------------------------------------- tests of connections
 def _short(exc: Exception) -> str:
-    return exc.__class__.__name__  # exception URLs can contain bot tokens and webhook secrets
+    """A fixed description of a network failure. Exception text is never shown: its URLs can contain bot tokens
+    and webhook secrets."""
+    if isinstance(exc, httpx.TimeoutException):
+        return "timed out"
+    if isinstance(exc, httpx.ConnectError):
+        return "connection failed"
+    if isinstance(exc, ValueError):
+        return "unexpected answer"
+    return "network error"
 
 
 def test_ai(api_key: str, base_url: str, timeout: float = 15.0) -> dict[str, Any]:

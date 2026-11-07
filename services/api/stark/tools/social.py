@@ -860,12 +860,18 @@ class AccountStore:
             raise
 
     def save(self, pid: str, values: dict[str, str], connected_as: str) -> None:
-        self._commit({**self.data, pid: {**values, "connected_as": connected_as}})
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc).isoformat()  # when the token was issued (renewals and expiry warnings)
+        self._commit({**self.data, pid: {**values, "connected_as": connected_as, "saved_at": now, "token_at": now}})
         self._apply(pid, values)
 
     def update(self, pid: str, field: str, value: str) -> None:
+        self.update_many(pid, {field: value})
+
+    def update_many(self, pid: str, values: dict[str, str]) -> None:
         if pid in self.data:
-            self._commit({**self.data, pid: {**self.data[pid], field: value}})
+            self._commit({**self.data, pid: {**self.data[pid], **values}})
 
     def remove(self, pid: str) -> None:
         self._commit({k: v for k, v in self.data.items() if k != pid})
@@ -985,7 +991,8 @@ class Social:
             elif platform == "pinterest":
                 r = await c.get("https://api.pinterest.com/v5/boards", params={"page_size": 100},
                                 headers={"Authorization": f"Bearer {tok}"})
-                options = [{"id": x["id"], "name": x.get("name", x["id"]), "secret": tok}
+                refresh = str(tokens.get("refresh_token") or "")  # kept so the 30-day token can be renewed
+                options = [{"id": x["id"], "name": x.get("name", x["id"]), "secret": tok, "refresh": refresh}
                            for x in (r.json().get("items") or [])] if r.status_code == 200 else []
                 empty = "No Pinterest boards found. Create a board on Pinterest first, then log in again."
             else:
@@ -1000,8 +1007,11 @@ class Social:
         if platform == "facebook":
             return await self.connect_generic("facebook", {"facebook_page_id": option["id"],
                                                            "facebook_page_token": option["secret"]})
-        return await self.connect_generic("pinterest", {"pinterest_board_id": option["id"],
-                                                        "pinterest_access_token": option["secret"]})
+        who = await self.connect_generic("pinterest", {"pinterest_board_id": option["id"],
+                                                       "pinterest_access_token": option["secret"]})
+        if option.get("refresh"):
+            self.store.update("pinterest", "pinterest_refresh_token", option["refresh"])
+        return who
 
     async def connect_oauth(self, platform: str, values: dict[str, str]) -> str:
         """Store the result of a sign-in, after checking it works (nothing is posted)."""
@@ -1664,6 +1674,7 @@ class SocialAnalytics(Tool):
             adapter = self.social.adapter(platform)
             real = [i for i in mine if not i["simulated"]]
             metrics: dict[str, dict[str, int]] = {}
+            ext: dict[str, str | None] = {}
             if adapter and real:
                 with ctx.kernel.db.session() as s:
                     ext = {r.id: r.external_id for r in s.scalars(
@@ -1673,11 +1684,7 @@ class SocialAnalytics(Tool):
                 except (AdapterError, httpx.HTTPError) as exc:
                     errors.append(f"{platform}: {exc}")
             for i in mine:
-                m = None
-                if not i["simulated"]:
-                    with ctx.kernel.db.session() as s:
-                        row = s.get(ContentItem, i["id"])
-                        m = metrics.get(row.external_id) if row else None
+                m = None if i["simulated"] else metrics.get(ext.get(i["id"]) or "")
                 rows.append({"id": i["id"], "platform": platform, "text": i["text"][:140], "url": i["external_url"],
                              "simulated": i["simulated"],
                              "engagement": m if m is not None else

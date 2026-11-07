@@ -372,6 +372,18 @@ class InstagramAdapter(_Base):
     def _p(self, **kw) -> dict[str, Any]:
         return {"access_token": self.settings.instagram_access_token, **kw}
 
+    async def metrics(self, external_ids: list[str]) -> dict[str, dict[str, int]]:
+        out: dict[str, dict[str, int]] = {}
+        async with self._client() as client:
+            for mid in external_ids[:40]:
+                r = await client.get(f"{IG}/{mid}",
+                                     params=self._p(fields="like_count,comments_count"))
+                if r.status_code == 200:
+                    b = r.json()
+                    out[mid] = {"likes": int(b.get("like_count") or 0), "replies": int(b.get("comments_count") or 0),
+                                "reposts": 0}
+        return out
+
     async def _image_url(self, client: httpx.AsyncClient, meta: dict[str, Any], data: bytes) -> str:
         from .tools.social import AdapterError
 
@@ -448,6 +460,26 @@ class PinterestAdapter(_Base):
 
     def connected(self) -> bool:
         return bool(self.settings.pinterest_access_token and self.settings.pinterest_board_id)
+
+    async def metrics(self, external_ids: list[str]) -> dict[str, dict[str, int]]:
+        """Saves, comments and impressions over the last 90 days (Pinterest's longest window)."""
+        from datetime import date, timedelta
+
+        end = date.today()
+        params = {"start_date": (end - timedelta(days=89)).isoformat(), "end_date": end.isoformat(),
+                  "metric_types": "IMPRESSION,SAVE,PIN_CLICK,TOTAL_COMMENTS,TOTAL_REACTIONS", "app_types": "ALL"}
+        out: dict[str, dict[str, int]] = {}
+        async with self._client() as client:
+            for pid in external_ids[:40]:
+                r = await client.get(f"{self.base}/pins/{pid}/analytics", params=params,
+                                     headers={"Authorization": f"Bearer {self.settings.pinterest_access_token}"})
+                if r.status_code == 200:
+                    t = ((r.json().get("all") or {}).get("lifetime_metrics")
+                         or (r.json().get("all") or {}).get("summary_metrics") or {})
+                    out[pid] = {"likes": int(t.get("TOTAL_REACTIONS") or 0), "reposts": int(t.get("SAVE") or 0),
+                                "replies": int(t.get("TOTAL_COMMENTS") or 0), "views": int(t.get("IMPRESSION") or 0),
+                                "clicks": int(t.get("PIN_CLICK") or 0)}
+        return out
 
     async def publish(self, item: dict[str, Any], on_part: OnPart) -> dict[str, Any]:
         import base64
@@ -587,6 +619,20 @@ class YouTubeAdapter(_OAuthAdapter):
     platform = "youtube"
     token_url = "https://oauth2.googleapis.com/token"
     fields = ("youtube_client_id", "youtube_client_secret", "youtube_refresh_token")
+
+    async def metrics(self, external_ids: list[str]) -> dict[str, dict[str, int]]:
+        out: dict[str, dict[str, int]] = {}
+        async with self._client() as client:
+            token = await self.access_token(client)
+            for start in range(0, min(len(external_ids), 200), 50):  # 50 ids per request
+                r = await client.get("https://www.googleapis.com/youtube/v3/videos",
+                                     params={"part": "statistics", "id": ",".join(external_ids[start:start + 50])},
+                                     headers={"Authorization": f"Bearer {token}"})
+                for v in (r.json().get("items") or []) if r.status_code == 200 else []:
+                    st = v.get("statistics") or {}
+                    out[v["id"]] = {"likes": int(st.get("likeCount") or 0), "replies": int(st.get("commentCount") or 0),
+                                    "reposts": 0, "views": int(st.get("viewCount") or 0)}
+        return out
 
     async def publish(self, item: dict[str, Any], on_part: OnPart) -> dict[str, Any]:
         from .tools.social import HASHTAG_RE, AdapterError, load_video

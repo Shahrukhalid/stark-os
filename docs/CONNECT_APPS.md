@@ -52,7 +52,9 @@ set `STARK_CONNECT_URL` in `.env` (self-hosting) to use their own STARK Connect.
 
 ## Notes
 
-- Instagram, Threads and LinkedIn tokens last about 60 days; STARK OS shows the account as expired in Account health
-  and the user logs in again. TikTok and YouTube refresh themselves through STARK Connect.
+- Instagram and Threads tokens last about 60 days; STARK OS renews them about once a week, so they don't expire
+  while the app runs at least every few weeks. Pinterest (30 days) is renewed through STARK Connect when the login
+  returned a refresh token. LinkedIn tokens can't be renewed by ordinary apps: Account health warns 10 days before
+  the 60 days are up. TikTok and YouTube refresh themselves.
 - STARK Connect only redirects to `http://127.0.0.1:<port>/api/oauth/<platform>/callback`, signs the state, and
   rejects sign-ins older than 15 minutes.

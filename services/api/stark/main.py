@@ -46,7 +46,7 @@ from .providers import ModelProvider
 from . import autopilot as ap
 from . import automations, brands, growth, hub, insights, reach
 from . import health as account_health
-from . import shorts, video
+from . import shorts, token_refresh, video
 from .core.db import Campaign
 from .tools import build_registry
 from .tools import social as social_tools
@@ -381,7 +381,8 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
                       asyncio.create_task(hub.recycler_loop(holder["k"], social, settings)),
                       asyncio.create_task(_snapshot_loop(holder["k"], social)),
                       asyncio.create_task(_feeds_loop(holder["k"], social)),
-                      asyncio.create_task(account_health.loop(holder["k"], social))]
+                      asyncio.create_task(account_health.loop(holder["k"], social)),
+                      asyncio.create_task(token_refresh.loop(holder["k"], social))]
         holder["k"].automations = automations.Engine(holder["k"], social, settings, holder["k"].notifier)
         background.append(asyncio.create_task(holder["k"].automations.loop()))
         yield
@@ -431,6 +432,8 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
                         log.warning(f"autopilot error: {autopilot_job.exception()}")
                     autopilot_job = asyncio.create_task(k.autopilot.tick())
                 if settings.listening_enabled and (listen_job is None or listen_job.done()):
+                    if listen_job is not None and not listen_job.cancelled() and listen_job.exception():
+                        log.warning(f"social listening error: {listen_job.exception()}")
                     listen_job = asyncio.create_task(k.listening.run_once())
         finally:
             for job in (autopilot_job, listen_job):
@@ -621,6 +624,12 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         k.obs.audit("user", "social.connect", "ok", target=platform)
         return {"connected_as": who, "accounts": social.accounts()}
 
+    def _public(exc: Exception) -> str:
+        """The readable message of our own sign-in errors for the page: one line, credentials removed, short."""
+        from .core.observability import redact
+
+        return redact(" ".join(str(exc).split()))[:300]
+
     def _oauth_page(title: str, text: str, status: int = 200, extra: str = ""):
         from html import escape
 
@@ -670,7 +679,7 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         try:
             who = await _social(k).pick(platform, oauth.take_pick(platform, token, id))
         except (oauth.OAuthError, social_tools.AdapterError, httpx.HTTPError) as exc:
-            return _oauth_page("Could not connect", str(exc) if not isinstance(exc, httpx.HTTPError)
+            return _oauth_page("Could not connect", _public(exc) if not isinstance(exc, httpx.HTTPError)
                                else "Could not reach the platform.", 400)
         k.obs.audit("user", "social.connect", "ok", target=platform)
         return _oauth_page("Connected", f"STARK OS is connected to {who}. You can close this tab and return to STARK OS.")
@@ -697,12 +706,15 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
                 result = await _social(k).finish_login(platform, tokens)
             except (oauth.OAuthError, social_tools.AdapterError, httpx.HTTPError) as exc:
                 k.obs.audit("user", "social.connect", "error", target=platform)
-                return page("Could not connect", str(exc) if not isinstance(exc, httpx.HTTPError)
+                return page("Could not connect", _public(exc) if not isinstance(exc, httpx.HTTPError)
                             else "Could not reach the platform.", 400)
             if "choose" in result:
                 pick = oauth.remember_pick(platform, result["choose"])
-                links = "".join(f"<li><a style='color:#67e8f9' href='/api/oauth/{platform}/pick?token={quote(pick)}"
-                                f"&id={quote(o['id'])}'>{escape(o['name'])}</a></li>" for o in result["choose"])
+                links = "".join(
+                    "<li><a style='color:#67e8f9' href='"
+                    + escape(f"/api/oauth/{quote(platform, safe='')}/pick?token={quote(pick, safe='')}"
+                             f"&id={quote(str(o['id']), safe='')}", quote=True)
+                    + f"'>{escape(str(o['name']))}</a></li>" for o in result["choose"])
                 what = "Facebook Page" if platform == "facebook" else "Pinterest board"
                 return page(f"Choose a {what}", f"Pick the {what} STARK OS should post to:", extra=f"<ul>{links}</ul>")
             k.obs.audit("user", "social.connect", "ok", target=platform)
@@ -718,7 +730,7 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
             who = await _social(k).connect_oauth(platform, values)
         except (oauth.OAuthError, social_tools.AdapterError, httpx.HTTPError) as exc:
             k.obs.audit("user", "social.connect", "error", target=platform)
-            return page("Could not connect", str(exc) if not isinstance(exc, httpx.HTTPError)
+            return page("Could not connect", _public(exc) if not isinstance(exc, httpx.HTTPError)
                         else "Could not reach the platform.", 400)
         k.obs.audit("user", "social.connect", "ok", target=platform)
         return page("Connected", f"STARK OS is connected to {who}. You can close this tab and return to STARK OS.")
