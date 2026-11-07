@@ -615,6 +615,15 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         k.obs.audit("user", "social.connect", "ok", target=platform)
         return {"connected_as": who, "accounts": social.accounts()}
 
+    def _oauth_page(title: str, text: str, status: int = 200, extra: str = ""):
+        from html import escape
+
+        from fastapi.responses import HTMLResponse
+
+        return HTMLResponse(f"<!doctype html><meta charset=utf-8><title>STARK OS</title><body style='font:16px "
+                            f"system-ui;background:#0b0f17;color:#e5e7eb;padding:48px'><h2>{escape(title)}</h2>"
+                            f"<p>{escape(text)}</p>{extra}</body>", status_code=status)
+
     @app.post("/api/oauth/{platform}/start", dependencies=[api])
     async def oauth_start(platform: str, body: AccountIn, request: Request, k: Kernel = Depends(kernel)):
         from . import oauth
@@ -631,21 +640,62 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
             raise HTTPException(400, str(exc))
         return {"auth_url": url, "redirect_uri": oauth.redirect_uri(request.url.port or 8000, platform)}
 
+    @app.post("/api/oauth/{platform}/login", dependencies=[api])
+    async def oauth_login(platform: str, request: Request, k: Kernel = Depends(kernel)):
+        """"Log in with …" through Nexonic's official apps (STARK Connect)."""
+        from . import oauth
+
+        if platform not in oauth.OFFICIAL:
+            raise HTTPException(404, "unknown platform")
+        if _social(k).store.from_env.get(platform):
+            raise HTTPException(409, "This account is set in your .env file; change it there.")
+        try:
+            return {"auth_url": oauth.official_start(settings.connect_url, platform, request.url.port or 8000)}
+        except oauth.OAuthError as exc:
+            raise HTTPException(400, str(exc))
+
+    @app.get("/api/oauth/{platform}/pick", include_in_schema=False)
+    async def oauth_pick(platform: str, token: str = "", id: str = "", k: Kernel = Depends(kernel)):
+        from . import oauth
+
+        try:
+            who = await _social(k).pick(platform, oauth.take_pick(platform, token, id))
+        except (oauth.OAuthError, social_tools.AdapterError, httpx.HTTPError) as exc:
+            return _oauth_page("Could not connect", str(exc) if not isinstance(exc, httpx.HTTPError)
+                               else "Could not reach the platform.", 400)
+        k.obs.audit("user", "social.connect", "ok", target=platform)
+        return _oauth_page("Connected", f"STARK OS is connected to {who}. You can close this tab and return to STARK OS.")
+
     @app.get("/api/oauth/{platform}/callback", include_in_schema=False)
     async def oauth_callback(platform: str, state: str = "", code: str = "", error: str = "",
                              k: Kernel = Depends(kernel)):
         """The platform sends the browser back here after sign-in. Protected by the single-use state value."""
         from html import escape
-
-        from fastapi.responses import HTMLResponse
+        from urllib.parse import quote
 
         from . import oauth
 
-        def page(title: str, text: str, status: int = 200) -> HTMLResponse:
-            return HTMLResponse(f"<!doctype html><meta charset=utf-8><title>STARK OS</title><body style='font:16px "
-                                f"system-ui;background:#0b0f17;color:#e5e7eb;padding:48px'><h2>{escape(title)}</h2>"
-                                f"<p>{escape(text)}</p></body>", status_code=status)
-
+        page = _oauth_page
+        if oauth.is_official(state):
+            if error or not code:
+                oauth.PENDING.pop(state, None)
+                return page("Sign-in cancelled", f"Nothing was connected ({error or 'no code'}). You can close this tab.", 400)
+            try:
+                tokens = await oauth.official_finish(settings.connect_url, platform, state, code)
+                result = await _social(k).finish_login(platform, tokens)
+            except (oauth.OAuthError, social_tools.AdapterError, httpx.HTTPError) as exc:
+                k.obs.audit("user", "social.connect", "error", target=platform)
+                return page("Could not connect", str(exc) if not isinstance(exc, httpx.HTTPError)
+                            else "Could not reach the platform.", 400)
+            if "choose" in result:
+                pick = oauth.remember_pick(platform, result["choose"])
+                links = "".join(f"<li><a style='color:#67e8f9' href='/api/oauth/{platform}/pick?token={quote(pick)}"
+                                f"&id={quote(o['id'])}'>{escape(o['name'])}</a></li>" for o in result["choose"])
+                what = "Facebook Page" if platform == "facebook" else "Pinterest board"
+                return page(f"Choose a {what}", f"Pick the {what} STARK OS should post to:", extra=f"<ul>{links}</ul>")
+            k.obs.audit("user", "social.connect", "ok", target=platform)
+            return page("Connected", f"STARK OS is connected to {result['who']}. You can close this tab and return to "
+                                     "STARK OS.")
         if platform not in oauth.PROVIDERS:
             return page("Unknown platform", "This sign-in link is not valid.", 404)
         if error or not code:

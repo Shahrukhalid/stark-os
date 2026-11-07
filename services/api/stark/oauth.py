@@ -73,3 +73,65 @@ async def finish(platform: str, state: str, code: str, transport=None) -> dict[s
                          f"({data.get('error_description') or data.get('error') or r.status_code}).")
     cid, secret, refresh = p["fields"]
     return {cid: pending["client_id"], secret: pending["client_secret"], refresh: data["refresh_token"]}
+
+
+# ---------------------------------------------------------------- official apps through STARK Connect
+# "Log in with …" uses Nexonic's registered apps. Their secrets live on the STARK Connect server
+# (services/connect), which sends the browser back to this computer and swaps the code for tokens.
+OFFICIAL = ("facebook", "instagram", "threads", "linkedin", "tiktok", "youtube", "pinterest")
+_PKCE = {"tiktok": "hex", "youtube": "b64"}
+
+
+def official_start(connect_url: str, platform: str, port: int) -> str:
+    if not connect_url:
+        raise OAuthError("Log in is not set up in this copy of STARK OS (STARK_CONNECT_URL is empty).")
+    now = time.time()
+    for k in [k for k, v in PENDING.items() if v["created"] < now - TTL_S]:
+        PENDING.pop(k, None)
+    verifier = secrets.token_urlsafe(64)
+    digest = hashlib.sha256(verifier.encode()).digest()
+    kind = _PKCE.get(platform)
+    challenge = digest.hex() if kind == "hex" else base64.urlsafe_b64encode(digest).rstrip(b"=").decode() if kind else ""
+    state = secrets.token_urlsafe(24)
+    PENDING[state] = {"platform": platform, "verifier": verifier, "official": True, "created": now}
+    q = {"return": redirect_uri(port, platform), "state": state}
+    if challenge:
+        q["challenge"] = challenge
+    return f"{connect_url.rstrip('/')}/start/{platform}?{urlencode(q)}"
+
+
+def is_official(state: str) -> bool:
+    return bool(PENDING.get(state, {}).get("official"))
+
+
+async def official_finish(connect_url: str, platform: str, state: str, code: str, transport=None) -> dict[str, Any]:
+    pending = PENDING.pop(state, None)
+    if not pending or pending["platform"] != platform or pending["created"] < time.time() - TTL_S:
+        raise OAuthError("This sign-in link expired or was already used. Start again from Your accounts.")
+    async with httpx.AsyncClient(timeout=30, transport=transport) as c:
+        r = await c.post(f"{connect_url.rstrip('/')}/token/{platform}",
+                         json={"code": code, "code_verifier": pending["verifier"]})
+    data = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+    if r.status_code != 200 or not data.get("access_token"):
+        raise OAuthError(f"Sign-in failed: {data.get('error') or r.status_code}")
+    return data
+
+
+# Choices to make after sign-in (which Facebook Page, which Pinterest board), single use.
+PICKS: dict[str, dict[str, Any]] = {}
+
+
+def remember_pick(platform: str, options: list[dict[str, str]]) -> str:
+    token = secrets.token_urlsafe(18)
+    PICKS[token] = {"platform": platform, "options": options, "created": time.time()}
+    return token
+
+
+def take_pick(platform: str, token: str, choice: str) -> dict[str, str]:
+    entry = PICKS.pop(token, None)
+    if not entry or entry["platform"] != platform or entry["created"] < time.time() - TTL_S:
+        raise OAuthError("This choice expired. Log in again from Your accounts.")
+    opt = next((o for o in entry["options"] if o["id"] == choice), None)
+    if not opt:
+        raise OAuthError("Unknown choice.")
+    return opt
