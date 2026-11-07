@@ -356,7 +356,9 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
                    settings.tavily_api_key, settings.brave_api_key, settings.telegram_bot_token,
                    settings.discord_webhook_url, settings.webhook_secret, *settings.webhook_urls,
                    settings.threads_access_token, settings.discord_post_webhook_url, settings.slack_webhook_url,
-                   settings.facebook_page_token, settings.linkedin_access_token):
+                   settings.facebook_page_token, settings.linkedin_access_token, settings.instagram_access_token,
+                   settings.pinterest_access_token, settings.tiktok_client_secret, settings.tiktok_refresh_token,
+                   settings.youtube_client_secret, settings.youtube_refresh_token):
         register_secret(secret)
     holder: dict[str, Kernel] = {}
 
@@ -599,7 +601,7 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
 
     @app.post("/api/social/accounts/{platform}", dependencies=[api])
     async def connect_platform(platform: str, body: AccountIn, k: Kernel = Depends(kernel)):
-        if platform not in social_tools.CONNECT_FORMS:
+        if platform not in social_tools.CONNECT_FORMS or social_tools.CONNECT_FORMS[platform].get("oauth"):
             raise HTTPException(404, "unknown platform")
         social = _social(k)
         if social.store.from_env.get(platform):
@@ -612,6 +614,52 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
                                 else "Could not reach the platform. Check your internet connection.")
         k.obs.audit("user", "social.connect", "ok", target=platform)
         return {"connected_as": who, "accounts": social.accounts()}
+
+    @app.post("/api/oauth/{platform}/start", dependencies=[api])
+    async def oauth_start(platform: str, body: AccountIn, request: Request, k: Kernel = Depends(kernel)):
+        from . import oauth
+
+        if platform not in oauth.PROVIDERS:
+            raise HTTPException(404, "unknown platform")
+        if _social(k).store.from_env.get(platform):
+            raise HTTPException(409, "This account is set in your .env file; change it there.")
+        cid, secret, _ = oauth.PROVIDERS[platform]["fields"]
+        try:
+            url = oauth.start(platform, body.values.get(cid, ""), body.values.get(secret, ""),
+                              request.url.port or 8000)
+        except oauth.OAuthError as exc:
+            raise HTTPException(400, str(exc))
+        return {"auth_url": url, "redirect_uri": oauth.redirect_uri(request.url.port or 8000, platform)}
+
+    @app.get("/api/oauth/{platform}/callback", include_in_schema=False)
+    async def oauth_callback(platform: str, state: str = "", code: str = "", error: str = "",
+                             k: Kernel = Depends(kernel)):
+        """The platform sends the browser back here after sign-in. Protected by the single-use state value."""
+        from html import escape
+
+        from fastapi.responses import HTMLResponse
+
+        from . import oauth
+
+        def page(title: str, text: str, status: int = 200) -> HTMLResponse:
+            return HTMLResponse(f"<!doctype html><meta charset=utf-8><title>STARK OS</title><body style='font:16px "
+                                f"system-ui;background:#0b0f17;color:#e5e7eb;padding:48px'><h2>{escape(title)}</h2>"
+                                f"<p>{escape(text)}</p></body>", status_code=status)
+
+        if platform not in oauth.PROVIDERS:
+            return page("Unknown platform", "This sign-in link is not valid.", 404)
+        if error or not code:
+            oauth.PENDING.pop(state, None)
+            return page("Sign-in cancelled", f"Nothing was connected ({error or 'no code'}). You can close this tab.", 400)
+        try:
+            values = await oauth.finish(platform, state, code)
+            who = await _social(k).connect_oauth(platform, values)
+        except (oauth.OAuthError, social_tools.AdapterError, httpx.HTTPError) as exc:
+            k.obs.audit("user", "social.connect", "error", target=platform)
+            return page("Could not connect", str(exc) if not isinstance(exc, httpx.HTTPError)
+                        else "Could not reach the platform.", 400)
+        k.obs.audit("user", "social.connect", "ok", target=platform)
+        return page("Connected", f"STARK OS is connected to {who}. You can close this tab and return to STARK OS.")
 
     @app.delete("/api/social/accounts/{platform}", dependencies=[api])
     async def disconnect(platform: str, k: Kernel = Depends(kernel)):

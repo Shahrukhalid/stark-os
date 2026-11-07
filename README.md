@@ -62,7 +62,7 @@ Each agent has its own free model with automatic fallback, its own prompt, memor
 
 ### Schedule and publish
 - **Queue and calendar** (drag and drop), **auto-schedule** at your best times, weekly **posting plan** with content mix.
-- **Real posting** to Bluesky, Mastodon, Threads, Facebook Pages, LinkedIn, Telegram, Discord and Slack. Ready-to-paste posts for the others.
+- **Real posting** to Bluesky, Mastodon, Threads, Facebook Pages, LinkedIn, Instagram, Pinterest, TikTok, YouTube, Telegram, Discord and Slack. Ready-to-paste posts for the others.
 - **Publish automatically** once approved.
 - **Your channels → drafts**: new YouTube video, podcast or blog post becomes a draft.
 - **UTM link tracking**, **evergreen recycling**, **.ics export**, Bluesky reply controls.

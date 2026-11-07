@@ -11,6 +11,7 @@ const STYLE: Record<string, { name: string; accent: string; radius: string; hand
   instagram: { name: "Instagram", accent: "#e1306c", radius: "10px", handle: (h) => h },
   facebook: { name: "Facebook", accent: "#1877f2", radius: "8px", handle: () => "Your page" },
   tiktok: { name: "TikTok", accent: "#25f4ee", radius: "10px", handle: (h) => `@${h}` },
+  pinterest: { name: "Pinterest", accent: "#e60023", radius: "16px", handle: (h) => h },
   youtube: { name: "YouTube", accent: "#ff0033", radius: "10px", handle: () => "Your channel" },
 };
 

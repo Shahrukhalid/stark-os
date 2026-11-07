@@ -29,9 +29,12 @@ Open **Content → Your accounts → Connect**. Logins are stored only on your c
 | **Facebook Page** | Real posting (text, image; thread parts become comments), stats | Your own Meta developer app (no review needed for Pages you manage) and a Page access token with `pages_manage_posts` + `pages_read_engagement`, plus the Page ID. |
 | **LinkedIn** (your profile) | Real posting (text, image) | A LinkedIn developer app with the free **Share on LinkedIn** and **Sign In with LinkedIn using OpenID Connect** products; a token with `openid profile w_member_social`. Tokens expire after 60 days. Company Pages need LinkedIn's reviewed API. |
 | **Threads** | Real posting (text) | A Threads access token with `threads_content_publish` and your Threads user ID. |
+| **Instagram** (Business or Creator) | Real posting: Reels from your videos, images via your Facebook Page | A Meta developer app with the Instagram use case and a token with `instagram_business_basic` + `instagram_business_content_publish` (60 days). Connect your Facebook Page too for image posts. |
+| **Pinterest** | Real Pins (image, title, link) on one board | A Pinterest developer app, a token with `boards:read` + `pins:write`, and a board ID. Pins are visible only to you until Pinterest grants Standard access. |
+| **TikTok** | Real video posts (private until TikTok audits your app) | Content → Your accounts → TikTok → Connect: paste your app's client key and secret, then sign in. Register `http://127.0.0.1:*/api/oauth/tiktok/callback` as redirect URI. |
+| **YouTube** | Real uploads; vertical clips become Shorts (private until Google audits your app) | Content → Your accounts → YouTube → Connect: paste the client ID and secret of a Google OAuth client (Desktop app type), then sign in. |
 | X | Drafts + checks, you post | X charges for every post made through its API. |
-| Instagram | Drafts + image, you post | Instagram only accepts images from a public web address; STARK OS keeps your images on your computer. |
-| TikTok, YouTube | Video packages, you upload | Public uploads need an audited (TikTok) or Google-verified (YouTube) app. |
+| Facebook profiles and Groups, personal Instagram, Snapchat | Drafts, you post | No app can post there: Meta closed profiles and Groups to apps, and Snapchat only allows approved partners. |
 
 To disconnect, click **Disconnect** (you can also revoke the app password or token on the platform at any time).
 

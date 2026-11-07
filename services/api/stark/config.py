@@ -110,6 +110,18 @@ class Settings:
     linkedin_access_token: str = ""  # "Share on LinkedIn" (w_member_social) + openid profile; lasts 60 days
     linkedin_author_urn: str = ""  # optional urn:li:person:…; looked up from the token when empty
     linkedin_api_version: str = "202609"  # LinkedIn-Version header (YYYYMM, supported for about a year)
+    instagram_user_id: str = ""  # Instagram professional account (Instagram API with Instagram Login)
+    instagram_access_token: str = ""  # long-lived token, lasts 60 days
+    pinterest_access_token: str = ""
+    pinterest_board_id: str = ""
+    tiktok_client_key: str = ""
+    tiktok_client_secret: str = ""
+    tiktok_refresh_token: str = ""  # from Connect → Sign in with TikTok
+    tiktok_privacy: str = "SELF_ONLY"  # PUBLIC_TO_EVERYONE once TikTok has audited your app
+    youtube_client_id: str = ""
+    youtube_client_secret: str = ""
+    youtube_refresh_token: str = ""  # from Connect → Sign in with Google
+    youtube_privacy: str = "private"  # public / unlisted once Google has audited your app
     utm_enabled: bool = False  # tag links in new drafts with utm_source/medium/campaign
 
     @classmethod
@@ -168,6 +180,18 @@ class Settings:
             linkedin_access_token=_env("LINKEDIN_ACCESS_TOKEN"),
             linkedin_author_urn=_env("LINKEDIN_AUTHOR_URN"),
             linkedin_api_version=_env("LINKEDIN_API_VERSION", "202609"),
+            instagram_user_id=_env("INSTAGRAM_USER_ID"),
+            instagram_access_token=_env("INSTAGRAM_ACCESS_TOKEN"),
+            pinterest_access_token=_env("PINTEREST_ACCESS_TOKEN"),
+            pinterest_board_id=_env("PINTEREST_BOARD_ID"),
+            tiktok_client_key=_env("TIKTOK_CLIENT_KEY"),
+            tiktok_client_secret=_env("TIKTOK_CLIENT_SECRET"),
+            tiktok_refresh_token=_env("TIKTOK_REFRESH_TOKEN"),
+            tiktok_privacy=_env("TIKTOK_PRIVACY", "SELF_ONLY"),
+            youtube_client_id=_env("YOUTUBE_CLIENT_ID"),
+            youtube_client_secret=_env("YOUTUBE_CLIENT_SECRET"),
+            youtube_refresh_token=_env("YOUTUBE_REFRESH_TOKEN"),
+            youtube_privacy=_env("YOUTUBE_PRIVACY", "private"),
             utm_enabled=_env_bool("STARK_UTM", False),
         )
 

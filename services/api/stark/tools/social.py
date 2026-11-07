@@ -41,7 +41,7 @@ from ..core.tool_registry import ApprovalText, Availability, Risk, Tool, ToolRes
 from .security import SECRET_RULES
 
 Platform = Literal["bluesky", "mastodon", "x", "threads", "linkedin", "instagram", "facebook", "tiktok", "youtube",
-                   "telegram", "discord", "slack"]
+                   "pinterest", "telegram", "discord", "slack"]
 
 # limit = characters per post (Bluesky counts grapheme clusters, see grapheme_len).
 PLATFORMS: dict[str, dict[str, Any]] = {
@@ -54,13 +54,19 @@ PLATFORMS: dict[str, dict[str, Any]] = {
     "linkedin": {"name": "LinkedIn", "limit": 3000, "hashtags": 5,
                  "why_simulated": "add LINKEDIN_ACCESS_TOKEN (free self-serve Share on LinkedIn app, your own profile) to post for real"},
     "instagram": {"name": "Instagram", "limit": 2200, "hashtags": 30, "hashtags_hard": True, "needs_media": True,
-                  "why_simulated": "Instagram only accepts images from a public web address and STARK keeps images on this computer, so it prepares the post and image for you to publish"},
+                  "note": "Business or Creator accounts only.",
+                  "why_simulated": "connect an Instagram professional (Business or Creator) account; personal accounts can't be posted to by any app"},
     "facebook": {"name": "Facebook Page", "limit": 63206, "hashtags": 3,
                  "why_simulated": "add FACEBOOK_PAGE_ID and FACEBOOK_PAGE_TOKEN (your own Meta app, no review for Pages you manage) to post for real (free)"},
     "tiktok": {"name": "TikTok", "limit": 2200, "hashtags": 5, "needs_media": True,
-               "why_simulated": "TikTok only allows public posts from apps that passed its audit, so STARK prepares the video package for you to upload"},
+                  "note": "Posts stay private until TikTok audits your app.",
+               "why_simulated": "connect TikTok with your own developer app (posts stay private until TikTok audits the app)"},
     "youtube": {"name": "YouTube", "limit": 5000, "hashtags": 15, "needs_media": True,
-                "why_simulated": "YouTube uploads need a Google-verified app to be public, so STARK prepares titles, descriptions and Shorts for you to upload"},
+                  "note": "Uploads stay private until Google audits your app.",
+                "why_simulated": "connect YouTube with your own Google app (uploads stay private until Google audits the app)"},
+    "pinterest": {"name": "Pinterest", "limit": 500, "hashtags": 5, "needs_media": True,
+                  "note": "Pins are visible only to you until Pinterest grants Standard access.",
+                  "why_simulated": "connect Pinterest with your own app (Pins are visible only to you until Pinterest grants Standard access)"},
     "telegram": {"name": "Telegram channel", "limit": 4096, "hashtags": 5, "adapter": "Telegram Bot API (free)",
                  "why_simulated": "add TELEGRAM_BOT_TOKEN and TELEGRAM_CHANNEL_ID (bot must be a channel admin) to .env"},
     "discord": {"name": "Discord channel", "limit": 2000, "hashtags": 5, "adapter": "Discord webhook (free)",
@@ -126,10 +132,21 @@ def _approx_grapheme_len(text: str) -> int:
 # ------------------------------------------------------------------ media files (real image upload)
 IMAGE_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif",
                ".webp": "image/webp"}
+VIDEO_TYPES = {".mp4": "video/mp4", ".mov": "video/quicktime", ".m4v": "video/mp4"}
+MAX_VIDEO_BYTES = 1024 ** 3  # 1 GB; streamed from disk, never held in memory
+VIDEO_PLATFORMS = {"tiktok", "youtube", "instagram"}
 # Per-platform upload limits: Bluesky rejects image blobs over 1,000,000 bytes; Mastodon's default image
 # limit is 16 MB. Both allow four images per post.
 MEDIA_LIMITS = {"bluesky": {"max_files": 4, "max_bytes": 1_000_000},
-                "mastodon": {"max_files": 4, "max_bytes": 16 * 1024 * 1024}}
+                "mastodon": {"max_files": 4, "max_bytes": 16 * 1024 * 1024},
+                "facebook": {"max_files": 1, "max_bytes": 4 * 1024 * 1024},
+                "linkedin": {"max_files": 1, "max_bytes": 16 * 1024 * 1024},
+                "instagram": {"max_files": 1, "max_bytes": 8 * 1024 * 1024},
+                "pinterest": {"max_files": 1, "max_bytes": 16 * 1024 * 1024},
+                "telegram": {"max_files": 1, "max_bytes": 10 * 1024 * 1024},
+                "discord": {"max_files": 1, "max_bytes": 8 * 1024 * 1024},
+                "tiktok": {"max_files": 1, "max_bytes": MAX_VIDEO_BYTES},
+                "youtube": {"max_files": 1, "max_bytes": MAX_VIDEO_BYTES}}
 MAX_MEDIA_BYTES = max(v["max_bytes"] for v in MEDIA_LIMITS.values())
 MASTODON_MEDIA_POLL_S = 1.0
 
@@ -162,9 +179,11 @@ def load_media_file(settings, path: str) -> tuple[dict[str, Any], bytes]:
         raise MediaFileError(str(exc)) from None
     if is_sensitive(resolved):
         raise MediaFileError(f"{path} looks like a credential file and can't be attached")
+    if resolved.suffix.lower() in VIDEO_TYPES:
+        return _video_info(path, resolved), b""
     mime = IMAGE_TYPES.get(resolved.suffix.lower())
     if mime is None:
-        raise MediaFileError(f"{path}: only PNG, JPEG, GIF and WebP images can be attached")
+        raise MediaFileError(f"{path}: only PNG, JPEG, GIF and WebP images or MP4/MOV videos can be attached")
     if not resolved.is_file():
         raise MediaFileError(f"{path} was not found in the workspace")
     size = resolved.stat().st_size
@@ -176,15 +195,48 @@ def load_media_file(settings, path: str) -> tuple[dict[str, Any], bytes]:
     return {"file": path, "mime": mime, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}, data
 
 
+def _video_info(path: str, resolved) -> dict[str, Any]:
+    if not resolved.is_file():
+        raise MediaFileError(f"{path} was not found in the workspace")
+    size = resolved.stat().st_size
+    if size > MAX_VIDEO_BYTES:
+        raise MediaFileError(f"{path} is {size / 1_048_576:.0f} MB; the largest allowed video is 1 GB")
+    h = hashlib.sha256()
+    with open(resolved, "rb") as fh:
+        head = fh.read(12)
+        if head[4:8] != b"ftyp":
+            raise MediaFileError(f"{path} is not a valid MP4/MOV video")
+        h.update(head)
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return {"file": path, "mime": VIDEO_TYPES[resolved.suffix.lower()], "bytes": size, "sha256": h.hexdigest(),
+            "type": "video", "path": str(resolved)}
+
+
+def load_video(settings, item: dict[str, Any]) -> dict[str, Any] | None:
+    """The approved video of a post (path, size, mime), re-checked against the approved hash."""
+    for m in item.get("media") or []:
+        if m.get("file") and m.get("type") == "video":
+            try:
+                info, _ = load_media_file(settings, m["file"])
+            except MediaFileError as exc:
+                raise AdapterError(f"Video not uploaded: {exc}") from None
+            if info["sha256"] != m.get("sha256"):
+                raise AdapterError(f"{m['file']} changed after the post was checked; edit the post to re-attach it")
+            return {**m, **info}
+    return None
+
+
 def describe_media(settings, media: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Attach type, size and a content hash to every media item that names a file, so an approval covers
     the exact image bytes (the hash is part of the post fingerprint)."""
     out = []
     for m in media:
-        m = {k: v for k, v in m.items() if k not in ("mime", "bytes", "sha256")}
+        m = {k: v for k, v in m.items() if k not in ("mime", "bytes", "sha256", "type", "path")}
         if m.get("file"):
             info, _ = load_media_file(settings, m["file"])
             m.update(info)
+            m.pop("path", None)  # re-resolved at publish time
         else:
             m.pop("file", None)
         out.append(m)
@@ -195,7 +247,7 @@ def load_attachments(settings, item: dict[str, Any]) -> list[tuple[dict[str, Any
     """Image files to upload with this item, re-read at publish time and checked against the approved hash."""
     out = []
     for m in item.get("media") or []:
-        if not m.get("file"):
+        if not m.get("file") or m.get("type") == "video":
             continue
         try:
             info, data = load_media_file(settings, m["file"])
@@ -295,16 +347,21 @@ def check_post(platform: str, text: str, *, thread: list[str] | None = None, med
             add("warn", "shortened_link", f"Shortened link hides the destination: {url}")
     missing_alt = [m for m in media or [] if not (m.get("alt_text") or "").strip()]
     for m in missing_alt:
-        if m.get("file"):
+        if m.get("file") and m.get("type") != "video":
             add("fail", "alt_text", f"{m['file']} has no alt text; add it before the image can be uploaded.")
     if any(not m.get("file") for m in missing_alt):
         add("warn", "alt_text", "A media item has no alt text (screen-reader users can't see it).")
     files = [m for m in media or [] if m.get("file")]
     if files:
         limits = MEDIA_LIMITS.get(platform)
+        videos = [m for m in files if m.get("type") == "video"]
+        if videos and platform not in VIDEO_PLATFORMS:
+            add("fail", "video_unsupported", f"STARK OS uploads videos to TikTok, YouTube and Instagram; "
+                                             f"post an image or text on {spec['name']}.")
+        if platform in ("tiktok", "youtube") and files and not videos:
+            add("fail", "needs_video", f"{spec['name']} needs a video (MP4 or MOV).")
         if limits is None:
-            add("warn", "media_not_uploaded", f"Image files are uploaded only to Bluesky and Mastodon; on "
-                                              f"{spec['name']} the post is a simulation.")
+            add("warn", "media_not_uploaded", f"Files are not uploaded to {spec['name']}; the post is a simulation.")
         else:
             if len(files) > limits["max_files"]:
                 add("fail", "too_many_images", f"{spec['name']} allows {limits['max_files']} images per post.")
@@ -675,7 +732,11 @@ ACCOUNT_FIELDS = {"bluesky": ("bluesky_handle", "bluesky_app_password"),
                   "linkedin": ("linkedin_access_token",),
                   "telegram": ("telegram_channel_id", "telegram_bot_token"),
                   "discord": ("discord_post_webhook_url",),
-                  "slack": ("slack_webhook_url",)}
+                  "slack": ("slack_webhook_url",),
+                  "instagram": ("instagram_user_id", "instagram_access_token"),
+                  "pinterest": ("pinterest_board_id", "pinterest_access_token"),
+                  "tiktok": ("tiktok_client_key", "tiktok_client_secret", "tiktok_refresh_token"),
+                  "youtube": ("youtube_client_id", "youtube_client_secret", "youtube_refresh_token")}
 
 # Dashboard connect forms for the platforms without a dedicated endpoint: (field, label, placeholder, secret),
 # plus short steps. The last field of each platform is the secret one.
@@ -704,6 +765,36 @@ CONNECT_FORMS: dict[str, dict[str, Any]] = {
                 "steps": ["Channel settings → Integrations → Webhooks → New webhook.", "Copy its URL and paste it."]},
     "slack": {"fields": [("slack_webhook_url", "Incoming webhook URL", "https://hooks.slack.com/services/…", True)],
               "steps": ["Create an incoming webhook for the channel in your Slack workspace.", "Paste its URL."]},
+    "instagram": {"fields": [("instagram_user_id", "Instagram account ID", "1784…", False),
+                             ("instagram_access_token", "Instagram access token", "access token", True)],
+                  "steps": ["Switch your Instagram account to Professional (Business or Creator) in the Instagram app.",
+                            "Create a Meta developer app with the Instagram use case (API setup with Instagram "
+                            "login), add your account and generate a token with instagram_business_basic and "
+                            "instagram_business_content_publish (it lasts 60 days).",
+                            "Paste the account ID shown next to the token, and the token.",
+                            "For image posts also connect your Facebook Page (videos are posted as Reels "
+                            "without it)."]},
+    "pinterest": {"fields": [("pinterest_board_id", "Board ID", "board ID (numbers)", False),
+                             ("pinterest_access_token", "Pinterest access token", "pina_…", True)],
+                  "steps": ["Create an app at Pinterest Developers (Trial access is granted quickly).",
+                            "Generate an access token with boards:read and pins:write for your account.",
+                            "Paste a board ID (from the API's board list) and the token. Pins stay visible only "
+                            "to you until you request Standard access in the app settings."]},
+    "tiktok": {"oauth": True,
+               "fields": [("tiktok_client_key", "Client key", "client key", False),
+                          ("tiktok_client_secret", "Client secret", "client secret", True)],
+               "steps": ["Create an app at TikTok for Developers (platform: Desktop) with Login Kit and Content "
+                         "Posting API (Direct Post) and the scopes user.info.basic, video.upload, video.publish.",
+                         "Add the redirect URI http://127.0.0.1:*/api/oauth/tiktok/callback",
+                         "Paste the client key and secret, then sign in. Posts stay private until TikTok "
+                         "audits your app."]},
+    "youtube": {"oauth": True,
+                "fields": [("youtube_client_id", "Client ID", "….apps.googleusercontent.com", False),
+                           ("youtube_client_secret", "Client secret", "client secret", True)],
+                "steps": ["In Google Cloud, enable the YouTube Data API v3 and create an OAuth client of type "
+                          "Desktop app; publish the consent screen (testing tokens expire after 7 days).",
+                          "Paste the client ID and secret, then sign in with the Google account of your channel.",
+                          "Uploads stay private until Google audits your app; publish them in YouTube Studio."]},
 }
 
 
@@ -731,7 +822,9 @@ class AccountStore:
 
         for f in ACCOUNT_FIELDS[pid]:
             setattr(self.settings, f, values.get(f, ""))
-        register_secret(values.get(ACCOUNT_FIELDS[pid][-1], ""))
+        for f in ACCOUNT_FIELDS[pid]:
+            if f.endswith(("token", "secret", "password", "url")):
+                register_secret(values.get(f, ""))
 
     def _write(self) -> None:
         import json
@@ -749,6 +842,11 @@ class AccountStore:
         self.data[pid] = {**values, "connected_as": connected_as}
         self._apply(pid, values)
         self._write()
+
+    def update(self, pid: str, field: str, value: str) -> None:
+        if pid in self.data:
+            self.data[pid][field] = value
+            self._write()
 
     def remove(self, pid: str) -> None:
         self.data.pop(pid, None)
@@ -769,7 +867,7 @@ def _form(pid: str) -> dict[str, Any] | None:
     if not spec:
         return None
     return {"fields": [{"key": k, "label": lbl, "placeholder": ph, "secret": sec} for k, lbl, ph, sec in spec["fields"]],
-            "steps": spec["steps"]}
+            "steps": spec["steps"], "oauth": bool(spec.get("oauth"))}
 
 
 class Social:
@@ -783,6 +881,8 @@ class Social:
 
         self.adapters = {"bluesky": BlueskyAdapter(settings, transport),
                          "mastodon": MastodonAdapter(settings, transport), **channels.build(settings, transport)}
+        for pid in ("tiktok", "youtube"):  # keep a rotated refresh token
+            self.adapters[pid].persist = lambda field, value, pid=pid: self.store.update(pid, field, value)
 
     def adapter(self, platform: str):
         a = self.adapters.get(platform)
@@ -794,11 +894,11 @@ class Social:
             real = self.adapter(pid) is not None
             mode = "connected" if real else "simulation"
             if pid in ACCOUNT_FIELDS and not real:
-                why = "Connect your account to post for real (free)."
+                why = ("Connect your account to post for real (free). " + spec.get("note", "")).strip()
             else:
                 why = spec.get("why_simulated", spec.get("adapter", ""))
             out.append({"platform": pid, "name": spec["name"], "mode": mode, "char_limit": spec["limit"],
-                        "detail": spec.get("adapter") if real else why,
+                        "detail": (spec.get("note") or spec.get("adapter")) if real else why,
                         "can_connect": pid in ACCOUNT_FIELDS,
                         "form": _form(pid),
                         "connected_as": self.store.connected_as(pid) if real and pid in ACCOUNT_FIELDS else None,
@@ -828,6 +928,26 @@ class Social:
             r"^(Connected as|Signed in as|Posting to the Page|Bot can post in|Webhook for)\s+", "", message
         ).removesuffix(" is active")
         self.store.save(platform, clean, who)
+        return who
+
+    async def connect_oauth(self, platform: str, values: dict[str, str]) -> str:
+        """Store the result of a sign-in, after checking it works (nothing is posted)."""
+        import copy
+
+        from .. import channels, health
+
+        probe_settings = copy.copy(self.settings)
+        for f, v in values.items():
+            setattr(probe_settings, f, v)
+        probe = channels.build(probe_settings, self.transport)[platform]
+        status, message = await health._check(probe)
+        if status == health.BAD:
+            raise AdapterError(message)
+        values = {**values, ACCOUNT_FIELDS[platform][-1]: getattr(probe_settings, ACCOUNT_FIELDS[platform][-1])}
+        who = re.sub(r"^(Connected as|Signed in as|Channel)\s+", "", message) if status == health.OK \
+            else PLATFORMS[platform]["name"]
+        self.store.save(platform, values, who)
+        self.adapters[platform]._access = None
         return who
 
     async def connect_bluesky(self, handle: str, app_password: str) -> str:

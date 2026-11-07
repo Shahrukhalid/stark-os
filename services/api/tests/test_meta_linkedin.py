@@ -91,10 +91,12 @@ async def test_linkedin_rejects_too_long_and_old_version(settings):
 
 def test_unconnected_platforms_explain_why(settings):
     acc = {a["platform"]: a for a in Social(settings).accounts()}
-    for p in ("x", "instagram", "tiktok", "youtube", "facebook", "linkedin"):
+    for p in ("x", "instagram", "tiktok", "youtube", "pinterest", "facebook", "linkedin"):
         assert acc[p]["mode"] == "simulation" and acc[p]["detail"]
     assert acc["facebook"]["can_connect"] and acc["linkedin"]["can_connect"]
-    assert "public web address" in acc["instagram"]["detail"] and "every post" in acc["x"]["detail"]
+    assert "Business or Creator" in acc["instagram"]["detail"] and "every post" in acc["x"]["detail"]
+    assert all(acc[p]["can_connect"] for p in ("instagram", "pinterest", "tiktok", "youtube"))
+    assert acc["tiktok"]["form"]["oauth"] and not acc["pinterest"]["form"]["oauth"]
 
 
 async def test_images_upload_to_facebook_and_linkedin(settings, monkeypatch):

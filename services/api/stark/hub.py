@@ -35,6 +35,15 @@ class HubError(ValueError):
 
 
 # ------------------------------------------------------------------ drafts
+def _media(settings, media) -> list[dict[str, Any]]:
+    if not media:
+        return []
+    try:
+        return social_tools.describe_media(settings, [dict(m) for m in media][:4])
+    except social_tools.MediaFileError as exc:
+        raise HubError(f"media not attached: {exc}") from None
+
+
 def create_draft(kernel, social, settings, data: dict[str, Any], created_by: str = "user") -> dict[str, Any]:
     """Save a draft exactly like the social.draft tool does (policy check included)."""
     platform = str(data.get("platform", "")).lower()
@@ -45,7 +54,7 @@ def create_draft(kernel, social, settings, data: dict[str, Any], created_by: str
         raise HubError("text must be 1-10000 characters")
     thread = [str(t) for t in (data.get("thread") or [])][:25]
     item = {"platform": platform, "kind": "thread" if thread else str(data.get("kind") or "post"), "text": text,
-            "thread": thread, "media": [], "reply_to": data.get("reply_to"), "sponsored": bool(data.get("sponsored")),
+            "thread": thread, "media": _media(settings, data.get("media")), "reply_to": data.get("reply_to"), "sponsored": bool(data.get("sponsored")),
             "campaign": str(data.get("campaign") or "")[:120], "category": str(data.get("category") or "")[:40]}
     rc = data.get("reply_control")
     if rc and rc != "everyone":

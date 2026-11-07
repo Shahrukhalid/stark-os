@@ -53,6 +53,34 @@ async def _check(adapter) -> tuple[str, str]:
             if r.status_code == 200:
                 return OK, f"Signed in as {r.json().get('name', 'your profile')}"
             return BAD, "LinkedIn rejected the token (they last 60 days). Create a new one and reconnect."
+        if p == "instagram":
+            r = await c.get("https://graph.instagram.com/v23.0/me",
+                            params={"fields": "username", "access_token": s.instagram_access_token})
+            if r.status_code == 200:
+                return OK, f"Connected as @{r.json().get('username', '?')}"
+            return BAD, "Instagram rejected the token (they last 60 days). Create a new one and reconnect."
+        if p == "pinterest":
+            r = await c.get(f"https://api.pinterest.com/v5/boards/{s.pinterest_board_id}",
+                            headers={"Authorization": f"Bearer {s.pinterest_access_token}"})
+            if r.status_code == 200:
+                return OK, f"Pinning to the board {r.json().get('name', s.pinterest_board_id)}"
+            return BAD, "Pinterest rejected the token or board ID. Check both and reconnect."
+        if p in ("tiktok", "youtube"):
+            try:
+                token = await adapter.access_token(c)
+            except Exception as exc:  # noqa: BLE001 - AdapterError with a readable message
+                return BAD, str(exc)
+            if p == "tiktok":
+                r = await c.get("https://open.tiktokapis.com/v2/user/info/", params={"fields": "display_name"},
+                                headers={"Authorization": f"Bearer {token}"})
+                name = ((r.json().get("data") or {}).get("user") or {}).get("display_name") if r.status_code == 200 else None
+                return (OK, f"Connected as {name}") if name else (WARN, "Signed in; TikTok did not return the name.")
+            r = await c.get("https://www.googleapis.com/youtube/v3/channels", params={"part": "snippet", "mine": "true"},
+                            headers={"Authorization": f"Bearer {token}"})
+            items = r.json().get("items") if r.status_code == 200 else None
+            if items:
+                return OK, f"Channel {items[0]['snippet']['title']}"
+            return BAD, "Signed in, but this Google account has no YouTube channel."
         if p == "telegram":
             api = f"https://api.telegram.org/bot{s.telegram_bot_token}"
             me = await c.get(f"{api}/getMe")

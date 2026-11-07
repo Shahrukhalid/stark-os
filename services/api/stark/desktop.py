@@ -41,6 +41,8 @@ SECRETS = {
     "SLACK_WEBHOOK_URL": "Slack webhook",
     "FACEBOOK_PAGE_TOKEN": "Facebook Page access token",
     "LINKEDIN_ACCESS_TOKEN": "LinkedIn access token",
+    "INSTAGRAM_ACCESS_TOKEN": "Instagram access token",
+    "PINTEREST_ACCESS_TOKEN": "Pinterest access token",
     "TAVILY_API_KEY": "Tavily search key",
     "BRAVE_API_KEY": "Brave search key",
 }
@@ -49,6 +51,7 @@ PLAIN = {
     "OPENROUTER_BASE_URL", "OPENROUTER_MODEL", "OPENROUTER_ALLOW_PAID", "STARK_TASK_TOKEN_BUDGET",
     "BLUESKY_HANDLE", "BLUESKY_SERVICE", "MASTODON_BASE_URL", "THREADS_USER_ID", "TELEGRAM_CHAT_ID",
     "TELEGRAM_CHANNEL_ID", "STARK_DEFAULT_MODE", "FACEBOOK_PAGE_ID", "LINKEDIN_AUTHOR_URN", "LINKEDIN_API_VERSION",
+    "INSTAGRAM_USER_ID", "PINTEREST_BOARD_ID", "TIKTOK_PRIVACY", "YOUTUBE_PRIVACY",
 }
 
 # What each platform supports, shown in the setup wizard.
@@ -74,10 +77,18 @@ PLATFORMS = [
             "using OpenID Connect, then create a token with openid, profile and w_member_social (lasts 60 days)."},
     {"id": "x", "name": "X (Twitter)", "publish": False, "fields": [],
      "how": "X charges for every post through its API, so STARK OS prepares drafts you post yourself."},
-    {"id": "instagram", "name": "Instagram", "publish": False, "fields": [],
-     "how": "Instagram only accepts images from a public web address, so STARK OS prepares the post and image for you."},
-    {"id": "tiktok", "name": "TikTok / YouTube", "publish": False, "fields": [],
-     "how": "Public uploads need an audited (TikTok) or verified (YouTube) app, so STARK OS prepares video packages for you."},
+    {"id": "instagram", "name": "Instagram (Business or Creator)", "publish": True,
+     "fields": ["INSTAGRAM_USER_ID", "INSTAGRAM_ACCESS_TOKEN"],
+     "how": "Meta developer app with the Instagram use case: generate a token with instagram_business_basic and "
+            "instagram_business_content_publish. Videos post as Reels; images also need your Facebook Page connected."},
+    {"id": "pinterest", "name": "Pinterest", "publish": True, "fields": ["PINTEREST_BOARD_ID", "PINTEREST_ACCESS_TOKEN"],
+     "how": "Pinterest developer app: generate a token with boards:read and pins:write and paste a board ID. Pins are "
+            "visible only to you until Pinterest grants Standard access."},
+    {"id": "tiktok", "name": "TikTok / YouTube", "publish": True, "fields": [],
+     "how": "These need a sign-in: after setup, open Content → Your accounts and use Connect. Posts stay private "
+            "until TikTok or Google audits your app."},
+    {"id": "other", "name": "Facebook profiles and Groups, personal Instagram, Snapchat", "publish": False,
+     "fields": [], "how": "No app can post there: the platforms closed or never opened these to other apps."},
 ]
 
 PROVIDERS = [
@@ -207,6 +218,16 @@ def test_social(platform_id: str, v: dict[str, str], timeout: float = 15.0) -> d
                           headers={"Authorization": f"Bearer {v.get('LINKEDIN_ACCESS_TOKEN', '')}"})
             return {"ok": r.status_code == 200, "message": f"Signed in as {r.json().get('name', 'you')}."
                     if r.status_code == 200 else "LinkedIn rejected the token (check its scopes; tokens last 60 days)."}
+        if platform_id == "instagram":
+            r = httpx.get("https://graph.instagram.com/v23.0/me", timeout=timeout,
+                          params={"fields": "username", "access_token": v.get("INSTAGRAM_ACCESS_TOKEN", "")})
+            return {"ok": r.status_code == 200, "message": f"Connected as @{r.json().get('username', '')}."
+                    if r.status_code == 200 else "Instagram rejected the token."}
+        if platform_id == "pinterest":
+            r = httpx.get(f"https://api.pinterest.com/v5/boards/{v.get('PINTEREST_BOARD_ID', '')}", timeout=timeout,
+                          headers={"Authorization": f"Bearer {v.get('PINTEREST_ACCESS_TOKEN', '')}"})
+            return {"ok": r.status_code == 200, "message": f"Board {r.json().get('name', '')} is ready."
+                    if r.status_code == 200 else "Pinterest rejected the token or board ID."}
         if platform_id == "telegram":
             r = httpx.get(f"https://api.telegram.org/bot{v.get('TELEGRAM_BOT_TOKEN', '')}/getMe", timeout=timeout)
             ok = r.status_code == 200 and r.json().get("ok")
