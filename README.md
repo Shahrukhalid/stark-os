@@ -62,7 +62,7 @@ Each agent has its own free model with automatic fallback, its own prompt, memor
 
 ### Schedule and publish
 - **Queue and calendar** (drag and drop), **auto-schedule** at your best times, weekly **posting plan** with content mix.
-- **Real posting** to Bluesky, Mastodon, Threads, Telegram, Discord and Slack. Ready-to-paste posts for the others.
+- **Real posting** to Bluesky, Mastodon, Threads, Facebook Pages, LinkedIn, Telegram, Discord and Slack. Ready-to-paste posts for the others.
 - **Publish automatically** once approved.
 - **Your channels → drafts**: new YouTube video, podcast or blog post becomes a draft.
 - **UTM link tracking**, **evergreen recycling**, **.ics export**, Bluesky reply controls.
@@ -128,6 +128,24 @@ Each agent has its own free model with automatic fallback, its own prompt, memor
 | ![Agents](docs/screenshots/agents.png) | ![Team review](docs/screenshots/collaboration.png) |
 
 Screenshots use sample data.
+
+## Self-host with Docker Compose
+
+Needs Docker with Compose v2.24 or newer. No `.env` file is required.
+
+```bash
+git clone https://github.com/Shahrukhalid/stark-os.git && cd stark-os
+docker compose up -d --build                     # on Linux: UID=$(id -u) docker compose up -d --build
+docker compose exec api cat /app/data/api-token  # paste this token into the dashboard's Connect screen
+```
+
+- Dashboard: http://localhost:3000 · API health: http://localhost:8000/api/health (both bound to localhost only).
+- The token is created on first start and kept in the `stark-data` volume, so it survives restarts. A `STARK_API_TOKEN` in `.env` takes precedence; `python scripts/setup.py` still creates a `.env` for you.
+- Add `OPENROUTER_API_KEY` to `.env` for the AI agents.
+- Data: SQLite in the `stark-data` volume, your files in `./sandbox`. Optional PostgreSQL: set `POSTGRES_PASSWORD` and `DATABASE_URL` in `.env`, then `docker compose --profile postgres up -d`.
+- Hardened mode (read-only filesystems, no extra privileges, resource limits): `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`. It does not make STARK OS safe to expose to the internet on its own; put it behind TLS and your own access control first.
+- Status and logs: `docker compose ps`, `docker compose logs -f`. Stop with `docker compose down` (`down -v` also deletes your data).
+- If startup fails: `docker compose config --quiet`, then `docker compose logs --tail=100 api`, and check that ports 3000 and 8000 are free.
 
 ## Run from source
 

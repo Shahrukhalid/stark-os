@@ -1,17 +1,35 @@
-# STARK OS - local deployment. Ports are bound to 127.0.0.1 only.
-#   python3 scripts/setup.py      (creates .env with a random STARK_API_TOKEN; then add OPENROUTER_API_KEY)
-#   UID=$(id -u) docker compose up --build   (UID lets the container write to ./sandbox on Linux)
-# Optional PostgreSQL:  docker compose --profile postgres up --build
-#   and set DATABASE_URL=postgresql+psycopg://stark:${POSTGRES_PASSWORD}@postgres:5432/stark in .env
+# STARK OS - local deployment.
+# Ports are bound to 127.0.0.1 only.
+#
+# First-time startup (no .env required):
+#   docker compose up -d --build
+#
+# The API automatically generates a persistent authentication token
+# when STARK_API_TOKEN is not configured.
+#
+# Retrieve the automatically generated token:
+#   docker compose exec api cat /app/data/api-token
+#
+# Optional manual setup:
+#   python scripts/setup.py
+#
+# On Linux, set UID to allow writing to the bind-mounted sandbox:
+#   UID=$(id -u) docker compose up -d --build
+#
+# Optional PostgreSQL:
+#   docker compose --profile postgres up -d --build
+# Set POSTGRES_PASSWORD and DATABASE_URL in .env first.
+
 services:
   api:
     build:
       context: .
       dockerfile: services/api/Dockerfile
       args: { STARK_UID: "${UID:-1000}" }
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     environment:
-      STARK_API_TOKEN: ${STARK_API_TOKEN:?run python3 scripts/setup.py first to create .env}
       STARK_WEB_ORIGIN: http://localhost:3000
       STARK_WORKSPACE_ROOTS: /app/sandbox
     volumes:
