@@ -39,6 +39,9 @@ function DesktopInfo() {
           )}
         </p>
       )}
+      <button className="btn" onClick={() => window.dispatchEvent(new Event("stark:check-update"))}>
+        Check for updates
+      </button>
       {diag && (
         <ul className="space-y-1" aria-label="Diagnostics">
           {diag.checks.map((c) => (

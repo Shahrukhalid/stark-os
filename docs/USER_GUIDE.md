@@ -26,7 +26,12 @@ Open **Content → Your accounts → Connect**. Logins are stored only on your c
 |---|---|---|
 | **Bluesky** | Real posting, replies, threads, mentions, stats | Your handle + an **app password**: bsky.app → Settings → Privacy and security → App passwords → Add. Never use your main password (STARK OS refuses it). |
 | **Mastodon** | Real posting, replies, threads, mentions, stats | Your server address (e.g. `https://mastodon.social`) + an access token: Preferences → Development → New application (scopes `read` and `write:statuses`). |
-| X, Instagram, Facebook, LinkedIn, Threads, TikTok, YouTube | Drafts + checks, you post | These companies charge for or restrict posting from other apps. The team still writes posts sized for each platform; use **Copy text**. |
+| **Facebook Page** | Real posting (text, image; thread parts become comments), stats | Your own Meta developer app (no review needed for Pages you manage) and a Page access token with `pages_manage_posts` + `pages_read_engagement`, plus the Page ID. |
+| **LinkedIn** (your profile) | Real posting (text, image) | A LinkedIn developer app with the free **Share on LinkedIn** and **Sign In with LinkedIn using OpenID Connect** products; a token with `openid profile w_member_social`. Tokens expire after 60 days. Company Pages need LinkedIn's reviewed API. |
+| **Threads** | Real posting (text) | A Threads access token with `threads_content_publish` and your Threads user ID. |
+| X | Drafts + checks, you post | X charges for every post made through its API. |
+| Instagram | Drafts + image, you post | Instagram only accepts images from a public web address; STARK OS keeps your images on your computer. |
+| TikTok, YouTube | Video packages, you upload | Public uploads need an audited (TikTok) or Google-verified (YouTube) app. |
 
 To disconnect, click **Disconnect** (you can also revoke the app password or token on the platform at any time).
 

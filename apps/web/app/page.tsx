@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ConnectScreen } from "@/components/ConnectScreen";
 import { DesktopSetup } from "@/components/DesktopSetup";
 import { Shell } from "@/components/Shell";
+import { UpdatePrompt } from "@/components/UpdatePrompt";
 import { isDesktop, loadConnection, saveConnection, StarkClient, type Connection } from "@/lib/api";
 import { StarkProvider } from "@/lib/store";
 
@@ -54,6 +55,7 @@ export default function Home() {
   return (
     <StarkProvider conn={conn} onAuthError={signOut}>
       <Shell onSignOut={signOut} />
+      {isDesktop() && <UpdatePrompt />}
     </StarkProvider>
   );
 }

@@ -5,13 +5,29 @@ import { useStark } from "@/lib/store";
 import type { Approval } from "@/lib/types";
 import { ApprovalCard } from "./ApprovalCard";
 import { Empty, Section } from "./ui";
+import { errorText } from "@/lib/errors";
 
 export function ApprovalsView({ openTask }: { openTask: (id: string) => void }) {
   const { approvals, client } = useStark();
   const [history, setHistory] = useState<Approval[]>([]);
+  const [historyError, setHistoryError] = useState("");
 
+  // Reloads when the queue changes, so a decision moves into "Recent decisions" right away.
   useEffect(() => {
-    client.get<Approval[]>("/api/approvals").then((all) => setHistory(all.filter((a) => a.status !== "pending").slice(0, 30))).catch(() => {});
+    let live = true;
+    client
+      .get<Approval[]>("/api/approvals")
+      .then((all) => {
+        if (!live) return;
+        setHistory(all.filter((a) => a.status !== "pending").slice(0, 30));
+        setHistoryError("");
+      })
+      .catch((e: unknown) => {
+        if (live) setHistoryError(errorText(e, "Could not load recent decisions."));
+      });
+    return () => {
+      live = false;
+    };
   }, [client, approvals.length]);
 
   return (
@@ -29,7 +45,8 @@ export function ApprovalsView({ openTask }: { openTask: (id: string) => void }) 
       </Section>
       <Section title="Recent decisions">
         <div className="space-y-2">
-          {history.length === 0 && <Empty>No decisions yet.</Empty>}
+          {historyError && <p role="alert" className="text-xs text-red-400">{historyError}</p>}
+          {!historyError && history.length === 0 && <Empty>No decisions yet.</Empty>}
           {history.map((a) => (
             <ApprovalCard key={a.id} approval={a} compact openTask={openTask} />
           ))}

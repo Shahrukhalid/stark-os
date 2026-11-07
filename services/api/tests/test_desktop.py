@@ -128,3 +128,62 @@ def test_diagnostics(env):
     client, _, _ = env
     d = client.get("/api/desktop/diagnostics", headers=H).json()
     assert {c["name"] for c in d["checks"]} >= {"Data folder is writable", "Credential store", "AI key saved"}
+
+
+def _release(sha: str | None):
+    base = desktop.DOWNLOAD_PREFIX + "v9.0.0/"
+    return {"tag_name": "v9.0.0", "html_url": "u", "body": "What's new", "assets": [
+        {"name": n, "size": 5, "browser_download_url": base + n, "digest": f"sha256:{sha}" if sha else None}
+        for n in ("STARK-OS-macOS-AppleSilicon.dmg", "STARK-OS-macOS-Intel.dmg", "STARK-OS-Windows-Setup.exe")]}
+
+
+def test_update_picks_installer_for_this_computer(monkeypatch):
+    monkeypatch.setattr(desktop.httpx, "get", lambda url, **kw: httpx.Response(
+        200, json=_release("ab"), request=httpx.Request("GET", url)))
+    monkeypatch.setattr(desktop, "asset_name", lambda: "STARK-OS-Windows-Setup.exe")
+    info = desktop.check_update("1.0.0")
+    assert info["notes"] == "What's new" and info["asset"]["name"] == "STARK-OS-Windows-Setup.exe"
+    assert info["asset"]["sha256"] == "ab"
+    monkeypatch.setattr(desktop, "asset_name", lambda: None)
+    assert desktop.check_update("1.0.0")["asset"] is None
+
+
+def _fake_stream(payload: bytes):
+    from contextlib import contextmanager
+
+    @contextmanager
+    def stream(method, url, **kw):
+        yield httpx.Response(200, content=payload, headers={"content-length": str(len(payload))},
+                             request=httpx.Request(method, url))
+    return stream
+
+
+def test_updater_downloads_and_verifies(monkeypatch, tmp_path):
+    import hashlib
+    import time
+
+    data = b"12345"
+    monkeypatch.setattr(desktop.httpx, "stream", _fake_stream(data))
+    asset = _release(hashlib.sha256(data).hexdigest())["assets"][0]
+    asset = {"name": asset["name"], "size": 5, "url": asset["browser_download_url"],
+             "sha256": hashlib.sha256(data).hexdigest()}
+    u = desktop.Updater()
+    u.start(asset, tmp_path, open_file=False)
+    for _ in range(100):
+        if u.state["status"] != "downloading":
+            break
+        time.sleep(0.02)
+    assert u.state["status"] == "ready" and (tmp_path / asset["name"]).read_bytes() == data
+
+    bad = desktop.Updater()
+    bad.start({**asset, "sha256": "0" * 64}, tmp_path / "b", open_file=False)
+    for _ in range(100):
+        if bad.state["status"] != "downloading":
+            break
+        time.sleep(0.02)
+    assert bad.state["status"] == "error" and "checksum" in bad.state["error"]
+    assert not list((tmp_path / "b").iterdir())
+    import pytest
+
+    with pytest.raises(ValueError):
+        desktop.Updater().start({**asset, "url": "https://evil.example/x.dmg"}, tmp_path, open_file=False)

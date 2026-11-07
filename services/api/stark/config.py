@@ -105,6 +105,11 @@ class Settings:
     telegram_channel_id: str = ""  # @channelname or -100…; posts there with TELEGRAM_BOT_TOKEN
     discord_post_webhook_url: str = ""
     slack_webhook_url: str = ""
+    facebook_page_id: str = ""
+    facebook_page_token: str = ""  # Page access token with pages_manage_posts (your own Meta app)
+    linkedin_access_token: str = ""  # "Share on LinkedIn" (w_member_social) + openid profile; lasts 60 days
+    linkedin_author_urn: str = ""  # optional urn:li:person:…; looked up from the token when empty
+    linkedin_api_version: str = "202609"  # LinkedIn-Version header (YYYYMM, supported for about a year)
     utm_enabled: bool = False  # tag links in new drafts with utm_source/medium/campaign
 
     @classmethod
@@ -158,6 +163,11 @@ class Settings:
             telegram_channel_id=_env("TELEGRAM_CHANNEL_ID"),
             discord_post_webhook_url=_env("DISCORD_POST_WEBHOOK_URL"),
             slack_webhook_url=_env("SLACK_WEBHOOK_URL"),
+            facebook_page_id=_env("FACEBOOK_PAGE_ID"),
+            facebook_page_token=_env("FACEBOOK_PAGE_TOKEN"),
+            linkedin_access_token=_env("LINKEDIN_ACCESS_TOKEN"),
+            linkedin_author_urn=_env("LINKEDIN_AUTHOR_URN"),
+            linkedin_api_version=_env("LINKEDIN_API_VERSION", "202609"),
             utm_enabled=_env_bool("STARK_UTM", False),
         )
 

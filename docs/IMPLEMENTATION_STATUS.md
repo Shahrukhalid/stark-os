@@ -142,7 +142,8 @@ Three independent reviews (backend security, dashboard/CSS/accessibility, infras
 | Deterministic policy / brand-safety / accessibility check | ✅ |
 | Publishing to **Bluesky** (AT Protocol, threads, replies, link/hashtag facets) | 🔑 🟡 implemented and tested against recorded API shapes; needs your app password for a live post |
 | Publishing to **Mastodon** (threads, replies, idempotency keys) | 🔑 🟡 implemented and tested against recorded API shapes; needs your token for a live post |
-| Publishing to X, Threads, LinkedIn, Instagram, Facebook, TikTok, YouTube | 🧪 simulated (paid/reviewed APIs); real adapters 📋 |
+| Publishing to Threads, Facebook Pages, LinkedIn (own profile) | ✅ real (1.9.0) |
+| Publishing to X, Instagram, TikTok, YouTube | 🧪 drafts only (X charges per post; Instagram needs public image URLs; TikTok/YouTube need audited/verified apps) |
 | Inbox (Bluesky/Mastodon notifications) with triage | 🔑 · labelled sample inbox 🧪 ✅ |
 | Analytics (likes, reposts, replies) for real posts | 🔑 · simulated posts report "no engagement data" ✅ |
 | Approval for every publish, D.U.M.-E. only, no grants; J.A.R.V.I.S. block; re-check at publish time | ✅ |

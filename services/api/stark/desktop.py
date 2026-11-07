@@ -39,6 +39,8 @@ SECRETS = {
     "DISCORD_WEBHOOK_URL": "Discord notification webhook",
     "DISCORD_POST_WEBHOOK_URL": "Discord posting webhook",
     "SLACK_WEBHOOK_URL": "Slack webhook",
+    "FACEBOOK_PAGE_TOKEN": "Facebook Page access token",
+    "LINKEDIN_ACCESS_TOKEN": "LinkedIn access token",
     "TAVILY_API_KEY": "Tavily search key",
     "BRAVE_API_KEY": "Brave search key",
 }
@@ -46,7 +48,7 @@ SECRETS = {
 PLAIN = {
     "OPENROUTER_BASE_URL", "OPENROUTER_MODEL", "OPENROUTER_ALLOW_PAID", "STARK_TASK_TOKEN_BUDGET",
     "BLUESKY_HANDLE", "BLUESKY_SERVICE", "MASTODON_BASE_URL", "THREADS_USER_ID", "TELEGRAM_CHAT_ID",
-    "TELEGRAM_CHANNEL_ID", "STARK_DEFAULT_MODE",
+    "TELEGRAM_CHANNEL_ID", "STARK_DEFAULT_MODE", "FACEBOOK_PAGE_ID", "LINKEDIN_AUTHOR_URN", "LINKEDIN_API_VERSION",
 }
 
 # What each platform supports, shown in the setup wizard.
@@ -64,12 +66,18 @@ PLATFORMS = [
      "how": "Channel settings → Integrations → Webhooks → New webhook → Copy URL."},
     {"id": "slack", "name": "Slack", "publish": True, "fields": ["SLACK_WEBHOOK_URL"],
      "how": "Create an incoming webhook for your workspace and paste its URL."},
+    {"id": "facebook", "name": "Facebook Page", "publish": True, "fields": ["FACEBOOK_PAGE_ID", "FACEBOOK_PAGE_TOKEN"],
+     "how": "Create a Meta developer app (Business type), add yourself, then in the Graph API Explorer get a Page "
+            "access token with pages_manage_posts and pages_read_engagement. Paste the Page ID and token."},
+    {"id": "linkedin", "name": "LinkedIn (your profile)", "publish": True, "fields": ["LINKEDIN_ACCESS_TOKEN"],
+     "how": "Create a LinkedIn developer app, add the free products Share on LinkedIn and Sign In with LinkedIn "
+            "using OpenID Connect, then create a token with openid, profile and w_member_social (lasts 60 days)."},
     {"id": "x", "name": "X (Twitter)", "publish": False, "fields": [],
-     "how": "Publishing needs a paid developer plan, so STARK OS prepares drafts you post yourself."},
-    {"id": "linkedin", "name": "LinkedIn", "publish": False, "fields": [],
-     "how": "Posting needs a LinkedIn partner app, so STARK OS prepares drafts you post yourself."},
-    {"id": "instagram", "name": "Instagram / Facebook", "publish": False, "fields": [],
-     "how": "Publishing needs a reviewed Meta business app, so STARK OS prepares drafts and images for you."},
+     "how": "X charges for every post through its API, so STARK OS prepares drafts you post yourself."},
+    {"id": "instagram", "name": "Instagram", "publish": False, "fields": [],
+     "how": "Instagram only accepts images from a public web address, so STARK OS prepares the post and image for you."},
+    {"id": "tiktok", "name": "TikTok / YouTube", "publish": False, "fields": [],
+     "how": "Public uploads need an audited (TikTok) or verified (YouTube) app, so STARK OS prepares video packages for you."},
 ]
 
 PROVIDERS = [
@@ -189,6 +197,16 @@ def test_social(platform_id: str, v: dict[str, str], timeout: float = 15.0) -> d
                           params={"fields": "id,username", "access_token": v.get("THREADS_ACCESS_TOKEN", "")})
             return {"ok": r.status_code == 200, "message": "Connected to Threads." if r.status_code == 200
                     else "Threads rejected the token."}
+        if platform_id == "facebook":
+            r = httpx.get(f"https://graph.facebook.com/v23.0/{v.get('FACEBOOK_PAGE_ID', '')}", timeout=timeout,
+                          params={"fields": "name", "access_token": v.get("FACEBOOK_PAGE_TOKEN", "")})
+            return {"ok": r.status_code == 200, "message": f"Connected to the Page {r.json().get('name', '')}."
+                    if r.status_code == 200 else "Facebook rejected the Page ID or token."}
+        if platform_id == "linkedin":
+            r = httpx.get("https://api.linkedin.com/v2/userinfo", timeout=timeout,
+                          headers={"Authorization": f"Bearer {v.get('LINKEDIN_ACCESS_TOKEN', '')}"})
+            return {"ok": r.status_code == 200, "message": f"Signed in as {r.json().get('name', 'you')}."
+                    if r.status_code == 200 else "LinkedIn rejected the token (check its scopes; tokens last 60 days)."}
         if platform_id == "telegram":
             r = httpx.get(f"https://api.telegram.org/bot{v.get('TELEGRAM_BOT_TOKEN', '')}/getMe", timeout=timeout)
             ok = r.status_code == 200 and r.json().get("ok")
@@ -207,20 +225,110 @@ def test_social(platform_id: str, v: dict[str, str], timeout: float = 15.0) -> d
     return {"ok": False, "message": "This platform has no connection test."}
 
 
+def _apple_silicon() -> bool:
+    if platform.machine() == "arm64":
+        return True
+    try:  # an Intel build running under Rosetta on an Apple Silicon Mac
+        import subprocess
+
+        out = subprocess.run(["sysctl", "-n", "hw.optional.arm64"], capture_output=True, text=True, timeout=5)
+        return out.stdout.strip() == "1"
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def asset_name() -> str | None:
+    """The installer that fits this computer."""
+    if sys.platform == "darwin":
+        return "STARK-OS-macOS-AppleSilicon.dmg" if _apple_silicon() else "STARK-OS-macOS-Intel.dmg"
+    if sys.platform == "win32":
+        return "STARK-OS-Windows-Setup.exe"
+    return None
+
+
+DOWNLOAD_PREFIX = "https://github.com/Shahrukhalid/stark-os/releases/download/"
+
+
+def _version_tuple(s: str) -> list[int]:
+    return [int("".join(c for c in p if c.isdigit()) or 0) for p in s.split(".")]
+
+
 def check_update(current: str = __version__, timeout: float = 8.0) -> dict[str, Any]:
     try:
         r = httpx.get(RELEASES, timeout=timeout, headers={"accept": "application/vnd.github+json"})
         r.raise_for_status()
         data = r.json()
         latest = str(data.get("tag_name", "")).lstrip("v")
+        newer = bool(latest) and _version_tuple(latest) > _version_tuple(current)
+        want = asset_name()
+        asset = next(({"name": a["name"], "size": a.get("size", 0), "url": a["browser_download_url"],
+                       "sha256": str(a.get("digest") or "").removeprefix("sha256:") or None}
+                      for a in data.get("assets", []) if a.get("name") == want
+                      and str(a.get("browser_download_url", "")).startswith(DOWNLOAD_PREFIX)), None)
+        return {"current": current, "latest": latest, "update": newer, "url": data.get("html_url", ""),
+                "notes": str(data.get("body") or "")[:4000], "published": data.get("published_at"), "asset": asset}
+    except (httpx.HTTPError, ValueError, KeyError):
+        return {"current": current, "latest": None, "update": False, "url": "", "notes": "", "asset": None}
 
-        def parts(s: str) -> list[int]:
-            return [int("".join(c for c in p if c.isdigit()) or 0) for p in s.split(".")]
 
-        newer = bool(latest) and parts(latest) > parts(current)
-        return {"current": current, "latest": latest, "update": newer, "url": data.get("html_url", "")}
-    except (httpx.HTTPError, ValueError):
-        return {"current": current, "latest": None, "update": False, "url": ""}
+class Updater:
+    """Downloads the installer for this computer into Downloads, checks its SHA-256 when GitHub lists one,
+    then opens it. Only files from this project's GitHub releases are accepted."""
+
+    def __init__(self) -> None:
+        self.state: dict[str, Any] = {"status": "idle", "done": 0, "total": 0, "path": None, "error": None}
+        self._lock = threading.Lock()
+
+    def start(self, asset: dict[str, Any], dest_dir: Path | None = None, open_file: bool = True) -> dict[str, Any]:
+        if not str(asset.get("url", "")).startswith(DOWNLOAD_PREFIX) or "/" in asset.get("name", "/"):
+            raise ValueError("not a STARK OS release file")
+        with self._lock:
+            if self.state["status"] == "downloading":
+                return dict(self.state)
+            self.state = {"status": "downloading", "done": 0, "total": int(asset.get("size") or 0), "path": None,
+                          "error": None}
+        threading.Thread(target=self._run, args=(asset, dest_dir or Path.home() / "Downloads", open_file),
+                         daemon=True).start()
+        return dict(self.state)
+
+    def _run(self, asset: dict[str, Any], dest_dir: Path, open_file: bool) -> None:
+        import hashlib
+
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        final = dest_dir / asset["name"]
+        part = final.with_name(final.name + ".part")
+        h = hashlib.sha256()
+        try:
+            with httpx.stream("GET", asset["url"], follow_redirects=True, timeout=60) as r:
+                r.raise_for_status()
+                self.state["total"] = int(r.headers.get("content-length") or self.state["total"] or 0)
+                with open(part, "wb") as fh:
+                    for chunk in r.iter_bytes(1 << 20):
+                        fh.write(chunk)
+                        h.update(chunk)
+                        self.state["done"] += len(chunk)
+            if asset.get("sha256") and h.hexdigest() != asset["sha256"]:
+                part.unlink(missing_ok=True)
+                raise ValueError("the download does not match the release checksum; nothing was installed")
+            os.replace(part, final)
+            self.state.update(status="ready", path=str(final))
+            if open_file:
+                open_installer(final)
+        except (httpx.HTTPError, OSError, ValueError) as exc:
+            part.unlink(missing_ok=True)
+            self.state.update(status="error", error=_short(exc))
+
+
+def open_installer(path: Path) -> None:
+    import subprocess
+
+    if sys.platform == "darwin":
+        subprocess.Popen(["open", str(path)])  # mounts the disk image and shows it in Finder
+    elif sys.platform == "win32":
+        os.startfile(str(path))  # type: ignore[attr-defined]  # the installer closes STARK OS itself
+
+
+UPDATER = Updater()
 
 
 def diagnostics() -> dict[str, Any]:
@@ -334,5 +442,16 @@ def router(api_token: str) -> APIRouter:
     @r.get("/update")
     def update() -> dict[str, Any]:
         return check_update()
+
+    @r.post("/update/download")
+    def update_download() -> dict[str, Any]:
+        info = check_update()
+        if not info["update"] or not info["asset"]:
+            raise HTTPException(409, "No newer installer for this computer.")
+        return UPDATER.start(info["asset"])
+
+    @r.get("/update/progress")
+    def update_progress() -> dict[str, Any]:
+        return dict(UPDATER.state)
 
     return r

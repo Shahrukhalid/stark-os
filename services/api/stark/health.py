@@ -41,6 +41,18 @@ async def _check(adapter) -> tuple[str, str]:
             if r.status_code == 200:
                 return OK, f"Connected as @{r.json().get('username', '?')}"
             return BAD, "Threads rejected the access token (it may have expired). Create a new one and reconnect."
+        if p == "facebook":
+            r = await c.get(f"https://graph.facebook.com/v23.0/{s.facebook_page_id}",
+                            params={"fields": "name", "access_token": s.facebook_page_token})
+            if r.status_code == 200:
+                return OK, f"Posting to the Page {r.json().get('name', s.facebook_page_id)}"
+            return BAD, "Facebook rejected the Page token (it may have expired). Create a new one and reconnect."
+        if p == "linkedin":
+            r = await c.get("https://api.linkedin.com/v2/userinfo",
+                            headers={"Authorization": f"Bearer {s.linkedin_access_token}"})
+            if r.status_code == 200:
+                return OK, f"Signed in as {r.json().get('name', 'your profile')}"
+            return BAD, "LinkedIn rejected the token (they last 60 days). Create a new one and reconnect."
         if p == "telegram":
             api = f"https://api.telegram.org/bot{s.telegram_bot_token}"
             me = await c.get(f"{api}/getMe")

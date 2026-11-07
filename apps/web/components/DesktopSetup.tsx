@@ -25,6 +25,7 @@ const LABELS: Record<string, string> = {
   THREADS_USER_ID: "Threads user ID",
   TELEGRAM_CHAT_ID: "Chat for alerts (optional)",
   TELEGRAM_CHANNEL_ID: "Channel to post in (@name)",
+  FACEBOOK_PAGE_ID: "Facebook Page ID",
 };
 
 /** First-run setup of the desktop app: AI provider and key, social accounts, then the engine restarts with them. */
