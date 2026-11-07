@@ -1,0 +1,31 @@
+# Production overrides for STARK OS.
+# Usage:
+# docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+services:
+  api:
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    pids_limit: 256
+    mem_limit: 1g
+    cpus: 1.0
+
+  web:
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+      - /web/.next/cache:rw,noexec,nosuid,size=256m,uid=1000,gid=1000  # Next.js image and fetch cache
+    pids_limit: 256
+    mem_limit: 512m
+    cpus: 0.5
