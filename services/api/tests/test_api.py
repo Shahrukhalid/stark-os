@@ -130,7 +130,8 @@ def test_memory_endpoints(client):
 def test_tools_endpoint_and_user_run(client):
     tools = client.get("/api/tools").json()
     by_id = {t["id"]: t for t in tools}
-    assert "jarvis" in by_id["team.review"]["agents"] and by_id["team.review"]["agents"] == ["jarvis"]
+    # Team review: J.A.R.V.I.S. plus the two primary assistants (Vision and Wanda), who need owner approval.
+    assert sorted(by_id["team.review"]["agents"]) == ["jarvis", "vision", "wanda"]
     res = client.post("/api/tools/system.metrics/run", json={"top_n": 3, "sample_seconds": 0.2}).json()
     assert res["result"]["ok"] and res["result"]["data"]["memory"]["total_gb"] > 0
     denied = client.post("/api/tools/fs.write/run", json={"path": "x", "content": "y"}).json()
