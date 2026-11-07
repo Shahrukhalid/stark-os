@@ -220,11 +220,13 @@ def test_connection_errors_do_not_expose_token_urls(monkeypatch):
 
 
 def test_crash_summary_shows_only_the_error_line_without_secrets(tmp_path):
+    from stark.core.observability import register_secret
     from stark.desktop import _crash_summary
 
+    register_secret("example-value-not-real-0042")  # a saved key is scrubbed wherever it appears
     log = tmp_path / "crash.log"
     log.write_text('Traceback (most recent call last):\n  File "/app/x.py", line 3, in run\n    go()\n'
-                   "RuntimeError: login failed token=abcdefgh12345678\n")
+                   "RuntimeError: login failed for example-value-not-real-0042\n")
     out = _crash_summary(log)
-    assert out.startswith("RuntimeError: login failed") and "abcdefgh12345678" not in out and "File" not in out
+    assert out.startswith("RuntimeError: login failed") and "example-value-not-real-0042" not in out and "File" not in out
     assert _crash_summary(tmp_path / "missing.log") == ""
