@@ -98,6 +98,11 @@ class ChatIn(BaseModel):
     conversation_id: str | None = None
 
 
+class HandoffIn(BaseModel):
+    agent_id: Literal["vision", "wanda"]
+    context: str = Field(min_length=1, max_length=4000)
+
+
 class DecisionIn(BaseModel):
     decision: Literal["approve", "reject", "cancel"]
     note: str | None = None
@@ -1614,6 +1619,21 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
             task = k.submit_chat(agent_id, text, body.conversation_id)
         except RuntimeError as exc:
             raise HTTPException(409, str(exc)) from exc
+        return task
+
+    @app.post("/api/conversations/{conversation_id}/handoff", dependencies=[api])
+    async def handoff(conversation_id: str, body: HandoffIn, k: Kernel = Depends(kernel)):
+        with k.db.session() as session:
+            source = session.get(Conversation, conversation_id)
+            if source is None:
+                raise HTTPException(404, "Unknown source conversation")
+        # Only the owner-written context is handed over; private history is never copied.
+        try:
+            task = k.submit_chat(body.agent_id, body.context)
+        except RuntimeError as exc:
+            raise HTTPException(409, str(exc)) from None
+        k.obs.audit("user", "conversation.handoff", "requested", task_id=task["id"],
+                    detail={"source": conversation_id, "target": body.agent_id})
         return task
 
     @app.get("/api/conversations", dependencies=[api])

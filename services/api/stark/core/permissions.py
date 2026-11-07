@@ -105,7 +105,8 @@ class PermissionEngine:
             return Decision(Verdict.APPROVAL if extra else Verdict.ALLOW,
                             "sensitive read needs approval" if extra else "read-only", mode)
         if risk is Risk.DELEGATION:
-            return Decision(Verdict.ALLOW, "delegation (delegate is checked independently)", mode)
+            return Decision(Verdict.APPROVAL if extra else Verdict.ALLOW,
+                            "Approve the context shared with another agent" if extra else "delegation (delegate is checked independently)", mode)
         if mode is Mode.OBSERVE:
             return Decision(Verdict.DENY, f"OBSERVE mode: {risk.value} actions are disabled", mode)
         if risk is Risk.MEMORY:

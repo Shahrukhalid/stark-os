@@ -21,6 +21,8 @@ from stark.main import build_kernel
 from stark.providers.base import ModelProvider, ModelRequest, ModelResponse, ProviderError
 
 AGENT_MARKERS = {
+    "You are VISION": "vision",
+    "You are WANDA": "wanda",
     "You are J.A.R.V.I.S.": "jarvis",
     "You are F.R.I.D.A.Y.": "friday",
     "You are E.D.I.T.H.": "edith",
