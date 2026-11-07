@@ -805,12 +805,21 @@ class AccountStore:
     def __init__(self, settings) -> None:
         self.settings = settings
         self.path = settings.data_dir / "social_accounts.json"
+        import os
+        from ..credential_store import EncryptedJSON
+
+        self.secure_store = EncryptedJSON(self.path) if os.environ.get("STARK_DESKTOP") == "1" else None
+        # Once encrypted, never silently fall back to plaintext in a different launch mode.
+        if (self.path.with_suffix(".json.encrypted").exists()
+                or self.path.with_suffix(".json.backup.encrypted").exists()):
+            self.secure_store = EncryptedJSON(self.path)
         self.from_env = {pid: all(getattr(settings, f) for f in fields) for pid, fields in ACCOUNT_FIELDS.items()}
         self.data: dict[str, dict[str, str]] = {}
         try:
             import json
 
-            self.data = json.loads(self.path.read_text()) if self.path.is_file() else {}
+            self.data = self.secure_store.read() if self.secure_store else (
+                json.loads(self.path.read_text()) if self.path.is_file() else {})
         except (OSError, ValueError):
             self.data = {}
         for pid, values in self.data.items():
@@ -830,6 +839,9 @@ class AccountStore:
         import json
         import os
 
+        if self.secure_store:
+            self.secure_store.write(self.data)
+            return
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_suffix(".tmp")
         fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -838,21 +850,27 @@ class AccountStore:
         os.replace(tmp, self.path)
         os.chmod(self.path, 0o600)
 
+    def _commit(self, data: dict) -> None:
+        previous = self.data
+        self.data = data
+        try:
+            self._write()
+        except Exception:
+            self.data = previous
+            raise
+
     def save(self, pid: str, values: dict[str, str], connected_as: str) -> None:
-        self.data[pid] = {**values, "connected_as": connected_as}
+        self._commit({**self.data, pid: {**values, "connected_as": connected_as}})
         self._apply(pid, values)
-        self._write()
 
     def update(self, pid: str, field: str, value: str) -> None:
         if pid in self.data:
-            self.data[pid][field] = value
-            self._write()
+            self._commit({**self.data, pid: {**self.data[pid], field: value}})
 
     def remove(self, pid: str) -> None:
-        self.data.pop(pid, None)
+        self._commit({k: v for k, v in self.data.items() if k != pid})
         for f in ACCOUNT_FIELDS[pid]:
             setattr(self.settings, f, "")
-        self._write()
 
     def connected_as(self, pid: str) -> str | None:
         if self.from_env.get(pid):

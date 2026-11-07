@@ -191,3 +191,32 @@ def test_cost_accounting_free_only(settings):
     assert k.obs.cost("cohere/north-mini-code:free", 10**6, 10**6, "openrouter") == (0.0, True)
     assert k.obs.cost("openrouter/free", 10, 10, "openrouter") == (0.0, True)
     assert k.obs.cost("big/paid-model", 10, 10, "openrouter") == (0.0, False)
+
+
+def test_agent_provider_selection_and_no_cloud_fallback(settings):
+    from .conftest import ScriptedProvider, Unconfigured
+    k, _ = make_kernel(settings)
+    agent = k.registry.get('jarvis').model_copy(deep=True)
+    cloud = ScriptedProvider(lambda *_: [], name='openrouter')
+    local = ScriptedProvider(lambda *_: [], name='local')
+    settings.openrouter_models = {'deep': 'cloud/model:free'}
+    router = ModelRouter(settings, {'openrouter': cloud, 'local': local})
+    agent.model.provider = 'local'
+    route = router.select(agent)
+    assert route.provider is local and route.model == 'local-deep'
+    agent.model.model = 'my-local-model'
+    assert router.select(agent).model == 'my-local-model'
+    for unavailable in ('missing', 'local'):
+        agent.model.provider = unavailable
+        router.providers['local'] = Unconfigured('local')
+        with pytest.raises(NoModelAvailable, match='no cross-provider fallback'):
+            router.select(agent)
+    assert not cloud.requests
+
+
+def test_router_reports_empty_candidate_pool(settings, monkeypatch):
+    k, _ = make_kernel(settings)
+    provider = OpenRouterProvider('test-key')
+    monkeypatch.setattr(provider, 'candidates', lambda *a, **kw: [])
+    with pytest.raises(NoModelAvailable, match='No eligible models'):
+        ModelRouter(settings, {'openrouter': provider}).select(k.registry.get('jarvis'))

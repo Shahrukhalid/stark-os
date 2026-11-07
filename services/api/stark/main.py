@@ -453,6 +453,12 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
                                                 settings.api_token.encode("utf-8")):
             raise HTTPException(401, "invalid or missing API token")
 
+    from .credential_store import CredentialStoreError
+
+    @app.exception_handler(CredentialStoreError)
+    async def credential_error(request, exc):
+        return JSONResponse(status_code=503, content={"detail": str(exc)})
+
     @app.exception_handler(KeyError)
     async def _not_found(_: Request, exc: KeyError):
         return JSONResponse({"detail": str(exc).strip("'\"")}, status_code=404)

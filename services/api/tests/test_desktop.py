@@ -8,7 +8,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from stark import desktop
+from stark import desktop, credential_store
 
 TOKEN = "t" * 32
 
@@ -33,6 +33,7 @@ class FakeKeyring:
 @pytest.fixture
 def env(tmp_path, monkeypatch):
     kr = FakeKeyring()
+    monkeypatch.setattr(credential_store, "native_backend", lambda: kr)
     monkeypatch.setenv("STARK_DATA_DIR", str(tmp_path))
     monkeypatch.setattr(desktop, "_restart_soon", lambda delay=0.7: None)
     app = FastAPI()
@@ -56,7 +57,8 @@ def test_secrets_go_to_the_credential_store_and_settings_to_disk(env):
         "OPENROUTER_API_KEY": "sk-secret", "BLUESKY_HANDLE": "me.bsky.social", "OPENROUTER_ALLOW_PAID": "true"}})
     assert r.json() == {"ok": True, "restarting": True}
     assert desktop.get_secret("OPENROUTER_API_KEY") == "sk-secret"
-    assert (tmp / "secrets.json").stat().st_mode & 0o777 == 0o600
+    assert not (tmp / "secrets.json").exists()
+    assert b"sk-secret" not in (tmp / "secrets.json.encrypted").read_bytes()
     saved = json.loads((tmp / "desktop.json").read_text())
     assert saved == {"BLUESKY_HANDLE": "me.bsky.social", "OPENROUTER_ALLOW_PAID": "true"}
     assert "sk-secret" not in (tmp / "desktop.json").read_text()
@@ -127,7 +129,7 @@ def test_update_check(monkeypatch):
 def test_diagnostics(env):
     client, _, _ = env
     d = client.get("/api/desktop/diagnostics", headers=H).json()
-    assert {c["name"] for c in d["checks"]} >= {"Data folder is writable", "Private key file", "AI key saved"}
+    assert {c["name"] for c in d["checks"]} >= {"Data folder is writable", "Legacy credential file removed", "AI key saved"}
 
 
 def _release(sha: str | None):
@@ -187,3 +189,31 @@ def test_updater_downloads_and_verifies(monkeypatch, tmp_path):
 
     with pytest.raises(ValueError):
         desktop.Updater().start({**asset, "url": "https://evil.example/x.dmg"}, tmp_path, open_file=False)
+
+
+def test_invalid_setting_does_not_partially_change_secrets(env):
+    client, _, _ = env
+    result = client.put('/api/desktop/settings', headers=H,
+                        json={'values': {'OPENROUTER_API_KEY': 'new-value', 'PATH': '/bad'}})
+    assert result.status_code == 400
+    assert desktop.get_secret('OPENROUTER_API_KEY') == ''
+
+
+def test_locked_store_returns_redacted_error(env, monkeypatch):
+    client, kr, tmp = env
+    client.put('/api/desktop/settings', headers=H, json={'values': {'OPENROUTER_API_KEY': 'old-secret'}})
+    def fail(*args):
+        raise RuntimeError('old-secret')
+    monkeypatch.setattr(kr, 'get_password', fail)
+    result = client.get('/api/desktop/status', headers=H)
+    assert result.status_code == 503 and 'old-secret' not in result.text
+    result = client.put('/api/desktop/settings', headers=H, json={'values': {'OPENROUTER_API_KEY': 'new'}})
+    assert result.status_code == 503 and 'old-secret' not in result.text
+
+
+def test_connection_errors_do_not_expose_token_urls(monkeypatch):
+    def fail(url, **kw):
+        raise httpx.ConnectError('could not reach ' + url)
+    monkeypatch.setattr(desktop.httpx, 'get', fail)
+    result = desktop.test_social('telegram', {'TELEGRAM_BOT_TOKEN': 'private-token'})
+    assert not result['ok'] and 'private-token' not in json.dumps(result)

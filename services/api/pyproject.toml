@@ -21,6 +21,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+desktop-security = ["keyring==25.7.0", "cryptography==50.0.2"]
 browser = ["playwright>=1.45"]
 postgres = ["psycopg[binary]>=3.1"]
 dev = ["pytest>=8", "pytest-asyncio>=0.23"]

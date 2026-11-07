@@ -4,3 +4,6 @@ pyinstaller>=6.10
 numpy<2; sys_platform == "darwin" and platform_machine == "x86_64"  # the Intel Mac build of pywhispercpp (1.2) was compiled against NumPy 1
 pywhispercpp>=1.2  # speech-to-text (whisper.cpp, MIT); models are downloaded only when the owner asks
 imageio-ffmpeg>=0.5  # FFmpeg for the video studio (static build for macOS arm64/x86_64 and Windows)
+
+keyring==25.7.0  # MIT; native macOS Keychain / Windows Credential Manager only
+cryptography==50.0.2  # Apache-2.0 OR BSD-3-Clause; authenticated credential-file encryption

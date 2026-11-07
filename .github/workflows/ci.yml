@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with: { python-version: "3.12" }
-      - run: pip install --require-hashes -r services/api/requirements.lock && pip install --no-deps -e "services/api" && pip install "pytest>=8" "pytest-asyncio>=0.23" "playwright>=1.45" "psycopg[binary]>=3.1" && python -m playwright install --with-deps chromium
+      - run: pip install --require-hashes -r services/api/requirements.lock && pip install --no-deps -e "services/api" && pip install "pytest>=8" "pytest-asyncio>=0.23" "cryptography==50.0.2" "playwright>=1.45" "psycopg[binary]>=3.1" && python -m playwright install --with-deps chromium
       - name: Video tools for the video studio tests (FFmpeg, a test voice, speech-to-text and its smallest model)
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg espeak-ng >/dev/null
@@ -73,3 +73,21 @@ jobs:
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           # organisation-owned repos also need: GITLEAKS_LICENSE: "${{ secrets.GITLEAKS_LICENSE }}"
+
+  desktop-credentials:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with: { python-version: "3.12" }
+      - run: pip install --require-hashes -r services/api/requirements.lock
+      - run: pip install -e "services/api[desktop-security,dev]"
+      - name: Encrypted migration and native credential vault roundtrip
+        env:
+          STARK_TEST_NATIVE_VAULT: "1"
+        run: python -m pytest services/api/tests/test_credential_store.py services/api/tests/test_desktop.py services/api/tests/test_providers.py -q

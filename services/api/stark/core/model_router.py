@@ -56,13 +56,20 @@ class ModelRouter:
             raise NoModelAvailable("No model is configured. Add OPENROUTER_API_KEY to .env (free key at "
                                    "https://openrouter.ai/keys) and restart the API.")
         tier = tier_hint or agent.model.tier
-        pinned = agent.model.model or self.pins.get(tier)
-        provider = self.providers[available[0]]
+        requested = agent.model.provider
+        if requested and requested not in available:
+            raise NoModelAvailable("The agent's selected provider is unavailable. Configure it or explicitly "
+                                   "change the agent provider; no cross-provider fallback was attempted.")
+        name = requested or available[0]
+        provider = self.providers[name]
+        pinned = agent.model.model or (self.pins.get(tier) if name == "openrouter" else None)
         if isinstance(provider, OpenRouterProvider):
             candidates = provider.candidates(tier, pinned, preferred=agent.model.preferred)
         else:  # test doubles / future providers
             candidates = [pinned or f"{provider.name}-{tier}"]
-        reason = (f"tier={tier}" + (f", pinned {pinned}" if pinned else "")
+        if not candidates:
+            raise NoModelAvailable("No eligible models are available for the selected provider.")
+        reason = (f"provider={name}, tier={tier}" + (f", pinned {pinned}" if pinned else "")
                   + (f", own brain {agent.model.preferred[0]}" if agent.model.preferred else "")
                   + f", {len(candidates)} candidates")
         return Route(provider, candidates[0], tier, reason, candidates)

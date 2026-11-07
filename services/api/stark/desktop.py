@@ -1,9 +1,7 @@
-"""Desktop app support: first-run setup, keys kept in the operating system's credential store, connection tests,
-diagnostics and update checks. Only active when STARK_DESKTOP=1 (set by the desktop launcher).
+"""Desktop setup, encrypted credentials, connection tests, diagnostics and updates.
 
-Secrets (API keys, tokens, app passwords) go to the macOS Keychain or the Windows Credential Manager (DPAPI) through
-a private secrets.json (file mode 600); plain settings (provider address, spending switch, budgets) go to desktop.json in the user's data folder.
-Saving restarts the API process (exit code 75), which the launcher restarts with the new values.
+Secrets are encrypted on disk with a key in the native OS credential store.
+Plain preferences retain desktop.json and existing STARK_* configuration names.
 """
 
 from __future__ import annotations
@@ -24,12 +22,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from . import __version__
+from .credential_store import CredentialStoreError, EncryptedJSON, LOCK
 
 SERVICE = "STARK OS"
 RESTART_CODE = 75
 RELEASES = "https://api.github.com/repos/Shahrukhalid/stark-os/releases/latest"
 
-# Secret values: stored in the credential store, never written to disk by STARK OS.
+# Secret values: authenticated encryption on disk; encryption key in the OS vault.
 SECRETS = {
     "OPENROUTER_API_KEY": "AI provider API key",
     "BLUESKY_APP_PASSWORD": "Bluesky app password",
@@ -130,51 +129,37 @@ def _secrets_path() -> Path:
 
 
 def _load_secrets() -> dict[str, str]:
-    try:
-        data = json.loads(_secrets_path().read_text(encoding="utf-8"))
-        return {k: str(v) for k, v in data.items() if k in SECRETS}
-    except (OSError, ValueError):
-        return {}
+    data = EncryptedJSON(_secrets_path()).read()
+    if any(not isinstance(v, str) for k, v in data.items() if k in SECRETS):
+        raise CredentialStoreError("Invalid saved credential format. Preserve the data folder for recovery.")
+    return {k: v for k, v in data.items() if k in SECRETS}
 
 
 def get_secret(name: str) -> str:
-    """Keys and tokens live in secrets.json in the user's private data folder (file mode 600). The system
-    keychain is not used: unsigned builds made macOS ask for the login password on every update."""
     return _load_secrets().get(name, "")
 
 
 def set_secret(name: str, value: str) -> None:
-    data = _load_secrets()
-    if value:
-        data[name] = value
-    else:
-        data.pop(name, None)
-    path = _secrets_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as fh:
-        json.dump(data, fh)
-    os.replace(tmp, path)
-    try:
-        os.chmod(path, 0o600)
-    except OSError:
-        pass
+    if name not in SECRETS:
+        raise ValueError("unknown credential name")
+    with LOCK:
+        store = EncryptedJSON(_secrets_path())
+        data = store.read()  # preserve unknown legacy entries for compatibility
+        if value:
+            data[name] = value
+        else:
+            data.pop(name, None)
+        store.write(data)
 
 
 def environment() -> dict[str, str]:
-    """Everything the API needs from the credential store and desktop.json, as environment variables."""
-    env = dict(load_plain())
-    for name in SECRETS:
-        value = get_secret(name)
-        if value:
-            env[name] = value
-    return env
+    """Plain preferences plus secrets, read once to avoid repeated keychain access."""
+    return {**load_plain(), **{k: v for k, v in _load_secrets().items() if v}}
 
 
 # ---------------------------------------------------------------- tests of connections
 def _short(exc: Exception) -> str:
-    return f"{exc.__class__.__name__}: {str(exc)[:160]}"
+    return exc.__class__.__name__  # exception URLs can contain bot tokens and webhook secrets
 
 
 def test_ai(api_key: str, base_url: str, timeout: float = 15.0) -> dict[str, Any]:
@@ -350,7 +335,8 @@ class Updater:
                 open_installer(final)
         except (httpx.HTTPError, OSError, ValueError) as exc:
             part.unlink(missing_ok=True)
-            self.state.update(status="error", error=_short(exc))
+            self.state.update(status="error", error=("the download does not match the release checksum; nothing was installed"
+                                                   if isinstance(exc, ValueError) else _short(exc)))
 
 
 def open_installer(path: Path) -> None:
@@ -377,7 +363,7 @@ def diagnostics() -> dict[str, Any]:
     except OSError as exc:
         checks.append({"name": "Data folder is writable", "ok": False, "detail": _short(exc)})
     sp = _secrets_path()
-    checks.append({"name": "Private key file", "ok": not sp.exists() or os.name == "nt" or (sp.stat().st_mode & 0o077) == 0,
+    checks.append({"name": "Legacy credential file removed", "ok": not sp.exists(),
                    "detail": str(sp)})
     free = shutil.disk_usage(d if d.exists() else Path.home()).free
     checks.append({"name": "Free disk space", "ok": free > 500_000_000, "detail": f"{free // 1_000_000} MB"})
@@ -429,19 +415,29 @@ def router(api_token: str) -> APIRouter:
     @r.get("/status")
     def status() -> dict[str, Any]:
         plain = load_plain()
-        saved = {name: bool(get_secret(name)) for name in SECRETS}
+        try:
+            values = _load_secrets()
+        except CredentialStoreError as exc:
+            raise HTTPException(503, str(exc)) from None
+        saved = {name: bool(values.get(name)) for name in SECRETS}
         return {"desktop": True, "version": __version__, "needs_setup": not saved["OPENROUTER_API_KEY"],
                 "secrets": saved, "settings": plain, "platforms": PLATFORMS, "providers": PROVIDERS,
                 "labels": SECRETS, "data_dir": str(data_dir())}
 
     @r.put("/settings")
     def save(body: SaveIn) -> dict[str, Any]:
+        unknown = set(body.values) - SECRETS.keys() - PLAIN
+        if unknown:
+            raise HTTPException(400, "unknown setting")
         plain = load_plain()
         for name, value in body.values.items():
             value = value.strip()
             if name in SECRETS:
                 if value != "__keep__":
-                    set_secret(name, value)
+                    try:
+                        set_secret(name, value)
+                    except CredentialStoreError as exc:
+                        raise HTTPException(503, str(exc)) from None
             elif name in PLAIN:
                 if value:
                     plain[name] = value

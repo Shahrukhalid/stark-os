@@ -1,3 +1,5 @@
+> Historical release notes below contain superseded capability claims. For the 2026-11-07 credential and dependency review, see [security audit](SECURITY_AUDIT.md).
+
 # Implementation status
 
 _Last updated: 2026-11-01 · release 1.3.0 (brands, mood of mentions, hashtag research, campaign and brand analytics; 1.2.0: desktop app)_

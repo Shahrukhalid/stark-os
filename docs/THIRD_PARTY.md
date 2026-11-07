@@ -12,3 +12,10 @@
 
 FFmpeg runs as a separate program; STARK OS calls it with command-line arguments and does not link to it.
 FFmpeg source code: https://ffmpeg.org/download.html · build details: https://github.com/imageio/imageio-binaries
+
+## Desktop credential protection
+
+- [keyring 25.7.0](https://github.com/jaraco/keyring) — MIT. Native macOS Keychain / Windows Credential Manager adapters.
+- [cryptography 50.0.2](https://github.com/pyca/cryptography) — Apache-2.0 OR BSD-3-Clause. AES-GCM authenticated encryption. Bundled native components retain their upstream notices.
+
+Distributors must retain these packages' license files and transitive dependency notices. This does not change the application's existing MIT license.
