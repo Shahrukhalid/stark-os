@@ -46,7 +46,7 @@ from .providers import ModelProvider
 from . import autopilot as ap
 from . import automations, brands, growth, hub, insights, reach
 from . import health as account_health
-from . import shorts, video
+from . import shorts, token_refresh, video
 from .core.db import Campaign
 from .tools import build_registry
 from .tools import social as social_tools
@@ -381,7 +381,8 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
                       asyncio.create_task(hub.recycler_loop(holder["k"], social, settings)),
                       asyncio.create_task(_snapshot_loop(holder["k"], social)),
                       asyncio.create_task(_feeds_loop(holder["k"], social)),
-                      asyncio.create_task(account_health.loop(holder["k"], social))]
+                      asyncio.create_task(account_health.loop(holder["k"], social)),
+                      asyncio.create_task(token_refresh.loop(holder["k"], social))]
         holder["k"].automations = automations.Engine(holder["k"], social, settings, holder["k"].notifier)
         background.append(asyncio.create_task(holder["k"].automations.loop()))
         yield
@@ -431,6 +432,8 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
                         log.warning(f"autopilot error: {autopilot_job.exception()}")
                     autopilot_job = asyncio.create_task(k.autopilot.tick())
                 if settings.listening_enabled and (listen_job is None or listen_job.done()):
+                    if listen_job is not None and not listen_job.cancelled() and listen_job.exception():
+                        log.warning(f"social listening error: {listen_job.exception()}")
                     listen_job = asyncio.create_task(k.listening.run_once())
         finally:
             for job in (autopilot_job, listen_job):

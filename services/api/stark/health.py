@@ -51,7 +51,12 @@ async def _check(adapter) -> tuple[str, str]:
             r = await c.get("https://api.linkedin.com/v2/userinfo",
                             headers={"Authorization": f"Bearer {s.linkedin_access_token}"})
             if r.status_code == 200:
-                return OK, f"Signed in as {r.json().get('name', 'your profile')}"
+                name = r.json().get("name", "your profile")
+                left = getattr(adapter, "days_left", None)
+                if left is not None and left <= 10:
+                    return WARN, (f"Signed in as {name}, but the LinkedIn login ends in {left} day(s). "
+                                  "Reconnect LinkedIn so scheduled posts keep working.")
+                return OK, f"Signed in as {name}"
             return BAD, "LinkedIn rejected the token (they last 60 days). Create a new one and reconnect."
         if p == "instagram":
             r = await c.get("https://graph.instagram.com/v23.0/me",
@@ -123,6 +128,10 @@ async def check_all(kernel, social) -> dict[str, Any]:
     for pid, adapter in social.adapters.items():
         if not adapter.connected():
             continue
+        if pid == "linkedin":
+            from .token_refresh import linkedin_days_left
+
+            adapter.days_left = linkedin_days_left(social.store)
         try:
             status, message = await asyncio.wait_for(_check(adapter), 30)
         except asyncio.TimeoutError:
