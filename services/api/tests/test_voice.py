@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from stark.core.addressing import parse_address
 from stark.voice import GeminiVoice, VoiceError, spoken
 from stark.voice.audio import Audio
-from stark.voice.gemini import pick_models
+from stark.voice.gemini import pick_models, stt_candidates
 
 MODELS = {"models": [
     {"name": "models/gemini-2.5-flash", "supportedGenerationMethods": ["generateContent"]},
@@ -42,7 +42,8 @@ def _gemini(seen: list):
 
 
 def test_models_are_picked_from_what_the_key_can_use():
-    assert pick_models(MODELS["models"]) == ("gemini-2.5-flash", "gemini-2.5-flash-preview-tts")
+    assert pick_models(MODELS["models"]) == ("gemini-2.5-flash-lite", "gemini-2.5-flash-preview-tts")
+    assert stt_candidates(MODELS["models"]) == ["gemini-2.5-flash-lite", "gemini-2.5-flash"]
     assert pick_models([]) == ("", "")
 
 
@@ -176,3 +177,24 @@ def test_without_a_key_the_browser_speech_is_used(settings):
         st = c.get("/api/voice/status").json()
         assert st["engine"] == "browser" and not st["local_audio"]
         assert c.post("/api/voice/listen/start").status_code == 409
+
+
+async def test_a_slow_model_falls_back_and_timeouts_are_explained():
+    calls = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        calls.append(req.url.path)
+        if req.url.path.endswith("/models"):
+            return httpx.Response(200, json=MODELS)
+        if "lite" in req.url.path:
+            raise httpx.ReadTimeout("slow", request=req)
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "hello"}]}}]})
+
+    v = GeminiVoice("gem-key", transport=httpx.MockTransport(handler))
+    assert await v.transcribe(b"RIFF") == "hello"
+    assert [p.rsplit("/", 1)[-1] for p in calls[1:]] == ["gemini-2.5-flash-lite:generateContent",
+                                                          "gemini-2.5-flash:generateContent"]
+    down = GeminiVoice("gem-key", stt_model="a", tts_model="b",
+                       transport=httpx.MockTransport(lambda r: (_ for _ in ()).throw(httpx.ConnectError("x"))))
+    with pytest.raises(VoiceError, match="internet"):
+        await down.speak("hi", "Charon")

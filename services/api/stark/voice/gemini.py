@@ -64,18 +64,27 @@ def _version(name: str) -> float:
     return float(m.group(1)) if m else 0.0
 
 
-def pick_models(models: list[dict[str, Any]]) -> tuple[str, str]:
-    """(speech-to-text model, text-to-speech model) from the models this key can use.
-
-    Speech-to-text: the newest general "flash" model (fast, understands audio). Voice: the newest "flash" TTS
-    model, else any TTS model. Names are read from the API, so new model versions are picked up by themselves.
-    """
+def stt_candidates(models: list[dict[str, Any]]) -> list[str]:
+    """Speech-to-text models to try, best first: the newest "flash-lite" (fastest), then the newest "flash"."""
     usable = [m["name"].split("/")[-1] for m in models
               if "generateContent" in (m.get("supportedGenerationMethods") or [])]
     skip = ("tts", "image", "live", "audio", "embed", "thinking", "robotics", "computer", "exp")
     general = [n for n in usable if "flash" in n and not any(s in n for s in skip)]
     stable = [n for n in general if "preview" not in n] or general
-    stt = (sorted(stable, key=lambda n: (_version(n), "lite" not in n), reverse=True) or [""])[0]
+    lite = sorted((n for n in stable if "lite" in n), key=_version, reverse=True)
+    full = sorted((n for n in stable if "lite" not in n), key=_version, reverse=True)
+    return (lite[:1] + full[:1]) or []
+
+
+def pick_models(models: list[dict[str, Any]]) -> tuple[str, str]:
+    """(speech-to-text model, text-to-speech model) from the models this key can use.
+
+    Speech-to-text: the newest "flash-lite" model (fast, understands audio). Voice: the newest "flash" TTS
+    model, else any TTS model. Names are read from the API, so new model versions are picked up by themselves.
+    """
+    usable = [m["name"].split("/")[-1] for m in models
+              if "generateContent" in (m.get("supportedGenerationMethods") or [])]
+    stt = (stt_candidates(models) or [""])[0]
     tts_all = [n for n in usable if "tts" in n]
     tts = (sorted(tts_all, key=lambda n: ("flash" in n, _version(n)), reverse=True) or [""])[0]
     return stt, tts
@@ -83,11 +92,11 @@ def pick_models(models: list[dict[str, Any]]) -> tuple[str, str]:
 
 class GeminiVoice:
     def __init__(self, api_key: str, *, stt_model: str = "", tts_model: str = "", transport=None,
-                 timeout: float = 60):
+                 timeout: float = 30):
         self.key = api_key.strip()
         self.stt_model, self.tts_model = stt_model.strip(), tts_model.strip()
         self.transport, self.timeout = transport, timeout
-        self._models: tuple[float, str, str] | None = None
+        self._models: tuple[float, list[str], str] | None = None
 
     def configured(self) -> bool:
         return bool(self.key)
@@ -109,19 +118,33 @@ class GeminiVoice:
         except ValueError:
             raise VoiceError(f"Gemini could not {what} (unexpected answer).") from None
 
-    async def models(self) -> tuple[str, str]:
-        if self.stt_model and self.tts_model:
-            return self.stt_model, self.tts_model
-        if not self._models or time.time() - self._models[0] > MODELS_TTL_S:
+    async def _send(self, method: str, path: str, what: str, **kw) -> dict[str, Any]:
+        try:
             async with self._client() as c:
-                data = self._check(await c.get("/models", params={"pageSize": 1000}), "list its models")
-            stt, tts = pick_models(data.get("models") or [])
-            self._models = (time.time(), stt, tts)
-        _, stt, tts = self._models
-        stt, tts = self.stt_model or stt, self.tts_model or tts
-        if not stt or not tts:
+                return self._check(await c.request(method, path, **kw), what)
+        except httpx.TimeoutException:
+            raise VoiceError(f"Gemini took too long to {what}. Try again.") from None
+        except httpx.HTTPError:
+            raise VoiceError(f"Gemini could not be reached to {what}. Check your internet connection.") from None
+
+    async def _candidates(self) -> tuple[list[str], str]:
+        if not self._models or time.time() - self._models[0] > MODELS_TTL_S:
+            if self.stt_model and self.tts_model:
+                self._models = (time.time(), [self.stt_model], self.tts_model)
+            else:
+                data = await self._send("GET", "/models", "list its models", params={"pageSize": 1000})
+                models = data.get("models") or []
+                self._models = (time.time(), stt_candidates(models), pick_models(models)[1])
+        _, stts, tts = self._models
+        stts = [self.stt_model] if self.stt_model else stts
+        tts = self.tts_model or tts
+        if not stts or not tts:
             raise VoiceError("This Gemini key has no speech model available.")
-        return stt, tts
+        return stts, tts
+
+    async def models(self) -> tuple[str, str]:
+        stts, tts = await self._candidates()
+        return stts[0], tts
 
     async def transcribe(self, audio: bytes, mime: str = "audio/wav", language: str = "auto",
                          urdu_script: str = "urdu") -> str:
@@ -129,7 +152,7 @@ class GeminiVoice:
             raise VoiceError("Add your Gemini API key in Settings to use STARK voice.")
         if not audio:
             return ""
-        stt, _ = await self.models()
+        stts, _ = await self._candidates()
         lang = {"en": "The speaker uses English.", "ur": "The speaker uses Urdu."}.get(
             language, "The speaker uses English, Urdu or a mix of both.")
         script = ("Write Urdu words in Urdu script." if urdu_script != "roman"
@@ -140,8 +163,14 @@ class GeminiVoice:
         body = {"contents": [{"role": "user", "parts": [
                     {"text": prompt}, {"inline_data": {"mime_type": mime, "data": base64.b64encode(audio).decode()}}]}],
                 "generationConfig": {"temperature": 0}}
-        async with self._client() as c:
-            data = self._check(await c.post(f"/models/{stt}:generateContent", json=body), "understand the recording")
+        for i, stt in enumerate(stts):  # a slow or busy model falls back to the next one
+            try:
+                data = await self._send("POST", f"/models/{stt}:generateContent", "understand the recording",
+                                        json=body)
+                break
+            except VoiceError:
+                if i == len(stts) - 1:
+                    raise
         parts = ((data.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []
         text = " ".join(str(p.get("text", "")) for p in parts).strip()
         return text.strip('"').strip()
@@ -150,13 +179,13 @@ class GeminiVoice:
         """Return (16-bit mono PCM, sample rate)."""
         if not self.configured():
             raise VoiceError("Add your Gemini API key in Settings to use STARK voice.")
-        _, tts = await self.models()
+        _, tts = await self._candidates()
         said = f"{style.strip()}: {text}" if style.strip() else text
         body = {"contents": [{"role": "user", "parts": [{"text": said}]}],
                 "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {
                     "voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice or "Charon"}}}}}
-        async with self._client() as c:
-            data = self._check(await c.post(f"/models/{tts}:generateContent", json=body), "speak")
+        data = await self._send("POST", f"/models/{tts}:generateContent", "speak", json=body,
+                                timeout=max(self.timeout, 60))
         for part in ((data.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []:
             inline = part.get("inlineData") or part.get("inline_data")
             if inline and inline.get("data"):

@@ -28,7 +28,8 @@ URDU = {"Vision": "وژن", "Wanda": "وانڈا"}
 
 async def main() -> None:
     key = os.environ.get("GEMINI_API_KEY") or getpass.getpass("Gemini API key (hidden, not saved): ")
-    v = GeminiVoice(key)
+    v = GeminiVoice(key, stt_model=os.environ.get("STARK_VOICE_STT_MODEL", ""),
+                    tts_model=os.environ.get("STARK_VOICE_TTS_MODEL", ""))
     try:
         stt, tts = await v.models()
     except VoiceError as exc:
@@ -38,8 +39,17 @@ async def main() -> None:
         input(f"Press Enter, then speak in {lang} for 5 seconds…")
         pcm = sd.rec(16000 * 5, samplerate=16000, channels=1, dtype="int16")
         sd.wait()
+        level = int(np.abs(pcm).max())
+        if level < 300:
+            print("  The microphone recorded silence. Allow microphone access for Terminal in System Settings → "
+                  "Privacy & Security → Microphone, then run this again.\n")
+            continue
         t = time.time()
-        text = await v.transcribe(wav_bytes(pcm.tobytes(), 16000), "audio/wav")
+        try:
+            text = await v.transcribe(wav_bytes(pcm.tobytes(), 16000), "audio/wav")
+        except VoiceError as exc:
+            print(f"  {exc}\n")
+            continue
         print(f"  heard ({time.time() - t:.1f} s): {text or '(nothing)'}\n")
     for who, voices in CHOICES.items():
         for name in voices:
