@@ -2,7 +2,7 @@
 
     python scripts/voice-check.py            (asks for your Gemini key; it is not saved)
 
-Needs: pip install httpx sounddevice
+Needs: pip install httpx sounddevice numpy
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "services/api"))
 
+import numpy as np  # noqa: E402
 import sounddevice as sd  # noqa: E402
 
 from stark.voice.gemini import GeminiVoice, VoiceError, wav_bytes  # noqa: E402
@@ -50,7 +51,7 @@ async def main() -> None:
                 print(f"  {exc}")
                 continue
             print(f"  ready in {time.time() - t:.1f} s")
-            sd.play(memoryview(audio).cast("h"), rate)
+            sd.play(np.frombuffer(audio, dtype=np.int16), rate)
             sd.wait()
     print("\nDone. Tell me which voice you liked for Vision and for Wanda.")
 
