@@ -20,7 +20,7 @@ Protect credential contents in copied application files and avoid accidental sec
 4. Local API bearer token and databases still depend on filesystem/OS account protection. Harden Windows ACL/installer behavior as part of packaged acceptance.
 5. Require valid release digests before installer execution; current updater accepts missing digest. Sign installers and stage complete releases atomically.
 6. Personal memories must not inherit permissive empty-brand shared visibility. Design and test personal scopes before M3/M6.
-7. Complete dependency audit and cross-platform reproducible locks. No independent penetration test or live platform permission validation was performed here.
+7. Local dependency audit identified vulnerable pypdf 6.21.2; M1 patches its locked version. npm audit and the patched Python environment report no known vulnerabilities. Complete cross-platform reproducible desktop locks. No independent penetration test or live platform permission validation was performed here.
 
 ## Repository governance proposal
 

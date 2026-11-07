@@ -10,7 +10,7 @@ Implemented encrypted desktop setup/social stores with native-vault key, verifie
 
 No database schema, application identifier, agent config, runtime permission policy, version, repository name or live site changed. Existing server-mode social storage remains a documented risk. Native packaging/upgrade, signing, digest hardening, portable recovery and performance remain release gates. This is a foundation increment, not a claim that all Nexonic security requirements are complete.
 
-Review PR and final test evidence to be added after checks. No merge or release is performed.
+Draft review PR [#34](https://github.com/Shahrukhalid/stark-os/pull/34). Local API 323 passed / 9 skipped, frontend 30 tests and types passed, native Windows/macOS vault CI passed at initial head. Final-head full CI and packaged acceptance remain pending. Dependency audit also identified pypdf vulnerabilities; the locked parser is patched. No merge or release is performed.
 
 ## Proposed M2
 
