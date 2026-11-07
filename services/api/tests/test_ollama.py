@@ -33,3 +33,21 @@ async def test_tool_incompatible_model_refused():
     p = OllamaProvider('http://127.0.0.1:11434', transport=httpx.MockTransport(lambda r: httpx.Response(200, json={})))
     with pytest.raises(ProviderError, match='tool support'):
         await p.complete(ModelRequest('local', 'System', [], tools=[{'name':'test'}]))
+
+async def test_real_installed_local_model_opt_in():
+    """No downloads. Run explicitly against a disposable, cloud-disabled Ollama server."""
+    import os
+    url = os.environ.get('STARK_TEST_OLLAMA_URL')
+    model = os.environ.get('STARK_TEST_OLLAMA_MODEL')
+    if not url or not model:
+        pytest.skip('requires an explicitly configured local Ollama acceptance server and installed model')
+    p = OllamaProvider(url, model)
+    assert (await p.health())[0]
+    result = await p.complete(ModelRequest(model, 'Answer briefly. /no_think',
+        [{'role':'user','content':'What is two plus two? Reply with the number only. /no_think'}], max_tokens=128, temperature=0))
+    assert '4' in result.text and result.provider == 'ollama'
+    tools = [{'name':'local_test_answer','description':'Return the requested numeric answer',
+              'input_schema':{'type':'object','properties':{'answer':{'type':'integer'}},'required':['answer']}}]
+    result = await p.complete(ModelRequest(model, 'Use local_test_answer to answer. /no_think',
+        [{'role':'user','content':'Use the tool with answer 4. /no_think'}], tools=tools, max_tokens=256, temperature=0))
+    assert any(c['name']=='local_test_answer' and c['input'].get('answer')==4 for c in result.tool_calls)
