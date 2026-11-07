@@ -217,3 +217,14 @@ def test_connection_errors_do_not_expose_token_urls(monkeypatch):
     monkeypatch.setattr(desktop.httpx, 'get', fail)
     result = desktop.test_social('telegram', {'TELEGRAM_BOT_TOKEN': 'private-token'})
     assert not result['ok'] and 'private-token' not in json.dumps(result)
+
+
+def test_crash_summary_shows_only_the_error_line_without_secrets(tmp_path):
+    from stark.desktop import _crash_summary
+
+    log = tmp_path / "crash.log"
+    log.write_text('Traceback (most recent call last):\n  File "/app/x.py", line 3, in run\n    go()\n'
+                   "RuntimeError: login failed token=abcdefgh12345678\n")
+    out = _crash_summary(log)
+    assert out.startswith("RuntimeError: login failed") and "abcdefgh12345678" not in out and "File" not in out
+    assert _crash_summary(tmp_path / "missing.log") == ""

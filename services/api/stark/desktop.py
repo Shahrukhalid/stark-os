@@ -368,8 +368,9 @@ def diagnostics() -> dict[str, Any]:
         probe.write_text("ok")
         probe.unlink()
         checks.append({"name": "Data folder is writable", "ok": True, "detail": str(d)})
-    except OSError as exc:
-        checks.append({"name": "Data folder is writable", "ok": False, "detail": _short(exc)})
+    except OSError:
+        checks.append({"name": "Data folder is writable", "ok": False,
+                       "detail": "STARK OS cannot write to its data folder. Check its permissions and free space."})
     sp = _secrets_path()
     checks.append({"name": "Legacy credential file removed", "ok": not sp.exists(),
                    "detail": str(sp)})
@@ -384,7 +385,18 @@ def diagnostics() -> dict[str, Any]:
     crash = d / "logs" / "crash.log"
     return {"version": __version__, "python": sys.version.split()[0], "os": f"{platform.system()} {platform.release()}",
             "machine": platform.machine(), "checks": checks,
-            "last_crash": crash.read_text(encoding="utf-8", errors="replace")[-2000:] if crash.exists() else ""}
+            "last_crash": _crash_summary(crash)}
+
+
+def _crash_summary(crash: Path) -> str:
+    """The last crash's error line, with anything that looks like a credential removed (no full traceback)."""
+    from .core.observability import redact
+
+    if not crash.exists():
+        return ""
+    lines = [ln.strip() for ln in crash.read_text(encoding="utf-8", errors="replace").splitlines()[-200:] if ln.strip()]
+    errors = [ln for ln in lines if not ln.startswith(("File ", "Traceback", "^", "~"))]
+    return redact(errors[-1])[:300] if errors else ""
 
 
 # ---------------------------------------------------------------- API
