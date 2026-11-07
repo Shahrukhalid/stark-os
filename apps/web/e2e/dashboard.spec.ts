@@ -405,3 +405,11 @@ test("desktop local setup proceeds without a cloud key", async ({ page }) => {
   await page.getByRole("button",{name:"Next",exact:true}).click();
   await expect(page.getByText("Connect the accounts STARK OS may post to.",{exact:false})).toBeVisible();
 });
+
+test("Vision and Wanda appear alongside the seven specialists", async ({ page }) => {
+  await connect(page);
+  await page.getByRole("button",{name:"Agents",exact:true}).click();
+  await expect(page.getByRole("heading",{name:"VISION",exact:true})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"WANDA",exact:true})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"ULTRON",exact:true})).toBeVisible();
+});

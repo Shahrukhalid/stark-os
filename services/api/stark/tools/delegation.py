@@ -25,8 +25,12 @@ class AgentDelegate(Tool):
     Input = DelegateInput
     risk = Risk.DELEGATION
 
+    def needs_approval(self, args, ctx):
+        return bool(ctx.agent and ctx.agent.id in {"vision", "wanda"})
+
     def describe(self, args, ctx):
-        return ApprovalText(f"Delegate to {args.agent_id}", args.agent_id, args.instruction[:300], "None")
+        return ApprovalText(f"Delegate to {args.agent_id}", args.agent_id, args.instruction,
+                            "Shares this instruction with the recipient and its configured model provider.")
 
     async def run(self, args: DelegateInput, ctx) -> ToolResult:
         msg_type = {"task": MessageType.TASK_REQUEST, "question": MessageType.INFORMATION_REQUEST,
@@ -55,7 +59,14 @@ class TeamReview(Tool):
                    "Ultron challenge the combined results. Returns every attributable review.")
     Input = TeamReviewInput
     risk = Risk.DELEGATION
-    allowed_agents = {"jarvis"}
+    allowed_agents = {"jarvis", "vision", "wanda"}
+
+    def needs_approval(self, args, ctx):
+        return bool(ctx.agent and ctx.agent.id in {"vision", "wanda"})
+
+    def describe(self, args, ctx):
+        return ApprovalText("Request a team review", ", ".join(args.reviewers or ctx.agent.delegation.can_delegate_to),
+                            args.subject, "Shares this context with selected specialists and their configured providers.")
 
     async def run(self, args: TeamReviewInput, ctx) -> ToolResult:
         try:

@@ -315,7 +315,7 @@ def test_mastodon_requires_https(settings):
 # ------------------------------------------------------------------ brains & identity
 def test_each_agent_has_its_own_brain(settings):
     k, _ = make_kernel(settings)
-    agents = k.registry.all()
+    agents = [a for a in k.registry.all() if a.id not in {"vision", "wanda"}]
     firsts = [a.model.preferred[0] for a in agents]
     assert all(m.endswith(":free") for a in agents for m in a.model.preferred)
     assert len(set(firsts)) >= 6  # (almost) every agent thinks with a different first-choice model
@@ -337,6 +337,9 @@ def test_visionquest_roles_and_u_is_mute(settings):
     u = k.registry.get("u")
     assert u.voice.muted and all(not a.voice.muted for a in k.registry.all() if a.id != "u")
     for a in k.registry.all():
+        if a.id in {"vision", "wanda"}:
+            assert "Original Nexonic" in a.canon_notes[0]
+            continue
         assert any("[established]" in c for c in a.canon_notes)
         assert any("VisionQuest" in c for c in a.canon_notes)
     assert k.registry.get("dum_e").workflow == "publishing" and "social.pause_queue" in k.registry.get("dum_e").tools

@@ -77,6 +77,9 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
   const [partial, setPartial] = useState("");
   const [activeTask, setActiveTask] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [handoffOpen, setHandoffOpen] = useState(false);
+  const [handoffContext, setHandoffContext] = useState("");
+  const [handoffTarget, setHandoffTarget] = useState("wanda");
   const [speakReplies, setSpeakReplies] = useState(false);
   const [wakeMode, setWakeMode] = useState(false);
   const [pttActive, setPttActive] = useState(false);
@@ -323,6 +326,28 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
           </button>
         </div>
 
+        {conversationId && <div className="border-b border-[var(--color-line)] p-3">
+          <button className="btn" aria-expanded={handoffOpen} onClick={()=>setHandoffOpen(v=>!v)}>Hand off to an assistant</button>
+          {handoffOpen && <div className="mt-2 space-y-2">
+            <p className="text-xs">Write the context you approve sharing. Earlier messages and private memories are not copied automatically.</p>
+            <select aria-label="Handoff assistant" value={handoffTarget} onChange={e=>setHandoffTarget(e.target.value)}><option value="vision">Vision</option><option value="wanda">Wanda</option></select>
+            <textarea className="input w-full" aria-label="Approved handoff context" maxLength={4000} value={handoffContext} onChange={e=>setHandoffContext(e.target.value)} />
+            <button className="btn" disabled={sending || !handoffContext.trim()} onClick={async ()=>{
+              setSending(true);
+              stopSpeaking();
+              try {
+                const task = await client.post<Task>(`/api/conversations/${conversationId}/handoff`, {agent_id:handoffTarget,context:handoffContext});
+                setAgentId(task.agent_id);
+                setConversations(c=>({...c,[task.agent_id]:task.conversation_id}));
+                setActiveTask(task.id);
+                setTurns([]);
+                setHandoffOpen(false);
+                setHandoffContext("");
+              } catch(e:any) { notify("error",e.message); }
+              finally { setSending(false); }
+            }}>Share context and hand off</button>
+          </div>}
+        </div>}
         <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4">
           {turns.length === 0 && !activeTask && (
             <div className="mx-auto max-w-md py-12 text-center text-sm text-[var(--color-mute)]">

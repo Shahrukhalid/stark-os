@@ -15,7 +15,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-Workflow = Literal["orchestrate", "community", "engagement", "adversarial", "research", "publishing", "visual"]
+Workflow = Literal["assistant", "orchestrate", "community", "engagement", "adversarial", "research", "publishing", "visual"]
 
 
 class ModelConfig(BaseModel):

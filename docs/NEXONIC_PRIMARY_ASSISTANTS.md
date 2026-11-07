@@ -1,0 +1,13 @@
+# Vision and Wanda — M3 implementation
+
+Two original assistant identities are registered through the existing TOML registry and kernel, alongside the seven preserved specialists. Both have the same tool list and assist permission ceiling, independent provider overrides, separate private/personal namespaces, distinct personalities/colors and system-voice preferences. No cloned voice or new orchestration engine is introduced. Desktop control and streaming local voice remain later milestones, and prompts explicitly disclose unavailable tools.
+
+Text and browser wake addressing recognize Hey Vision and Hey Wanda. Existing Command and Agents views use the live registry to show both. Shared speech synthesis cancels/serializes output so two assistants do not speak simultaneously. Voice quality/availability depends on installed OS voices until M4.
+
+Primary assistants can delegate through the normal kernel. Delegation/team-review prompts show the context and require owner approval before sharing it with recipients and their configured providers. Rejection never invokes the recipient. Existing specialist delegation behavior is preserved. Approved delegation now transitions out of waiting_approval before collaboration; this fixes the task-state error exposed by the new consent boundary.
+
+A Command-view handoff form accepts an owner-written summary and creates a new primary-assistant conversation. It does not copy earlier messages or private memory. Switching from a primary assistant to a different assistant starts a separate history even if a client submits the old conversation ID. Legacy specialist conversation behavior remains unchanged.
+
+Personal memory writes require explicit consent. Primary preference saves target personal:vision or personal:wanda. Personal namespaces and primary private notes are excluded from brand-workspace retrieval and cannot be written there. Private namespaces cannot be read by the other primary assistant or old specialists. Shared project writes from primaries also require review. Automatic episodic note extraction is disabled for the new primaries; ordinary owner chat history remains available in its separate conversation. No database schema or data-directory change occurs.
+
+Evidence includes actual kernel Vision -> Wanda collaboration after approval, rejected-delegation refusal, separate histories, owner-authenticated summary handoff, namespace/brand isolation and specialist permission regressions. Seven specialist TOML/prompt directories are unchanged from the M2 parent. Frontend addressing tests, type checks and Agents browser coverage are included. Local provider/voice/preferences use existing infrastructure. Full natural-voice and real-device acceptance remain M4/M15 gates.

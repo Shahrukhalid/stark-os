@@ -35,6 +35,10 @@ _STOP = set("the a an and or of to in on for is are be with that this it as at b
 _WORD = re.compile(r"[a-z0-9][a-z0-9_\-]+")
 
 
+def personal_namespace(namespace: str) -> bool:
+    return namespace.startswith("personal:") or namespace in {"agent:vision", "agent:wanda"}
+
+
 class MemoryAccessError(PermissionError):
     pass
 
@@ -85,6 +89,11 @@ class MemoryService:
             raise MemoryAccessError(f"{actor.id} may not write to {namespace}")
         if namespace == "user:preferences" and not consent:
             raise MemoryAccessError("user preferences require explicit consent")
+        if personal_namespace(namespace):
+            if current_brand().get("name"):
+                raise MemoryAccessError("Personal memory is unavailable inside a brand workspace")
+            if not consent:
+                raise MemoryAccessError("Personal memory requires explicit consent")
         content = content.strip()
         if not content:
             raise ValueError("empty memory")
@@ -126,6 +135,8 @@ class MemoryService:
         q_tokens = set(_tokens(query))
         scored = []
         for row in rows:
+            if current_brand().get("name") and personal_namespace(row.namespace):
+                continue
             if not can_access(allowed, row.namespace):
                 continue
             if root_id and row.namespace.startswith("shared:project:") and row.namespace != f"shared:project:{root_id}":

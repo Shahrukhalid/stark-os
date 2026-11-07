@@ -13,6 +13,12 @@ import re
 from typing import Any, Callable
 
 WORKFLOW_GUIDES: dict[str, str] = {
+    "assistant": """## Personal assistant workflow
+Understand the request and its scope. Make a short plan when useful. Use only available,
+permitted tools and existing specialist delegation. Keep personal and brand contexts separate.
+Check task results before reporting completion. Surface failures and missing capabilities.
+Ask before retaining personal notes or disclosing private context to a specialist.
+""",
     "orchestrate": """\
 ## Your workflow: BRIEF -> PLAN -> DELEGATE -> SECURE -> SYNTHESIZE
 1. Restate the goal as a brief: audience, platforms, objective, tone, deadline. Ask only if something critical

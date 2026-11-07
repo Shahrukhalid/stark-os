@@ -21,3 +21,11 @@ M3–M15 remain planned, not implemented. See [master plan](NEXONIC_MASTER_PLAN.
 ## M2 — local providers in progress
 
 Draft [PR #35](https://github.com/Shahrukhalid/stark-os/pull/35), stacked on #34, adds loopback Ollama, model discovery/inspection, owner-authenticated persistent per-agent selection and bounded/cancellable model downloads, plus Models UI. Initial adapter CI passed all six checks. Expanded management tests: 38 focused passes; full regression 339 passes / 9 skips before the last cancellation fixtures. Real model inference and Windows/Mac acceptance remain pending. Paid-provider defaults and seven-agent permissions are preserved.
+
+## M2 acceptance update
+
+PR #35 at 2102873 passed all seven checks in run 42373530796, including the clean Windows real download/text/tool inference job and frontend E2E. Mac real inference was verified locally. Opt-in free cloud fallback, consent/revocation, keyless desktop setup, model management and shutdown cleanup are implemented. Packaging and full-device acceptance remain final release gates. The PR remains unmerged.
+
+## M3 — primary assistants in progress
+
+Vision/Wanda configurations, shared assistant workflow, equivalent tools, distinct system voices/colors, text/wake addressing, explicit delegation-context approval, separate histories, consented personal namespaces and owner-written handoff are implemented on a separate stacked branch. Existing seven specialist configurations are unchanged. Tests and PR evidence are being collected. Local streaming voice and native computer control are explicitly deferred to their own milestones.

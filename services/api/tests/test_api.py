@@ -56,7 +56,8 @@ def test_refuses_to_start_without_token(settings):
 
 def test_agents_and_status(client):
     agents = client.get("/api/agents").json()
-    assert len(agents) == 7
+    assert len(agents) == 9
+    assert {"vision", "wanda"} <= {a["id"] for a in agents}
     jarvis = next(a for a in agents if a["id"] == "jarvis")
     assert jarvis["model_in_use"]["provider"] == "openrouter"
     assert jarvis["live"]["status"] == "idle" and jarvis["tool_details"]
