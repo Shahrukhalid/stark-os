@@ -1,3 +1,5 @@
+> Historical release notes below contain superseded capability claims. For the 2026-11-07 source audit and current evidence, see [Nexonic repository audit](NEXONIC_REPOSITORY_AUDIT.md), [feature inventory](NEXONIC_FEATURE_MATRIX.md) and [test results](NEXONIC_TEST_MATRIX.md).
+
 # Implementation status
 
 _Last updated: 2026-11-01 · release 1.3.0 (brands, mood of mentions, hashtag research, campaign and brand analytics; 1.2.0: desktop app)_

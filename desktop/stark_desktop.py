@@ -7,7 +7,7 @@ Opens a native window with the dashboard and runs the API in a background proces
 
 Everything lives in the user's own data folder (macOS: ~/Library/Application Support/STARK OS, Windows:
 %LOCALAPPDATA%\\STARK OS). The API token for the window and every key the user enters are kept in private files
-there (readable only by this user), not in the system keychain.
+there with authenticated encryption; the encryption key is held by the native OS credential store.
 """
 
 from __future__ import annotations
