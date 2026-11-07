@@ -8,7 +8,7 @@ work and with general questions; more features will be added over time.
 | Personality | Calm, analytical, precise | Warm, expressive, creative |
 | Social media | Strategy, analytics, account health | Posts, captions, campaigns, replies |
 | General | Technical questions, projects, planning | Writing, research, everyday tasks |
-| Colour and voice | Cyan; a masculine system voice | Rose; a feminine system voice |
+| Colour and voice | Cyan; a calm masculine voice | Rose; a warm feminine voice |
 
 Both have the same tools and permission limits; only their personality differs. They use the same AI provider
 settings as the rest of STARK AI (no extra install).
@@ -24,6 +24,11 @@ settings as the rest of STARK AI (no extra install).
   started, write a short handoff in the Command view; only what you write is passed on.
 - **Personal notes.** They remember personal things only with your consent. Personal notes are kept apart from
   your brand workspaces and from the other assistant.
-- **Voices.** Spoken replies use the voices installed on your computer, one assistant at a time.
+- **Presence.** In Command each assistant appears as a particle presence (Core, Female or Male, your choice)
+  that gathers in while listening, sparks while thinking and pulses while speaking. It is original artwork drawn
+  from simple shapes; with reduced motion turned on in your system it stays still.
+- **Voices.** With STARK voice (your own free Gemini key) you hold the talk button and speak English or Urdu;
+  each assistant answers in their own voice. Without a key, the voices installed on your computer are used.
+  Details: [VOICE.md](VOICE.md).
 
 The seven specialists, their roles and their safety limits are unchanged.

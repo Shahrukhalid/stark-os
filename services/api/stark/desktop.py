@@ -32,6 +32,7 @@ RELEASES = ("https://api.github.com/repos/Shahrukhalid/stark-ai/releases/latest"
 # Secret values: authenticated encryption on disk; encryption key in the OS vault.
 SECRETS = {
     "OPENROUTER_API_KEY": "AI provider API key",
+    "GEMINI_API_KEY": "Google Gemini API key (voice)",
     "BLUESKY_APP_PASSWORD": "Bluesky app password",
     "MASTODON_ACCESS_TOKEN": "Mastodon access token",
     "THREADS_ACCESS_TOKEN": "Threads access token",
@@ -52,6 +53,7 @@ PLAIN = {
     "BLUESKY_HANDLE", "BLUESKY_SERVICE", "MASTODON_BASE_URL", "THREADS_USER_ID", "TELEGRAM_CHAT_ID",
     "TELEGRAM_CHANNEL_ID", "STARK_DEFAULT_MODE", "FACEBOOK_PAGE_ID", "LINKEDIN_AUTHOR_URN", "LINKEDIN_API_VERSION",
     "INSTAGRAM_USER_ID", "PINTEREST_BOARD_ID", "TIKTOK_PRIVACY", "YOUTUBE_PRIVACY", "STARK_CONNECT_URL",
+    "STARK_VOICE_ENGINE", "STARK_VOICE_LANGUAGE", "STARK_VOICE_URDU_SCRIPT",
 }
 
 # What each platform supports, shown in the setup wizard.

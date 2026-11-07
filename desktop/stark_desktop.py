@@ -84,7 +84,7 @@ def backend_env(port: int, token: str) -> dict[str, str]:
     env = dict(os.environ)
     if FROZEN:  # never inherit a developer's .env or keys when running the packaged app
         for k in [k for k in env if k.startswith(("OPENROUTER_", "BLUESKY_", "MASTODON_", "THREADS_", "TELEGRAM_",
-                                                    "DISCORD_", "SLACK_", "STARK_"))]:
+                                                    "DISCORD_", "SLACK_", "STARK_", "GEMINI_"))]:
             env.pop(k)
     env.update({
         "STARK_DESKTOP": "1", "STARK_API_TOKEN": token, "STARK_HOST": "127.0.0.1", "STARK_PORT": str(port),

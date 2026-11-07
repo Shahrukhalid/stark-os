@@ -1,6 +1,7 @@
 "use client";
 
 import { PhoneSettings } from "./PhoneSettings";
+import { VoiceSettings } from "./VoiceSettings";
 import { Monitor, Moon, Sun, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { isDesktop } from "@/lib/api";
@@ -209,6 +210,8 @@ export function SettingsView({ onSignOut }: { onSignOut: () => void }) {
           </tbody>
         </table>
       </Section>
+
+      <VoiceSettings />
 
       <Section title="Voice profiles (browser speech)">
         {!ttsSupported() ? (

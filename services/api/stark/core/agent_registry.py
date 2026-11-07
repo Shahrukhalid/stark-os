@@ -52,6 +52,8 @@ class VoiceProfile(BaseModel):
     preferred_voices: list[str] = Field(default_factory=list)
     muted: bool = False  # never spoken aloud (U. is mute)
     description: str = ""
+    voice: str = ""  # STARK voice (Gemini) voice name; empty: the assistant's default
+    style: str = ""  # how the line is said, e.g. "Say in a calm, clear voice"
 
 
 class AgentConfig(BaseModel):

@@ -64,6 +64,7 @@ export function AgentGlyph({ icon, color, size = 28, active = false }: { icon: s
 export const STATE_META: Record<string, { label: string; color: string; animated: boolean }> = {
   idle: { label: "Idle", color: "#8a9aa6", animated: false },
   listening: { label: "Listening", color: "#22d3ee", animated: true },
+  speaking: { label: "Speaking", color: "#34d399", animated: true },
   thinking: { label: "Thinking", color: "#a78bfa", animated: true },
   executing: { label: "Executing", color: "#22d3ee", animated: true },
   waiting_approval: { label: "Waiting for approval", color: "#fbbf24", animated: true },

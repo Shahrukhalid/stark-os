@@ -1,8 +1,8 @@
 /** Mirrors services/api/stark/core/addressing.py so voice commands can switch agents instantly. */
 
 export const ALIASES: Record<string, string[]> = {
-  vision: ["vision"],
-  wanda: ["wanda"],
+  vision: ["vision", "وژن", "ویژن"],
+  wanda: ["wanda", "وانڈا", "وینڈا"],
   jarvis: ["jarvis", "j.a.r.v.i.s.", "j.a.r.v.i.s", "j a r v i s"],
   friday: ["friday", "f.r.i.d.a.y.", "f.r.i.d.a.y"],
   edith: ["edith", "e.d.i.t.h.", "e.d.i.t.h"],
@@ -12,7 +12,7 @@ export const ALIASES: Record<string, string[]> = {
   u: ["u"],
 };
 
-const PREFIX = /^\s*(?:hey|ok|okay|hi|yo)?\s*,?\s*/i;
+const PREFIX = /^\s*(?:hey|ok|okay|hi|yo|ارے|سنو)?\s*[,،]?\s*/i;
 
 export function parseAddress(text: string): { agent: string | null; rest: string } {
   const stripped = text.replace(PREFIX, "");
@@ -22,13 +22,13 @@ export function parseAddress(text: string): { agent: string | null; rest: string
     for (const name of names) {
       if (!lower.startsWith(name)) continue;
       const rest = stripped.slice(name.length);
-      if (rest && /^[a-z0-9]/i.test(rest)) continue;
+      if (rest && /^[\p{L}\p{N}]/u.test(rest)) continue;
       if (agent === "u" && !/^\s*[,:]/.test(rest)) continue;
       if (!best || name.length > best.len) best = { agent, len: name.length };
     }
   }
   if (!best) return { agent: null, rest: text.trim() };
-  const remaining = stripped.slice(best.len).replace(/^[\s,:;.!-]+/, "").trim();
+  const remaining = stripped.slice(best.len).replace(/^[\s,،:;.!-]+/, "").trim();
   return { agent: best.agent, rest: remaining || text.trim() };
 }
 

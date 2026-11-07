@@ -71,6 +71,15 @@ class Settings:
     openrouter_models: dict[str, str] = field(default_factory=dict)
     openrouter_allow_paid: bool = False  # safety net: never call a model that costs money
 
+    # voice: speech-to-text and the assistants' voices with the owner's Gemini key (free tier works)
+    gemini_api_key: str = ""
+    voice_engine: str = "gemini"  # "gemini" when a key is set, otherwise the browser's own speech
+    voice_language: str = "auto"  # auto | en | ur
+    voice_urdu_script: str = "urdu"  # urdu | roman
+    voice_stt_model: str = ""  # empty: newest suitable model for this key
+    voice_tts_model: str = ""
+    desktop: bool = False  # the engine runs inside the desktop app on the user's computer
+
     # budgets & limits
     task_token_budget: int = 200_000
     max_delegation_depth: int = 2
@@ -144,6 +153,13 @@ class Settings:
             workspace_roots=[Path(r).expanduser().resolve() for r in roots],
             data_dir=data_dir,
             openrouter_api_key=_env("OPENROUTER_API_KEY"),
+            gemini_api_key=_env("GEMINI_API_KEY"),
+            voice_engine=_env("STARK_VOICE_ENGINE", "gemini").lower(),
+            voice_language=_env("STARK_VOICE_LANGUAGE", "auto").lower(),
+            voice_urdu_script=_env("STARK_VOICE_URDU_SCRIPT", "urdu").lower(),
+            voice_stt_model=_env("STARK_VOICE_STT_MODEL"),
+            voice_tts_model=_env("STARK_VOICE_TTS_MODEL"),
+            desktop=_env_bool("STARK_DESKTOP", False),
             openrouter_base_url=_env("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
             openrouter_models={
                 tier: _env(f"OPENROUTER_MODEL_{tier.upper()}", _env("OPENROUTER_MODEL"))

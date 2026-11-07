@@ -4,7 +4,8 @@
  * Voice I/O using the browser's Web Speech API (free, no keys).
  *  - Speech-to-text: SpeechRecognition (Chrome, Edge, Safari). Not available in Firefox.
  *  - Text-to-speech: speechSynthesis with per-agent voice profiles (original system voices, no cloning).
- * Server-side STT/TTS provider adapters are planned (see docs/IMPLEMENTATION_STATUS.md).
+ * STARK voice (below) uses the engine with the owner's Gemini key instead, when one is set: English and Urdu,
+ * one voice per assistant, and it also works in the desktop app's window.
  */
 
 export interface VoiceProfile {
@@ -167,4 +168,93 @@ export function createRecognizer(opts: {
       }
     },
   };
+}
+
+// ---------------------------------------------------------------- STARK voice (engine side, Gemini key)
+/** Status of STARK voice from the engine. "browser" means the browser's own speech is used instead. */
+export interface VoiceStatus {
+  engine: "gemini" | "browser";
+  configured: boolean;
+  local_audio: boolean;
+  local_reason: string;
+  language: string;
+  urdu_script: string;
+}
+
+interface Client {
+  get<T>(path: string): Promise<T>;
+  post<T>(path: string, body?: unknown): Promise<T>;
+}
+
+const URDU = /[؀-ۿ]/;
+
+/** True when most letters are Urdu script. */
+export function isUrdu(text: string): boolean {
+  const letters = Array.from(text).filter((c) => /\p{L}/u.test(c));
+  return letters.length > 0 && letters.filter((c) => URDU.test(c)).length / letters.length > 0.4;
+}
+
+let recorder: MediaRecorder | null = null;
+let chunks: Blob[] = [];
+let playing: HTMLAudioElement | null = null;
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  const buf = new Uint8Array(await blob.arrayBuffer());
+  let bin = "";
+  for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+/** Start recording: the desktop engine uses the microphone itself; a browser page records with MediaRecorder. */
+export async function voiceListenStart(client: Client, st: VoiceStatus): Promise<void> {
+  voiceStopSpeaking(client, st);
+  if (st.local_audio) {
+    await client.post("/api/voice/listen/start");
+    return;
+  }
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+    throw new Error("This browser can't record audio.");
+  }
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  chunks = [];
+  recorder = new MediaRecorder(stream);
+  recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  recorder.start();
+}
+
+/** Stop recording and return what was said (empty when nothing was heard). */
+export async function voiceListenStop(client: Client, st: VoiceStatus): Promise<string> {
+  if (st.local_audio) return (await client.post<{ text: string }>("/api/voice/listen/stop")).text;
+  const rec = recorder;
+  recorder = null;
+  if (!rec) return "";
+  const done = new Promise<void>((r) => (rec.onstop = () => r()));
+  rec.stop();
+  await done;
+  rec.stream.getTracks().forEach((t) => t.stop());
+  const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+  if (blob.size < 2000) return "";
+  const audio = await blobToBase64(blob);
+  return (await client.post<{ text: string }>("/api/voice/transcribe", { audio, mime: blob.type || "audio/webm" })).text;
+}
+
+/** Say a reply in the assistant's own voice. */
+export async function voiceSpeak(client: Client, agentId: string, text: string, preview?: { voice?: string; style?: string }): Promise<void> {
+  const r = await client.post<{ played: boolean; audio?: string; mime?: string }>("/api/voice/speak", { agent_id: agentId, text, play: true, ...preview });
+  if (r.played || !r.audio) return;
+  playing?.pause();
+  playing = new Audio(`data:${r.mime || "audio/wav"};base64,${r.audio}`);
+  await playing.play().catch(() => undefined);
+}
+
+export function voiceStopSpeaking(client: Client, st: VoiceStatus | null): void {
+  playing?.pause();
+  playing = null;
+  if (st?.local_audio) client.post("/api/voice/stop").catch(() => undefined);
+}
+
+export interface VoiceChoices {
+  voices: { name: string; character: string }[];
+  styles: string[];
+  agents: Record<string, { voice: string; style: string; default: string }>;
 }
