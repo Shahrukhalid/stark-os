@@ -613,7 +613,7 @@ function CampaignForm({ initial, searchConfigured, onDone }: { initial: Campaign
             </label>
           ))}
         </div>
-        <p className="mb-3 text-xs text-[var(--color-mute)]">Bluesky and Mastodon post for real once connected (Content page). The others are drafted and published as labelled simulations.</p>
+        <p className="mb-3 text-xs text-[var(--color-mute)]">Connected platforms post for real (connect them in Content). Platforms you have not connected are drafted and published as labelled simulations.</p>
         <div className="grid gap-3 md:grid-cols-3">
           <Field label="Posting times" hint="24-hour, comma separated"><input className="input" value={f.times} onChange={(e) => set({ times: e.target.value })} /></Field>
           <Field label="Time zone"><input className="input" value={f.timezone} onChange={(e) => set({ timezone: e.target.value })} /></Field>

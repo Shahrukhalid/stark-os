@@ -66,7 +66,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "STARK AI ${GITHUB_REF_NAME#v}" --notes "Desktop installers for macOS and Windows: download, install, open STARK AI and follow the setup." || true
+          NOTES="docs/releases/$GITHUB_REF_NAME.md"  # release notes written for this version, when there are any
+          if [ -f "$NOTES" ]; then set -- --notes-file "$NOTES"
+          else set -- --notes "Desktop installers for macOS and Windows: download, install, open STARK AI and follow the setup."; fi
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "STARK AI ${GITHUB_REF_NAME#v}" "$@" || true
           gh release upload "$GITHUB_REF_NAME" "dist/${{ matrix.asset }}" --clobber
           # Apps from before the rename look for the old file names: keep a copy under that name so they update too.
           OLD="${{ matrix.asset }}"; OLD="${OLD/STARK-AI-/STARK-OS-}"
