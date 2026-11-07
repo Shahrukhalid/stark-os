@@ -377,3 +377,10 @@ test("Channels, translation, quote cards, inbox rules and own feeds", async ({ p
   await page.getByRole("button", { name: "Add feed" }).click();
   await expect(page.getByText(/channel_id=UCabcdefghijklmnopqrstuv/)).toBeVisible();
 });
+
+test("Models shows local setup while keeping OpenRouter available", async ({ page }) => {
+  await connect(page);
+  await page.getByRole("button", {name:"Models", exact:true}).click();
+  await expect(page.getByText("Local models (Ollama)", {exact:true})).toBeVisible();
+  await expect(page.getByText(/Enable Ollama with STARK_OLLAMA_URL/)).toBeVisible();
+});

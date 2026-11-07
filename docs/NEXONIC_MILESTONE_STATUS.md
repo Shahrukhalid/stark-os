@@ -17,3 +17,7 @@ Draft review PR [#34](https://github.com/Shahrukhalid/stark-os/pull/34). Local A
 Implement Ollama behind ModelProvider, bounded local discovery/health/download operations, explicit independent per-agent provider/model choices and tool-call capability checks. Local failure must not cause cloud fallback unless the owner configured it. Verify offline text/tool conversation, cancellation, unavailable-model behavior and free-only cloud compatibility. Keep paid providers disabled by default. Proceed after reviewing M1 evidence and remaining release gates.
 
 M3–M15 remain planned, not implemented. See [master plan](NEXONIC_MASTER_PLAN.md).
+
+## M2 — local providers in progress
+
+Draft [PR #35](https://github.com/Shahrukhalid/stark-os/pull/35), stacked on #34, adds loopback Ollama, model discovery/inspection, owner-authenticated persistent per-agent selection and bounded/cancellable model downloads, plus Models UI. Initial adapter CI passed all six checks. Expanded management tests: 38 focused passes; full regression 339 passes / 9 skips before the last cancellation fixtures. Real model inference and Windows/Mac acceptance remain pending. Paid-provider defaults and seven-agent permissions are preserved.

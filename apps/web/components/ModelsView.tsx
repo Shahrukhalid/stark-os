@@ -4,6 +4,7 @@ import { RefreshCw, Zap } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useStark } from "@/lib/store";
 import type { ModelsInfo } from "@/lib/types";
+import { LocalModelsView } from "./LocalModelsView";
 import { Empty, Section } from "./ui";
 
 interface PingResult {
@@ -52,14 +53,15 @@ export function ModelsView() {
   if (!info) return <Section title="Models">Loading…</Section>;
   if (!info.configured)
     return (
-      <Section title="Models">
-        <Empty>Add a free OPENROUTER_API_KEY to .env and restart the API.</Empty>
-      </Section>
+      <div className="space-y-4"><LocalModelsView /><Section title="Models">
+        <Empty>OpenRouter is optional. Add a free OPENROUTER_API_KEY to enable cloud models.</Empty>
+      </Section></div>
     );
 
   const q = info.quota;
   return (
     <div className="space-y-4">
+      <LocalModelsView />
       <Section
         title="Free model pool (OpenRouter)"
         right={

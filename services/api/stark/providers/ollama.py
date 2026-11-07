@@ -1,6 +1,7 @@
 """Opt-in loopback Ollama adapter. Never falls back to a cloud provider."""
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import re
 from urllib.parse import urlsplit
@@ -20,6 +21,7 @@ class OllamaProvider(OpenAICompatProvider):
             local = False
         if url.scheme != 'http' or not local or url.username or url.password or url.path not in ('', '/') or url.query or url.fragment:
             raise ValueError('Ollama must use a literal loopback HTTP address, e.g. http://127.0.0.1:11434')
+        self._generation_slots = asyncio.Semaphore(2)
         self.root = base_url.rstrip('/')
         self.default_model = model
         super().__init__('ollama', self.root + '/v1', transport=transport, timeout_s=180)
@@ -31,7 +33,7 @@ class OllamaProvider(OpenAICompatProvider):
     async def _json(self, method, path, body=None):
         try:
             async with self._client() as client:
-                async with client.stream(method, self.root + path, json=body) as response:
+                async with client.stream(method, self.root + path, json=body, timeout=3 if method == 'GET' else 180) as response:
                     if response.status_code != 200:
                         raise ProviderError(f'Ollama HTTP {response.status_code}', status=response.status_code)
                     raw = bytearray()
@@ -75,4 +77,6 @@ class OllamaProvider(OpenAICompatProvider):
                 'stream': False, 'max_tokens': request.max_tokens, 'temperature': request.temperature}
         if request.tools:
             body['tools'] = to_openai_tools(request.tools)
-        return from_openai_response(await self._json('POST', '/v1/chat/completions', body), self.name, request.model)
+        async with asyncio.timeout(180):
+            async with self._generation_slots:
+                return from_openai_response(await self._json('POST', '/v1/chat/completions', body), self.name, request.model)
