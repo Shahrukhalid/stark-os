@@ -47,7 +47,7 @@ export function DesktopSetup({ conn, onDone, canSkip }: { conn: Connection; onDo
       .then((s) => {
         setSt(s);
         const base = s.settings.OPENROUTER_BASE_URL || "";
-        setProvider(base && !base.includes("openrouter.ai") ? "custom" : s.settings.OPENROUTER_ALLOW_PAID === "true" ? "openrouter" : "openrouter-free");
+        setProvider(s.settings.STARK_DEFAULT_PROVIDER === "ollama" ? "ollama" : base && !base.includes("openrouter.ai") ? "custom" : s.settings.OPENROUTER_ALLOW_PAID === "true" ? "openrouter" : "openrouter-free");
         const v: Record<string, string> = { ...s.settings };
         for (const [k, saved] of Object.entries(s.secrets)) if (saved) v[k] = KEEP;
         setValues(v);
@@ -57,6 +57,7 @@ export function DesktopSetup({ conn, onDone, canSkip }: { conn: Connection; onDo
 
   if (!st) return <Frame>{error ? <p className="text-sm text-red-400">{error}</p> : <p className="text-sm text-[var(--color-mute)]">Loading…</p>}</Frame>;
 
+  const local = provider === "ollama";
   const prov = st.providers.find((p) => p.id === provider) || st.providers[0];
   const set = (k: string, v: string) => setValues((x) => ({ ...x, [k]: v }));
   const field = (k: string, secret: boolean) => (
@@ -88,7 +89,10 @@ export function DesktopSetup({ conn, onDone, canSkip }: { conn: Connection; onDo
     setSaving(true);
     setError("");
     const out: Record<string, string> = {
-      OPENROUTER_BASE_URL: provider === "custom" ? values.OPENROUTER_BASE_URL || "" : "",
+      STARK_DEFAULT_PROVIDER: local ? "ollama" : "openrouter",
+      STARK_OLLAMA_URL: values.STARK_OLLAMA_URL || (local ? "http://127.0.0.1:11434" : ""),
+      STARK_OLLAMA_MODEL: values.STARK_OLLAMA_MODEL || "",
+      OPENROUTER_BASE_URL: local ? values.OPENROUTER_BASE_URL || "" : provider === "custom" ? values.OPENROUTER_BASE_URL || "" : "",
       OPENROUTER_ALLOW_PAID: prov.paid ? "true" : "",
       STARK_TASK_TOKEN_BUDGET: values.STARK_TASK_TOKEN_BUDGET || "",
       OPENROUTER_MODEL: values.OPENROUTER_MODEL || "",
@@ -115,7 +119,7 @@ export function DesktopSetup({ conn, onDone, canSkip }: { conn: Connection; onDo
     }
   }
 
-  const aiKeySet = Boolean(values.OPENROUTER_API_KEY);
+  const aiKeySet = local ? Boolean(values.STARK_OLLAMA_MODEL?.trim()) : Boolean(values.OPENROUTER_API_KEY);
   const Res = ({ id }: { id: string }) => {
     const r = results[id];
     if (!r) return null;
@@ -147,7 +151,11 @@ export function DesktopSetup({ conn, onDone, canSkip }: { conn: Connection; onDo
             ))}
           </div>
           {provider === "custom" && field("OPENROUTER_BASE_URL", false)}
-          {field("OPENROUTER_API_KEY", true)}
+          {local ? <div className="space-y-3">
+            <p className="text-sm">Install and start Ollama separately, then choose an installed local model. No cloud key is required. Review a model’s license and hardware requirements before downloading it. You can manage downloads later in Models.</p>
+            <label className="block">Local Ollama address<input className="input mt-1 w-full" aria-label="Local Ollama address" value={values.STARK_OLLAMA_URL || "http://127.0.0.1:11434"} onChange={e=>set("STARK_OLLAMA_URL",e.target.value)} /></label>
+            <label className="block">Installed model name<input className="input mt-1 w-full" aria-label="Installed model name" value={values.STARK_OLLAMA_MODEL || ""} onChange={e=>set("STARK_OLLAMA_MODEL",e.target.value)} /></label>
+          </div> : field("OPENROUTER_API_KEY", true)}
           {prov.key_url && (
             <p className="text-xs text-[var(--color-mute)]">
               No key yet? Create one for free at <span className="font-mono">{prov.key_url}</span>
@@ -162,7 +170,9 @@ export function DesktopSetup({ conn, onDone, canSkip }: { conn: Connection; onDo
           )}
           <div className="flex flex-wrap items-center gap-3">
             <button type="button" className="btn" disabled={!aiKeySet}
-              onClick={() => test("ai", () => client.post("/api/desktop/test-ai", {
+              onClick={() => local ? test("ai", () => client.post("/api/desktop/test-local", {
+                base_url: values.STARK_OLLAMA_URL || "http://127.0.0.1:11434", model: values.STARK_OLLAMA_MODEL,
+              })) : test("ai", () => client.post("/api/desktop/test-ai", {
                 api_key: values.OPENROUTER_API_KEY === KEEP ? "" : values.OPENROUTER_API_KEY,
                 base_url: provider === "custom" ? values.OPENROUTER_BASE_URL : prov.base_url,
               }))}>

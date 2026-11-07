@@ -217,3 +217,33 @@ def test_connection_errors_do_not_expose_token_urls(monkeypatch):
     monkeypatch.setattr(desktop.httpx, 'get', fail)
     result = desktop.test_social('telegram', {'TELEGRAM_BOT_TOKEN': 'private-token'})
     assert not result['ok'] and 'private-token' not in json.dumps(result)
+
+
+def test_local_first_run_needs_no_cloud_key_or_vault(env):
+    client, kr, tmp = env
+    result = client.put('/api/desktop/settings', headers=H, json={'values': {
+        'STARK_DEFAULT_PROVIDER':'ollama', 'STARK_OLLAMA_URL':'http://127.0.0.1:11434',
+        'STARK_OLLAMA_MODEL':'qwen3:0.6b', 'OPENROUTER_API_KEY':''}})
+    assert result.status_code == 200
+    assert client.get('/api/desktop/status', headers=H).json()['needs_setup'] is False
+    assert not kr.store and not (tmp/'secrets.json.encrypted').exists()
+    assert desktop.environment()['STARK_DEFAULT_PROVIDER'] == 'ollama'
+
+
+def test_remote_local_url_refused_before_credentials_change(env):
+    client, kr, tmp = env
+    result = client.put('/api/desktop/settings', headers=H, json={'values': {
+        'OPENROUTER_API_KEY':'must-not-save', 'STARK_OLLAMA_URL':'https://evil.test'}})
+    assert result.status_code == 400 and not kr.store
+    assert not (tmp/'desktop.json').exists()
+
+
+def test_local_connection_test_is_authenticated_and_handles_offline(env, monkeypatch):
+    client, _, _ = env
+    assert client.post('/api/desktop/test-local', json={'base_url':'http://127.0.0.1:11434','model':'test'}).status_code == 401
+    from stark.providers.ollama import OllamaProvider
+    async def inspect(self, model):
+        return {'capabilities':['tools']}
+    monkeypatch.setattr(OllamaProvider, 'inspect_model', inspect)
+    assert client.post('/api/desktop/test-local', headers=H, json={'base_url':'http://127.0.0.1:11434','model':'test'}).json()['ok']
+    assert not client.post('/api/desktop/test-local', headers=H, json={'base_url':'https://evil.test','model':'test'}).json()['ok']

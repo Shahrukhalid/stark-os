@@ -91,3 +91,25 @@ jobs:
         env:
           STARK_TEST_NATIVE_VAULT: "1"
         run: python -m pytest services/api/tests/test_credential_store.py services/api/tests/test_desktop.py services/api/tests/test_providers.py -q
+
+  local-inference-windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with: { python-version: "3.12" }
+      - run: pip install --require-hashes -r services/api/requirements.lock
+      - run: pip install --no-deps -e services/api
+      - run: pip install pytest pytest-asyncio
+      - name: Download and verify pinned official Ollama runtime
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'ollama.zip'
+          curl.exe --fail --location --retry 3 --max-time 300 --output $archive https://github.com/ollama/ollama/releases/download/v0.40.15/ollama-windows-amd64.zip
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime download failed' }
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne '9ca74a7ab66ec86870b1eecac7df160df08dc4e3a291ab5d2d59bcf9310221c6') { throw 'Ollama checksum mismatch' }
+          Expand-Archive -Path $archive -DestinationPath (Join-Path $env:RUNNER_TEMP 'ollama')
+      - name: Real model transfer, offline text and tool inference
+        shell: pwsh
+        run: python scripts/test_local_ollama.py --ollama "$env:RUNNER_TEMP/ollama/ollama.exe"

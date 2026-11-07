@@ -47,6 +47,7 @@ SECRETS = {
 }
 # Plain settings: stored in desktop.json.
 PLAIN = {
+    "STARK_OLLAMA_URL", "STARK_OLLAMA_MODEL", "STARK_DEFAULT_PROVIDER",
     "OPENROUTER_BASE_URL", "OPENROUTER_MODEL", "OPENROUTER_ALLOW_PAID", "STARK_TASK_TOKEN_BUDGET",
     "BLUESKY_HANDLE", "BLUESKY_SERVICE", "MASTODON_BASE_URL", "THREADS_USER_ID", "TELEGRAM_CHAT_ID",
     "TELEGRAM_CHANNEL_ID", "STARK_DEFAULT_MODE", "FACEBOOK_PAGE_ID", "LINKEDIN_AUTHOR_URN", "LINKEDIN_API_VERSION",
@@ -91,6 +92,8 @@ PLATFORMS = [
 ]
 
 PROVIDERS = [
+    {"id": "ollama", "name": "Ollama (local, no API key)", "base_url": "http://127.0.0.1:11434",
+     "paid": False, "key_url": ""},
     {"id": "openrouter-free", "name": "OpenRouter (free models)", "base_url": "https://openrouter.ai/api/v1",
      "paid": False, "key_url": "https://openrouter.ai/keys"},
     {"id": "openrouter", "name": "OpenRouter (free and paid models)", "base_url": "https://openrouter.ai/api/v1",
@@ -145,6 +148,8 @@ def set_secret(name: str, value: str) -> None:
     with LOCK:
         store = EncryptedJSON(_secrets_path())
         data = store.read()  # preserve unknown legacy entries for compatibility
+        if not value and name not in data:
+            return
         if value:
             data[name] = value
         else:
@@ -385,6 +390,11 @@ class SaveIn(BaseModel):
     restart: bool = True
 
 
+class LocalTestIn(BaseModel):
+    base_url: str
+    model: str
+
+
 class AiTestIn(BaseModel):
     api_key: str = ""
     base_url: str = ""
@@ -420,7 +430,9 @@ def router(api_token: str) -> APIRouter:
         except CredentialStoreError as exc:
             raise HTTPException(503, str(exc)) from None
         saved = {name: bool(values.get(name)) for name in SECRETS}
-        return {"desktop": True, "version": __version__, "needs_setup": not saved["OPENROUTER_API_KEY"],
+        return {"desktop": True, "version": __version__, "needs_setup": not (bool(plain.get("STARK_OLLAMA_URL") and plain.get("STARK_OLLAMA_MODEL"))
+                                                   if plain.get("STARK_DEFAULT_PROVIDER") == "ollama"
+                                                   else saved["OPENROUTER_API_KEY"]),
                 "secrets": saved, "settings": plain, "platforms": PLATFORMS, "providers": PROVIDERS,
                 "labels": SECRETS, "data_dir": str(data_dir())}
 
@@ -430,6 +442,18 @@ def router(api_token: str) -> APIRouter:
         if unknown:
             raise HTTPException(400, "unknown setting")
         plain = load_plain()
+        candidate = {**plain, **{k: v.strip() for k, v in body.values.items() if k in PLAIN}}
+        if candidate.get("STARK_DEFAULT_PROVIDER", "openrouter") not in ("openrouter", "ollama", ""):
+            raise HTTPException(400, "Unknown default provider")
+        if candidate.get("STARK_OLLAMA_URL"):
+            from .providers.ollama import OllamaProvider
+            try:
+                OllamaProvider(candidate["STARK_OLLAMA_URL"])
+            except ValueError as exc:
+                raise HTTPException(400, str(exc)) from None
+        if candidate.get("STARK_DEFAULT_PROVIDER") == "ollama" and not (
+                candidate.get("STARK_OLLAMA_URL") and candidate.get("STARK_OLLAMA_MODEL")):
+            raise HTTPException(400, "Choose a local URL and model")
         for name, value in body.values.items():
             value = value.strip()
             if name in SECRETS:
@@ -449,6 +473,19 @@ def router(api_token: str) -> APIRouter:
         if body.restart:
             _restart_soon()
         return {"ok": True, "restarting": body.restart}
+
+    @r.post("/test-local")
+    async def local(body: LocalTestIn) -> dict[str, Any]:
+        from .providers.ollama import OllamaProvider
+        from .providers.base import ProviderError
+        try:
+            provider = OllamaProvider(body.base_url)
+            info = await provider.inspect_model(body.model)
+            return {"ok": True, "message": "Local model available" + (
+                " with advertised tool support." if "tools" in info.get("capabilities", [])
+                else ". This model does not advertise tool support.")}
+        except (ValueError, ProviderError):
+            return {"ok": False, "message": "Could not verify an installed local model. Check Ollama, URL and model name."}
 
     @r.post("/test-ai")
     def ai(body: AiTestIn) -> dict[str, Any]:
