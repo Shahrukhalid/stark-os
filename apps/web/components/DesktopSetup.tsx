@@ -93,7 +93,7 @@ export function DesktopSetup({ conn, onDone, canSkip }: { conn: Connection; onDo
       STARK_OLLAMA_URL: values.STARK_OLLAMA_URL || (local ? "http://127.0.0.1:11434" : ""),
       STARK_OLLAMA_MODEL: values.STARK_OLLAMA_MODEL || "",
       OPENROUTER_BASE_URL: local ? values.OPENROUTER_BASE_URL || "" : provider === "custom" ? values.OPENROUTER_BASE_URL || "" : "",
-      OPENROUTER_ALLOW_PAID: prov.paid ? "true" : "",
+      OPENROUTER_ALLOW_PAID: local ? values.OPENROUTER_ALLOW_PAID || "" : prov.paid ? "true" : "",
       STARK_TASK_TOKEN_BUDGET: values.STARK_TASK_TOKEN_BUDGET || "",
       OPENROUTER_MODEL: values.OPENROUTER_MODEL || "",
     };
@@ -220,7 +220,7 @@ export function DesktopSetup({ conn, onDone, canSkip }: { conn: Connection; onDo
 
       {step === 2 && (
         <div className="space-y-4">
-          <p className="text-sm">STARK OS keeps your keys in this computer&apos;s secure credential store, not in files.</p>
+          <p className="text-sm">Credential files are encrypted. Their encryption key stays in this computer&apos;s native credential store.</p>
           <p className="text-xs text-[var(--color-mute)]">Your data folder: <span className="font-mono">{st.data_dir}</span></p>
           {error && <p className="text-sm text-red-400">{error}</p>}
           <Nav back={() => setStep(1)} next={save} nextOk={!saving} nextLabel={saving ? "Starting STARK OS…" : "Save and start"} />

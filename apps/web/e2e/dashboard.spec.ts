@@ -384,3 +384,24 @@ test("Models shows local setup while keeping OpenRouter available", async ({ pag
   await expect(page.getByText("Local models (Ollama)", {exact:true})).toBeVisible();
   await expect(page.getByText(/Enable Ollama with STARK_OLLAMA_URL/)).toBeVisible();
 });
+
+test("desktop local setup proceeds without a cloud key", async ({ page }) => {
+  await page.addInitScript(() => {
+    sessionStorage.setItem("stark.apiUrl", "http://127.0.0.1:8100");
+    sessionStorage.setItem("stark.token", "e2e-token-0123456789abcdefghijkl");
+  });
+  await page.route("**/api/desktop/status", route => route.fulfill({json:{
+    needs_setup:true, version:"test", secrets:{}, settings:{}, platforms:[], labels:{}, data_dir:"test-data",
+    providers:[
+      {id:"openrouter-free",name:"OpenRouter",base_url:"",paid:false,key_url:""},
+      {id:"ollama",name:"Ollama (local, no API key)",base_url:"http://127.0.0.1:11434",paid:false,key_url:""}
+    ]
+  }}));
+  await page.goto("/?desktop=1");
+  await page.getByRole("radio",{name:"Ollama (local, no API key)"}).check();
+  await expect(page.getByRole("button",{name:"Next",exact:true})).toBeDisabled();
+  await page.getByLabel("Installed model name").fill("qwen3:0.6b");
+  await expect(page.getByRole("button",{name:"Next",exact:true})).toBeEnabled();
+  await page.getByRole("button",{name:"Next",exact:true}).click();
+  await expect(page.getByText("Connect the accounts STARK OS may post to.",{exact:false})).toBeVisible();
+});
