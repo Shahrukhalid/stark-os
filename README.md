@@ -108,7 +108,7 @@ Each agent has its own free model with automatic fallback, its own prompt, memor
 - **E-STOP** cancels everything and pauses the queue.
 - **Modes**: Observe, Assist, Execute approved.
 - **Live** view of the agents working, full task traces, memory and audit log.
-- **Desktop app**: keys in Keychain / Credential Manager, engine restarts on crash, one window at a time.
+- **Desktop app**: keys in a private file in your data folder (readable only by you), engine restarts on crash, one window at a time.
 
 ### Connect
 - **MCP server** for AI assistants and editors (cannot publish).

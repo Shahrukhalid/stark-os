@@ -34,7 +34,6 @@ class FakeKeyring:
 def env(tmp_path, monkeypatch):
     kr = FakeKeyring()
     monkeypatch.setenv("STARK_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(desktop, "_keyring", lambda: kr)
     monkeypatch.setattr(desktop, "_restart_soon", lambda delay=0.7: None)
     app = FastAPI()
     app.include_router(desktop.router(TOKEN))
@@ -56,7 +55,8 @@ def test_secrets_go_to_the_credential_store_and_settings_to_disk(env):
     r = client.put("/api/desktop/settings", headers=H, json={"values": {
         "OPENROUTER_API_KEY": "sk-secret", "BLUESKY_HANDLE": "me.bsky.social", "OPENROUTER_ALLOW_PAID": "true"}})
     assert r.json() == {"ok": True, "restarting": True}
-    assert kr.store[("STARK OS", "OPENROUTER_API_KEY")] == "sk-secret"
+    assert desktop.get_secret("OPENROUTER_API_KEY") == "sk-secret"
+    assert (tmp / "secrets.json").stat().st_mode & 0o777 == 0o600
     saved = json.loads((tmp / "desktop.json").read_text())
     assert saved == {"BLUESKY_HANDLE": "me.bsky.social", "OPENROUTER_ALLOW_PAID": "true"}
     assert "sk-secret" not in (tmp / "desktop.json").read_text()
@@ -71,9 +71,9 @@ def test_keep_and_clear(env):
     client, kr, _ = env
     client.put("/api/desktop/settings", headers=H, json={"values": {"OPENROUTER_API_KEY": "a"}})
     client.put("/api/desktop/settings", headers=H, json={"values": {"OPENROUTER_API_KEY": "__keep__"}})
-    assert kr.store[("STARK OS", "OPENROUTER_API_KEY")] == "a"
+    assert desktop.get_secret("OPENROUTER_API_KEY") == "a"
     client.put("/api/desktop/settings", headers=H, json={"values": {"OPENROUTER_API_KEY": ""}})
-    assert ("STARK OS", "OPENROUTER_API_KEY") not in kr.store
+    assert desktop.get_secret("OPENROUTER_API_KEY") == ""
 
 
 def test_unknown_setting_is_refused(env):
@@ -127,7 +127,7 @@ def test_update_check(monkeypatch):
 def test_diagnostics(env):
     client, _, _ = env
     d = client.get("/api/desktop/diagnostics", headers=H).json()
-    assert {c["name"] for c in d["checks"]} >= {"Data folder is writable", "Credential store", "AI key saved"}
+    assert {c["name"] for c in d["checks"]} >= {"Data folder is writable", "Private key file", "AI key saved"}
 
 
 def _release(sha: str | None):

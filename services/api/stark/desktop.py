@@ -2,7 +2,7 @@
 diagnostics and update checks. Only active when STARK_DESKTOP=1 (set by the desktop launcher).
 
 Secrets (API keys, tokens, app passwords) go to the macOS Keychain or the Windows Credential Manager (DPAPI) through
-`keyring`; plain settings (provider address, spending switch, budgets) go to desktop.json in the user's data folder.
+a private secrets.json (file mode 600); plain settings (provider address, spending switch, budgets) go to desktop.json in the user's data folder.
 Saving restarts the API process (exit code 75), which the launcher restarts with the new values.
 """
 
@@ -125,28 +125,41 @@ def save_plain(values: dict[str, str]) -> None:
     tmp.replace(path)
 
 
-def _keyring():
-    import keyring
+def _secrets_path() -> Path:
+    return data_dir() / "secrets.json"
 
-    return keyring
+
+def _load_secrets() -> dict[str, str]:
+    try:
+        data = json.loads(_secrets_path().read_text(encoding="utf-8"))
+        return {k: str(v) for k, v in data.items() if k in SECRETS}
+    except (OSError, ValueError):
+        return {}
 
 
 def get_secret(name: str) -> str:
-    try:
-        return _keyring().get_password(SERVICE, name) or ""
-    except Exception:  # noqa: BLE001 - a locked or missing credential store must not stop the app
-        return ""
+    """Keys and tokens live in secrets.json in the user's private data folder (file mode 600). The system
+    keychain is not used: unsigned builds made macOS ask for the login password on every update."""
+    return _load_secrets().get(name, "")
 
 
 def set_secret(name: str, value: str) -> None:
-    kr = _keyring()
+    data = _load_secrets()
     if value:
-        kr.set_password(SERVICE, name, value)
+        data[name] = value
     else:
-        try:
-            kr.delete_password(SERVICE, name)
-        except Exception:  # noqa: BLE001 - nothing stored
-            pass
+        data.pop(name, None)
+    path = _secrets_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        json.dump(data, fh)
+    os.replace(tmp, path)
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
 
 
 def environment() -> dict[str, str]:
@@ -363,12 +376,9 @@ def diagnostics() -> dict[str, Any]:
         checks.append({"name": "Data folder is writable", "ok": True, "detail": str(d)})
     except OSError as exc:
         checks.append({"name": "Data folder is writable", "ok": False, "detail": _short(exc)})
-    try:
-        backend = _keyring().get_keyring()
-        checks.append({"name": "Credential store", "ok": "fail" not in type(backend).__name__.lower(),
-                       "detail": type(backend).__name__})
-    except Exception as exc:  # noqa: BLE001
-        checks.append({"name": "Credential store", "ok": False, "detail": _short(exc)})
+    sp = _secrets_path()
+    checks.append({"name": "Private key file", "ok": not sp.exists() or os.name == "nt" or (sp.stat().st_mode & 0o077) == 0,
+                   "detail": str(sp)})
     free = shutil.disk_usage(d if d.exists() else Path.home()).free
     checks.append({"name": "Free disk space", "ok": free > 500_000_000, "detail": f"{free // 1_000_000} MB"})
     checks.append({"name": "AI key saved", "ok": bool(get_secret("OPENROUTER_API_KEY")), "detail": ""})

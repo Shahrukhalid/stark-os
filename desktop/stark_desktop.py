@@ -6,8 +6,8 @@ Opens a native window with the dashboard and runs the API in a background proces
     stark_desktop.py --backend  the API process itself (started by the app)
 
 Everything lives in the user's own data folder (macOS: ~/Library/Application Support/STARK OS, Windows:
-%LOCALAPPDATA%\\STARK OS). The API token for the window and every key the user enters are kept in the macOS
-Keychain / Windows Credential Manager, never in files.
+%LOCALAPPDATA%\\STARK OS). The API token for the window and every key the user enters are kept in private files
+there (readable only by this user), not in the system keychain.
 """
 
 from __future__ import annotations
@@ -60,24 +60,19 @@ def free_port() -> int:
 
 
 def api_token() -> str:
-    """One random token per computer, kept in the credential store (falls back to a private file)."""
-    try:
-        import keyring
-
-        token = keyring.get_password(APP, "STARK_API_TOKEN")
-        if not token:
-            token = secrets.token_urlsafe(32)
-            keyring.set_password(APP, "STARK_API_TOKEN", token)
-        return token
-    except Exception:  # noqa: BLE001 - no credential store (e.g. some Linux desktops)
-        path = data_dir() / ".token"
-        if path.exists():
-            return path.read_text().strip()
-        token = secrets.token_urlsafe(32)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(token)
-        os.chmod(path, 0o600)
-        return token
+    """One random token per computer, kept in a private file in the data folder (never the system keychain,
+    which asks for the login password whenever an unsigned build changes)."""
+    path = data_dir() / ".token"
+    if path.exists():
+        token = path.read_text().strip()
+        if len(token) >= 24:
+            return token
+    token = secrets.token_urlsafe(32)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as fh:
+        fh.write(token)
+    return token
 
 
 def backend_env(port: int, token: str) -> dict[str, str]:
