@@ -1,6 +1,8 @@
 /** Mirrors services/api/stark/core/addressing.py so voice commands can switch agents instantly. */
 
 export const ALIASES: Record<string, string[]> = {
+  vision: ["vision"],
+  wanda: ["wanda"],
   jarvis: ["jarvis", "j.a.r.v.i.s.", "j.a.r.v.i.s", "j a r v i s"],
   friday: ["friday", "f.r.i.d.a.y.", "f.r.i.d.a.y"],
   edith: ["edith", "e.d.i.t.h.", "e.d.i.t.h"],

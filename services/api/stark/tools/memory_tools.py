@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from ..core.memory import MemoryAccessError
+from ..core.memory import MemoryAccessError, personal_namespace
 from ..core.tool_registry import ApprovalText, Risk, Tool, ToolResult
 
 
@@ -21,6 +21,8 @@ def _namespace(args: SaveInput, ctx) -> str:
     if args.namespace:
         return args.namespace
     if args.layer == "preference":
+        if ctx.agent and personal_namespace(ctx.agent.private_namespace):
+            return "personal:" + ctx.agent.id
         return "user:preferences"
     if args.layer == "project":
         return f"shared:project:{ctx.root_id}"
@@ -42,15 +44,17 @@ class MemorySave(Tool):
     def needs_approval(self, args: SaveInput, ctx) -> bool:
         # personal data needs consent; shared knowledge/procedures reach every agent's prompt, so a human
         # checks them (stops an injected page from planting persistent instructions)
-        return _namespace(args, ctx) in self.SHARED_REVIEWED
+        return (_namespace(args, ctx) in self.SHARED_REVIEWED or personal_namespace(_namespace(args, ctx))
+                or bool(ctx.agent and ctx.agent.id in {"vision", "wanda"}
+                        and _namespace(args, ctx).startswith("shared:project:")))
 
     def describe(self, args, ctx):
         ns = _namespace(args, ctx)
-        if ns == "user:preferences":
+        if ns == "user:preferences" or personal_namespace(ns):
             effects = ("Stored in your personal preference memory. You can view, edit or delete it in "
                        "Memory at any time.")
             risks = ("Personal data is retained until you delete it; it is included in prompts sent to the "
-                     "free model provider (OpenRouter).")
+                     "model provider you authorized for this agent.")
         else:
             effects = f"Stored in {ns}, which other agents can read."
             risks = "Shared memory influences other agents. Make sure it contains no instructions you didn't write."
@@ -63,7 +67,7 @@ class MemorySave(Tool):
                               error="memory_denied")
         try:
             row = ctx.kernel.memory.save(actor=ctx.agent, namespace=ns, layer=args.layer, content=args.content,
-                                         source=f"task:{ctx.task_id}", consent=ns == "user:preferences",
+                                         source=f"task:{ctx.task_id}", consent=ns == "user:preferences" or personal_namespace(ns),
                                          tags=args.tags, ttl_days=30 if ns.startswith("shared:project:") else None)
         except (MemoryAccessError, ValueError) as exc:
             return ToolResult(False, str(exc), error="memory_denied")

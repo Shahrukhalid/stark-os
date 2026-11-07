@@ -56,7 +56,8 @@ def test_refuses_to_start_without_token(settings):
 
 def test_agents_and_status(client):
     agents = client.get("/api/agents").json()
-    assert len(agents) == 7
+    assert len(agents) == 9
+    assert {"vision", "wanda"} <= {a["id"] for a in agents}
     jarvis = next(a for a in agents if a["id"] == "jarvis")
     assert jarvis["model_in_use"]["provider"] == "openrouter"
     assert jarvis["live"]["status"] == "idle" and jarvis["tool_details"]
@@ -129,7 +130,8 @@ def test_memory_endpoints(client):
 def test_tools_endpoint_and_user_run(client):
     tools = client.get("/api/tools").json()
     by_id = {t["id"]: t for t in tools}
-    assert "jarvis" in by_id["team.review"]["agents"] and by_id["team.review"]["agents"] == ["jarvis"]
+    # Team review: J.A.R.V.I.S. plus Vision and Wanda, who need owner approval to share context.
+    assert sorted(by_id["team.review"]["agents"]) == ["jarvis", "vision", "wanda"]
     res = client.post("/api/tools/system.metrics/run", json={"top_n": 3, "sample_seconds": 0.2}).json()
     assert res["result"]["ok"] and res["result"]["data"]["memory"]["total_gb"] > 0
     denied = client.post("/api/tools/fs.write/run", json={"path": "x", "content": "y"}).json()

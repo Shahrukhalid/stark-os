@@ -35,7 +35,8 @@ def _decide(k, agent_id, tool_id, **args):
 
 # ------------------------------------------------------------------ registry
 def test_seven_distinct_agents(k):
-    agents = k.registry.all()
+    assert set(k.registry.ids()) == {"vision", "wanda", "jarvis", "friday", "edith", "ultron", "jocasta", "dum_e", "u"}
+    agents = [a for a in k.registry.all() if a.id not in {"vision", "wanda"}]
     assert len(agents) == 7
     assert len({a.system_prompt for a in agents}) == 7
     assert len({a.workflow for a in agents}) == 7

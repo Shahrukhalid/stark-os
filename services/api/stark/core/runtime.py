@@ -172,7 +172,11 @@ class Kernel:
         if self.perms.emergency_stop:
             raise RuntimeError("Emergency stop is engaged. Reset it in the dashboard before starting new work.")
         with self.db.session() as s:
-            if conversation_id is None or s.get(Conversation, conversation_id) is None:
+            existing = s.get(Conversation, conversation_id) if conversation_id else None
+            primary = {"vision", "wanda"}
+            separate = existing is not None and existing.agent_id != agent.id and (
+                existing.agent_id in primary or agent.id in primary)
+            if existing is None or separate:
                 conv = Conversation(agent_id=agent.id, title=text[:80])
                 s.add(conv)
                 s.flush()
@@ -295,7 +299,7 @@ class Kernel:
             with self.db.session() as s:
                 s.add(Turn(conversation_id=task["conversation_id"], role="assistant", agent_id=agent.id,
                            content=text, task_id=task["id"]))
-        if self.settings.episodic_memory and self.memory.enabled:
+        if self.settings.episodic_memory and self.memory.enabled and agent.id not in {"vision", "wanda"}:
             try:
                 self.memory.save(actor=agent, namespace=agent.private_namespace, layer="episodic",
                                  content=f"Task: {task['instruction'][:300]}\nOutcome: {text[:600]}",
@@ -547,6 +551,8 @@ class Kernel:
                 return ToolResult(False, "Emergency stop engaged after approval; not executed.",
                                   error="emergency_stop")
 
+        if agent is not None and tool.risk is Risk.DELEGATION and decision.verdict is Verdict.APPROVAL:
+            self._transition(ctx.task_id, "thinking")
         if agent is not None and tool.risk is not Risk.DELEGATION:
             self._transition(ctx.task_id, "executing")
         started = time.monotonic()

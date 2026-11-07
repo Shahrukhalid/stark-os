@@ -4,6 +4,8 @@ import { pickVoice, speak, speakable } from "../lib/voice";
 
 // Same cases as services/api/tests/test_policy_memory.py::test_addressing - front and back end must agree.
 const CASES: [string, string | null, string][] = [
+  ["Hey Vision, open my project", "vision", "open my project"],
+  ["Hey Wanda, help me write", "wanda", "help me write"],
   ["Hey JARVIS, I need you to plan our launch week", "jarvis", "I need you to plan our launch week"],
   ["Friday, check our mentions.", "friday", "check our mentions."],
   ["EDITH draft a poll for Friday night", "edith", "draft a poll for Friday night"],

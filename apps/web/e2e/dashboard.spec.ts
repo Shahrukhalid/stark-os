@@ -377,3 +377,10 @@ test("Channels, translation, quote cards, inbox rules and own feeds", async ({ p
   await page.getByRole("button", { name: "Add feed" }).click();
   await expect(page.getByText(/channel_id=UCabcdefghijklmnopqrstuv/)).toBeVisible();
 });
+test("Vision and Wanda appear alongside the seven specialists", async ({ page }) => {
+  await connect(page);
+  await page.getByRole("button",{name:"Agents",exact:true}).click();
+  await expect(page.getByRole("heading",{name:"VISION",exact:true})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"WANDA",exact:true})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"ULTRON",exact:true})).toBeVisible();
+});
