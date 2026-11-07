@@ -8,7 +8,7 @@ sends the browser back to the user's own computer after sign-in and swaps the co
 Until a platform approves an app, only people added to that app as testers/developers can log in. Everyone else can
 still use **Own app** (their own developer app), as before.
 
-## 1. Deploy STARK Connect (Cloudflare Workers, free plan)
+## 1. Deploy STARK Connect (a free serverless worker plan is enough)
 
 ```bash
 cd services/connect
