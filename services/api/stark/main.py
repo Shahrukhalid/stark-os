@@ -654,8 +654,9 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
             raise HTTPException(409, "This account is set in your .env file; change it there.")
         cid, secret, _ = oauth.PROVIDERS[platform]["fields"]
         try:
+            extra = "video.list" if platform == "tiktok" and _social(k).settings.tiktok_analytics else ""
             url = oauth.start(platform, body.values.get(cid, ""), body.values.get(secret, ""),
-                              request.url.port or 8000)
+                              request.url.port or 8000, extra)
         except oauth.OAuthError as exc:
             raise HTTPException(400, str(exc))
         return {"auth_url": url, "redirect_uri": oauth.redirect_uri(request.url.port or 8000, platform)}

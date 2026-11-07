@@ -56,5 +56,10 @@ set `STARK_CONNECT_URL` in `.env` (self-hosting) to use their own STARK Connect.
   while the app runs at least every few weeks. Pinterest (30 days) is renewed through STARK Connect when the login
   returned a refresh token. LinkedIn tokens can't be renewed by ordinary apps: Account health warns 10 days before
   the 60 days are up. TikTok and YouTube refresh themselves.
+- Engagement in Analytics: Facebook, Instagram, Threads, YouTube and Pinterest work with the scopes above. TikTok
+  needs the Display API (`video.list`) and LinkedIn needs `r_member_social` (granted by LinkedIn to approved apps).
+  Once approved, set the STARK Connect variables `TIKTOK_EXTRA_SCOPES=video.list` and/or
+  `LINKEDIN_EXTRA_SCOPES=r_member_social` and users log in again. With your own app (no STARK Connect), set
+  `TIKTOK_ANALYTICS=true` in `.env`. TikTok only reports public videos.
 - STARK Connect only redirects to `http://127.0.0.1:<port>/api/oauth/<platform>/callback`, signs the state, and
   rejects sign-ins older than 15 minutes.

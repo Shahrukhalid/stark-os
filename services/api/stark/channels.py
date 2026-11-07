@@ -12,6 +12,7 @@ import hashlib
 import json
 import re
 from typing import Any, Callable
+from urllib.parse import quote
 
 import httpx
 
@@ -332,6 +333,24 @@ class LinkedInAdapter(_Base):
         on_part(0, ref)
         return ref
 
+    async def metrics(self, external_ids: list[str]) -> dict[str, dict[str, int]]:
+        """Likes and comments on your posts. LinkedIn only answers when the token also has r_member_social,
+        which LinkedIn grants to approved apps; without it nothing is reported (never guessed)."""
+        out: dict[str, dict[str, int]] = {}
+        async with self._client() as client:
+            for urn in [u for u in external_ids if u.startswith("urn:li:")][:40]:
+                r = await client.get(f"{LINKEDIN}/rest/socialActions/{quote(urn, safe='')}", headers=self._h())
+                if r.status_code in (401, 403):
+                    break  # the token can't read engagement; don't ask again for every post
+                if r.status_code == 200:
+                    b = r.json()
+                    comments = b.get("commentsSummary") or {}
+                    out[urn] = {"likes": int((b.get("likesSummary") or {}).get("totalLikes") or 0),
+                                "replies": int(comments.get("aggregatedTotalComments")
+                                               or comments.get("totalFirstLevelComments") or 0),
+                                "reposts": 0}
+        return out
+
 
 
 # ---------------------------------------------------------------- media platforms (images and video)
@@ -610,6 +629,32 @@ class TikTokAdapter(_OAuthAdapter):
         ref = {"external_id": publish_id, "url": None}
         on_part(0, ref)
         return ref
+
+    async def metrics(self, external_ids: list[str]) -> dict[str, dict[str, int]]:
+        """Likes, comments, shares and views. Needs the video.list scope (TikTok Display API) and works only for
+        public videos: TikTok gives private (SELF_ONLY) posts no video ID. Without it nothing is reported."""
+        out: dict[str, dict[str, int]] = {}
+        async with self._client() as client:
+            token = await self.access_token(client)
+            h = {"Authorization": f"Bearer {token}", "Content-Type": "application/json; charset=UTF-8"}
+            video_of: dict[str, str] = {}
+            for pid in external_ids[:20]:  # TikTok's video query takes up to 20 IDs
+                r = await client.post(f"{self.base}/post/publish/status/fetch/", headers=h, json={"publish_id": pid})
+                data = (r.json().get("data") or {}) if r.status_code == 200 else {}
+                ids = data.get("publicaly_available_post_id") or data.get("publicly_available_post_id") or []
+                if ids:
+                    video_of[str(ids[0])] = pid
+            if not video_of:
+                return out
+            r = await client.post(f"{self.base}/video/query/",
+                                  params={"fields": "id,like_count,comment_count,share_count,view_count"},
+                                  headers=h, json={"filters": {"video_ids": list(video_of)}})
+            for v in ((r.json().get("data") or {}).get("videos") or []) if r.status_code == 200 else []:
+                pid = video_of.get(str(v.get("id")))
+                if pid:
+                    out[pid] = {"likes": int(v.get("like_count") or 0), "replies": int(v.get("comment_count") or 0),
+                                "reposts": int(v.get("share_count") or 0), "views": int(v.get("view_count") or 0)}
+        return out
 
 
 class YouTubeAdapter(_OAuthAdapter):

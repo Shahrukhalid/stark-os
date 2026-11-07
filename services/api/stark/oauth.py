@@ -38,7 +38,7 @@ def redirect_uri(port: int, platform: str) -> str:
     return f"http://127.0.0.1:{port}/api/oauth/{platform}/callback"
 
 
-def start(platform: str, client_id: str, client_secret: str, port: int) -> str:
+def start(platform: str, client_id: str, client_secret: str, port: int, extra_scope: str = "") -> str:
     p = PROVIDERS[platform]
     if not client_id.strip() or not client_secret.strip():
         raise OAuthError("Enter the client ID and secret of your developer app first.")
@@ -52,7 +52,9 @@ def start(platform: str, client_id: str, client_secret: str, port: int) -> str:
     redirect = redirect_uri(port, platform)
     PENDING[state] = {"platform": platform, "client_id": client_id.strip(), "client_secret": client_secret.strip(),
                       "verifier": verifier, "redirect": redirect, "created": now}
-    q = {p["id_param"]: client_id.strip(), "redirect_uri": redirect, "response_type": "code", "scope": p["scope"],
+    sep = "," if "," in p["scope"] else " "
+    scope = p["scope"] + (sep + extra_scope if extra_scope else "")
+    q = {p["id_param"]: client_id.strip(), "redirect_uri": redirect, "response_type": "code", "scope": scope,
          "state": state, "code_challenge": challenge, "code_challenge_method": "S256", **p["extra"]}
     return f"{p['auth']}?{urlencode(q)}"
 

@@ -54,6 +54,14 @@ export const PROVIDERS = {
   },
 };
 
+// Extra scopes the owner's app has been approved for, e.g. TIKTOK_EXTRA_SCOPES="video.list" or
+// LINKEDIN_EXTRA_SCOPES="r_member_social" (STARK Connect variables), so engagement can be read without a code change.
+export const scopes = (env, p) => {
+  const prov = PROVIDERS[p];
+  const extra = String((env && env[`${p.toUpperCase()}_EXTRA_SCOPES`]) || "").split(/[\s,]+/).filter((x) => /^[\w.:/-]+$/.test(x));
+  return [prov.scope, ...extra].join(prov.sep);
+};
+
 const RETURN_RE = /^http:\/\/127\.0\.0\.1:\d{2,5}\/api\/oauth\/([a-z]+)\/callback$/;
 const MAX_AGE_MS = 15 * 60 * 1000;
 const enc = new TextEncoder();
@@ -124,7 +132,7 @@ export default {
         [prov.idParam || "client_id"]: creds(env, p).id,
         redirect_uri: `${origin}/cb/${p}`,
         response_type: "code",
-        scope: prov.scope,
+        scope: scopes(env, p),
         state,
         ...(prov.extra || {}),
       });

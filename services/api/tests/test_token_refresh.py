@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone
 
 import httpx
@@ -139,3 +140,59 @@ async def test_instagram_youtube_and_pinterest_report_real_engagement(settings):
         "v1": {"likes": 10, "replies": 2, "reposts": 0, "views": 500}}
     assert await built["pinterest"].metrics(["p1"]) == {
         "p1": {"likes": 6, "reposts": 12, "replies": 1, "views": 900, "clicks": 4}}
+
+
+async def test_tiktok_engagement_maps_publish_ids_to_public_videos(settings):
+    from stark import channels
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        if req.url.path == "/v2/oauth/token/":
+            return httpx.Response(200, json={"access_token": "tt", "expires_in": 86400})
+        if req.url.path == "/v2/post/publish/status/fetch/":
+            pid = json.loads(req.content)["publish_id"]
+            ids = [7300000000000000001] if pid == "pub-public" else []  # private posts have no video ID
+            return httpx.Response(200, json={"data": {"status": "PUBLISH_COMPLETE", "publicaly_available_post_id": ids}})
+        if req.url.path == "/v2/video/query/":
+            assert json.loads(req.content) == {"filters": {"video_ids": ["7300000000000000001"]}}
+            assert "view_count" in req.url.params["fields"]
+            return httpx.Response(200, json={"data": {"videos": [{"id": "7300000000000000001", "like_count": 9,
+                                                                   "comment_count": 2, "share_count": 1,
+                                                                   "view_count": 300}]}})
+        return httpx.Response(404)
+
+    settings.tiktok_client_key, settings.tiktok_client_secret, settings.tiktok_refresh_token = "k", "s", "r"
+    tiktok = channels.build(settings, httpx.MockTransport(handler))["tiktok"]
+    assert await tiktok.metrics(["pub-public", "pub-private"]) == {
+        "pub-public": {"likes": 9, "replies": 2, "reposts": 1, "views": 300}}
+
+
+async def test_linkedin_engagement_and_quiet_without_permission(settings):
+    from stark import channels
+
+    calls = []
+
+    def ok(req: httpx.Request) -> httpx.Response:
+        calls.append(req.url.raw_path.decode())
+        return httpx.Response(200, json={"likesSummary": {"totalLikes": 5},
+                                         "commentsSummary": {"aggregatedTotalComments": 3}})
+
+    settings.linkedin_access_token = "li"
+    li = channels.build(settings, httpx.MockTransport(ok))["linkedin"]
+    assert await li.metrics(["urn:li:share:1"]) == {"urn:li:share:1": {"likes": 5, "replies": 3, "reposts": 0}}
+    assert calls == ["/rest/socialActions/urn%3Ali%3Ashare%3A1"]
+
+    denied = []
+    li = channels.build(settings, httpx.MockTransport(lambda r: denied.append(1) or httpx.Response(403)))["linkedin"]
+    assert await li.metrics(["urn:li:share:1", "urn:li:share:2"]) == {}
+    assert len(denied) == 1  # stops after the first refusal
+
+
+def test_tiktok_analytics_adds_video_list_to_sign_in():
+    from urllib.parse import parse_qs, urlparse
+
+    from stark import oauth
+
+    plain = parse_qs(urlparse(oauth.start("tiktok", "k", "s", 8000)).query)["scope"][0]
+    extra = parse_qs(urlparse(oauth.start("tiktok", "k", "s", 8000, "video.list")).query)["scope"][0]
+    assert plain == "user.info.basic,video.publish,video.upload"
+    assert extra == plain + ",video.list"

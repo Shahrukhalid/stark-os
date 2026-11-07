@@ -122,6 +122,7 @@ class Settings:
     tiktok_client_secret: str = ""
     tiktok_refresh_token: str = ""  # from Connect → Sign in with TikTok
     tiktok_privacy: str = "SELF_ONLY"  # PUBLIC_TO_EVERYONE once TikTok has audited your app
+    tiktok_analytics: bool = False  # ask for video.list at sign-in (add the Display API to your app first)
     youtube_client_id: str = ""
     youtube_client_secret: str = ""
     youtube_refresh_token: str = ""  # from Connect → Sign in with Google
@@ -193,6 +194,7 @@ class Settings:
             tiktok_client_secret=_env("TIKTOK_CLIENT_SECRET"),
             tiktok_refresh_token=_env("TIKTOK_REFRESH_TOKEN"),
             tiktok_privacy=_env("TIKTOK_PRIVACY", "SELF_ONLY"),
+            tiktok_analytics=_env("TIKTOK_ANALYTICS", "").lower() in ("1", "true", "yes", "on"),
             youtube_client_id=_env("YOUTUBE_CLIENT_ID"),
             youtube_client_secret=_env("YOUTUBE_CLIENT_SECRET"),
             youtube_refresh_token=_env("YOUTUBE_REFRESH_TOKEN"),

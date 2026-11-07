@@ -756,7 +756,9 @@ CONNECT_FORMS: dict[str, dict[str, Any]] = {
                  "steps": ["Create a LinkedIn developer app and add the free products Share on LinkedIn and "
                            "Sign In with LinkedIn using OpenID Connect.",
                            "In the token generator, create a token with openid, profile and w_member_social.",
-                           "Paste the token. It lasts 60 days; reconnect when it expires."]},
+                           "Paste the token. It lasts 60 days; reconnect when it expires.",
+                           "Likes and comments show in Analytics only if LinkedIn has approved your app for "
+                           "r_member_social and the token includes it."]},
     "telegram": {"fields": [("telegram_channel_id", "Channel (@name or -100…)", "@yourchannel", False),
                             ("telegram_bot_token", "Bot token", "123456:ABC…", True)],
                  "steps": ["Create a bot with @BotFather and copy its token.",
@@ -787,7 +789,9 @@ CONNECT_FORMS: dict[str, dict[str, Any]] = {
                          "Posting API (Direct Post) and the scopes user.info.basic, video.upload, video.publish.",
                          "Add the redirect URI http://127.0.0.1:*/api/oauth/tiktok/callback",
                          "Paste the client key and secret, then sign in. Posts stay private until TikTok "
-                         "audits your app."]},
+                         "audits your app.",
+                         "For likes, comments, shares and views: add the Display API (scope video.list) to the "
+                         "app, set TIKTOK_ANALYTICS=true and sign in again. Only public videos report numbers."]},
     "youtube": {"oauth": True,
                 "fields": [("youtube_client_id", "Client ID", "….apps.googleusercontent.com", False),
                            ("youtube_client_secret", "Client secret", "client secret", True)],

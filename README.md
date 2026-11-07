@@ -111,7 +111,7 @@ Each agent has its own free model with automatic fallback, its own prompt, memor
 - **Bluesky messages**, saved replies, inbox labels.
 
 ### Measure
-- **Analytics**: real likes, reposts, replies and views from Bluesky, Mastodon, Threads, Facebook, Instagram, YouTube and Pinterest; 30-day chart, best-time heatmap, top posts, per campaign and brand, CSV.
+- **Analytics**: real likes, reposts, replies and views from Bluesky, Mastodon, Threads, Facebook, Instagram, YouTube and Pinterest (TikTok and LinkedIn once their extra permissions are approved); 30-day chart, best-time heatmap, top posts, per campaign and brand, CSV.
 - **Report** download, **A/B hook tests**, **learn my voice**.
 - **Growth**: followers, posting streak, top fans, rising hashtags, proven ideas, Bluesky starter packs.
 
