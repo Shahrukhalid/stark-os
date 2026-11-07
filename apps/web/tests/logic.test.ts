@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { detectWake, parseAddress } from "../lib/addressing";
-import { pickVoice, speak, speakable } from "../lib/voice";
+import { isUrdu, pickVoice, speak, speakable } from "../lib/voice";
 
 // Same cases as services/api/tests/test_policy_memory.py::test_addressing - front and back end must agree.
 const CASES: [string, string | null, string][] = [
@@ -52,5 +52,17 @@ describe("muted agents", () => {
     let ended = false;
     speak("hello", { lang: "en-US", pitch: 1, rate: 1, preferred_voices: [], muted: true }, () => (ended = true));
     expect(ended).toBe(true);
+  });
+});
+
+describe("Urdu voice commands", () => {
+  it("addresses Vision and Wanda by their Urdu names", () => {
+    expect(parseAddress("وژن، آج کی پوسٹس دکھاؤ")).toEqual({ agent: "vision", rest: "آج کی پوسٹس دکھاؤ" });
+    expect(parseAddress("ارے وانڈا، تین پوسٹس لکھو")).toEqual({ agent: "wanda", rest: "تین پوسٹس لکھو" });
+    expect(parseAddress("وژنری خیال")).toEqual({ agent: null, rest: "وژنری خیال" });
+  });
+  it("detects Urdu text", () => {
+    expect(isUrdu("آج کی پوسٹس")).toBe(true);
+    expect(isUrdu("Wanda, teen posts likho")).toBe(false);
   });
 });

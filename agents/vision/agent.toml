@@ -39,3 +39,5 @@ pitch = 0.98
 rate = 1.0
 preferred_voices = ["Alex", "Microsoft Guy", "Google US English"]
 description = "Original masculine system-voice preference. Available voices depend on the OS."
+voice = "Charon"  # STARK voice (Gemini); change after listening in Settings
+style = "Say in a calm, clear and precise voice"

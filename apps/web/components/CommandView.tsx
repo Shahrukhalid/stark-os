@@ -6,7 +6,7 @@ import { detectWake, parseAddress } from "@/lib/addressing";
 import { useStark } from "@/lib/store";
 import type { Agent, Task, Turn } from "@/lib/types";
 import { Markdown } from "./Markdown";
-import { createRecognizer, isSpeaking, speak, stopSpeaking, sttSupported, ttsSupported, type Recognizer } from "@/lib/voice";
+import { createRecognizer, isSpeaking, isUrdu, speak, stopSpeaking, sttSupported, ttsSupported, voiceListenStart, voiceListenStop, voiceSpeak, voiceStopSpeaking, type Recognizer, type VoiceStatus } from "@/lib/voice";
 import { ApprovalCard } from "./ApprovalCard";
 import { AgentGlyph, StateBadge, STATE_META, TaskStatus } from "./ui";
 
@@ -86,10 +86,28 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
   const recRef = useRef<Recognizer | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const spokenFor = useRef<string | null>(null);
+  const [vstatus, setVstatus] = useState<VoiceStatus | null>(null);
+  const engineVoice = vstatus?.engine === "gemini";
 
   useEffect(() => {
     setSpeakReplies(readPref("stark.speak", false));
-  }, []);
+    client.get<VoiceStatus>("/api/voice/status").then(setVstatus).catch(() => setVstatus(null));
+  }, [client]);
+
+  // Say a reply: STARK voice (each assistant's own voice) when set up, otherwise the browser's speech.
+  const say = useCallback(
+    (agentId: string, text: string) => {
+      const a = agents.find((x) => x.id === agentId);
+      if (!a || a.voice.muted) return;
+      if (engineVoice) voiceSpeak(client, agentId, text).catch((e: any) => notify("error", e.message));
+      else speak(text, a.voice);
+    },
+    [agents, client, engineVoice, notify],
+  );
+  const hush = useCallback(() => {
+    stopSpeaking();
+    voiceStopSpeaking(client, vstatus);
+  }, [client, vstatus]);
 
   const turnsReq = useRef(0);
   const loadTurns = useCallback(
@@ -132,9 +150,16 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
     if (rootTask.conversation_id === conversationId) loadTurns(rootTask.conversation_id);
     if (speakReplies && spokenFor.current !== rootTask.id && rootTask.status === "completed" && rootTask.result) {
       spokenFor.current = rootTask.id;
-      const a = agents.find((x) => x.id === rootTask.agent_id);
-      if (a) speak(rootTask.result, a.voice);
+      say(rootTask.agent_id, rootTask.result);
     }
+  }, [rootTask?.status, rootTask?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Voice never approves: say once that an approval is waiting on screen.
+  const askedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!speakReplies || !rootTask || rootTask.status !== "waiting_approval" || askedFor.current === rootTask.id) return;
+    askedFor.current = rootTask.id;
+    say(rootTask.agent_id, isUrdu(rootTask.instruction) ? "اس کام کے لیے اسکرین پر آپ کی منظوری چاہیے۔" : "This needs your approval on screen.");
   }, [rootTask?.status, rootTask?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -146,7 +171,7 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
       const text = raw.trim();
       if (!text) return;
       setSending(true);
-      stopSpeaking();
+      hush();
       try {
         const { agent: addressed } = parseAddress(text);
         const target = addressed || agentId;
@@ -163,7 +188,7 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
         setSending(false);
       }
     },
-    [agentId, client, conversationId, conversations, notify, setAgentId],
+    [agentId, client, conversationId, conversations, hush, notify, setAgentId],
   );
 
   // always call the latest send (with the current agent and conversation) from long-lived recognizers
@@ -174,6 +199,17 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
 
   // ---------------- voice ----------------
   const startPtt = useCallback(() => {
+    if (engineVoice && vstatus) {
+      if (pttActive) return;
+      setPttActive(true);
+      setListeningAgent(agentId);
+      voiceListenStart(client, vstatus).catch((e: any) => {
+        setPttActive(false);
+        setListeningAgent(null);
+        notify("error", e.message);
+      });
+      return;
+    }
     if (!sttSupported()) return notify("warn", "Speech recognition is not supported in this browser (try Chrome, Edge or Safari).");
     stopSpeaking();
     recRef.current?.stop();
@@ -192,9 +228,21 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
     });
     recRef.current = rec;
     rec?.start();
-  }, [agent, agentId, notify, send, setListeningAgent]);
+  }, [agent, agentId, client, engineVoice, notify, pttActive, send, setListeningAgent, vstatus]);
 
-  const stopPtt = useCallback(() => recRef.current?.stop(), []);
+  const stopPtt = useCallback(() => {
+    if (!(engineVoice && vstatus)) return recRef.current?.stop();
+    if (!pttActive) return;
+    setPttActive(false);
+    setListeningAgent(null);
+    setPartial("…");
+    voiceListenStop(client, vstatus)
+      .then((t) => {
+        if (t) send(t);
+      })
+      .catch((e: any) => notify("error", e.message))
+      .finally(() => setPartial(""));
+  }, [client, engineVoice, notify, pttActive, send, setListeningAgent, vstatus]);
 
   useEffect(() => {
     if (!wakeMode) return;
@@ -278,8 +326,8 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
                 }
               }}
               onBlur={() => pttActive && stopPtt()}
-              disabled={!sttSupported()}
-              title="Hold to talk (mouse, touch, or hold Space/Enter)"
+              disabled={!engineVoice && !sttSupported()}
+              title={engineVoice ? "Hold to talk to Vision or Wanda (English or Urdu). Start with a name to choose who answers." : "Hold to talk (mouse, touch, or hold Space/Enter)"}
               aria-pressed={pttActive}
             >
               <Mic size={14} /> {pttActive ? "Listening…" : "Hold to talk"}
@@ -289,7 +337,7 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
             </button>
             <button
               className={`btn ${speakReplies ? "btn-primary" : ""}`}
-              disabled={!ttsSupported()}
+              disabled={!engineVoice && !ttsSupported()}
               aria-pressed={speakReplies}
               onClick={() => {
                 writePref("stark.speak", !speakReplies);
@@ -298,11 +346,15 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
             >
               {speakReplies ? <Volume2 size={14} /> : <VolumeX size={14} />} Speak replies
             </button>
-            <button className="btn" onClick={stopSpeaking} title="Interrupt speech">
+            <button className="btn" onClick={hush} title="Interrupt speech">
               <Square size={12} /> Stop
             </button>
           </div>
-          {!sttSupported() && <p className="mt-2 text-xs text-[var(--color-mute)]">Speech input needs Chrome, Edge or Safari. Text works everywhere.</p>}
+          {engineVoice ? (
+            <p className="mt-2 text-xs text-[var(--color-mute)]">STARK voice is on: speak English or Urdu. Say &quot;Vision…&quot; or &quot;Wanda…&quot; first to choose who answers. Approvals stay on screen.</p>
+          ) : (
+            !sttSupported() && <p className="mt-2 text-xs text-[var(--color-mute)]">Speech input needs Chrome, Edge or Safari, or add a Gemini key in Settings for STARK voice. Text works everywhere.</p>
+          )}
           {partial && <p className="mt-2 rounded-md bg-cyan-400/10 p-2 text-xs text-cyan-100">“{partial}”</p>}
         </div>
       </div>
@@ -334,7 +386,7 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
             <textarea className="input w-full" aria-label="Approved handoff context" maxLength={4000} value={handoffContext} onChange={e=>setHandoffContext(e.target.value)} />
             <button className="btn" disabled={sending || !handoffContext.trim()} onClick={async ()=>{
               setSending(true);
-              stopSpeaking();
+              hush();
               try {
                 const task = await client.post<Task>(`/api/conversations/${conversationId}/handoff`, {agent_id:handoffTarget,context:handoffContext});
                 setAgentId(task.agent_id);
@@ -376,8 +428,8 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
                       trace
                     </button>
                   )}
-                  {a && ttsSupported() && (
-                    <button className="text-[var(--color-mute)] hover:text-white" onClick={() => speak(t.content, a.voice)} title="Read aloud" aria-label={`Read ${a.name}'s reply aloud`}>
+                  {a && (engineVoice || ttsSupported()) && (
+                    <button className="text-[var(--color-mute)] hover:text-white" onClick={() => say(a.id, t.content)} title="Read aloud" aria-label={`Read ${a.name}'s reply aloud`}>
                       <Volume2 size={12} />
                     </button>
                   )}

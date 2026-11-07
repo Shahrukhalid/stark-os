@@ -39,3 +39,5 @@ pitch = 1.08
 rate = 1.0
 preferred_voices = ["Samantha", "Microsoft Aria", "Google US English"]
 description = "Original feminine system-voice preference. Available voices depend on the OS."
+voice = "Sulafat"  # STARK voice (Gemini); change after listening in Settings
+style = "Say in a warm, lively and friendly voice"

@@ -5,8 +5,8 @@ from __future__ import annotations
 import re
 
 ALIASES = {
-    "vision": ["vision"],
-    "wanda": ["wanda"],
+    "vision": ["vision", "وژن", "ویژن"],
+    "wanda": ["wanda", "وانڈا", "وینڈا"],
     "jarvis": ["jarvis", "j.a.r.v.i.s.", "j.a.r.v.i.s", "j a r v i s"],
     "friday": ["friday", "f.r.i.d.a.y.", "f.r.i.d.a.y"],
     "edith": ["edith", "e.d.i.t.h.", "e.d.i.t.h"],
@@ -15,7 +15,7 @@ ALIASES = {
     "dum_e": ["dum-e", "dum-e.", "d.u.m.-e.", "d.u.m.-e", "dumb-e", "dummy", "dum e", "dumbie"],
     "u": ["u"],
 }
-_PREFIX = re.compile(r"^\s*(?:hey|ok|okay|hi|yo)?\s*,?\s*", re.I)
+_PREFIX = re.compile(r"^\s*(?:hey|ok|okay|hi|yo|ارے|سنو)?\s*[,،]?\s*", re.I)
 
 
 def parse_address(text: str) -> tuple[str | None, str]:
@@ -37,5 +37,5 @@ def parse_address(text: str) -> tuple[str | None, str]:
                 best = (agent_id, len(name))
     if best is None:
         return None, text.strip()
-    remaining = stripped[best[1]:].lstrip(" ,:;.!-").strip()
+    remaining = stripped[best[1]:].lstrip(" ,،:;.!-").strip()
     return best[0], remaining or text.strip()

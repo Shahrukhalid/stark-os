@@ -1,0 +1,164 @@
+"""Speech-to-text and text-to-speech with the owner's Google Gemini API key."""
+
+from __future__ import annotations
+
+import base64
+import io
+import re
+import time
+import wave
+from typing import Any
+
+import httpx
+
+API = "https://generativelanguage.googleapis.com/v1beta"
+MODELS_TTL_S = 6 * 3600
+_URDU = re.compile(r"[؀-ۿ]")
+_VERSION = re.compile(r"(\d+(?:\.\d+)?)")
+
+
+class VoiceError(RuntimeError):
+    """A failure that is safe to show (never contains the key or a full provider reply)."""
+
+
+def is_urdu(text: str) -> bool:
+    letters = [c for c in text if c.isalpha()]
+    return bool(letters) and sum(1 for c in letters if _URDU.match(c)) / len(letters) > 0.4
+
+
+def spoken(text: str, limit: int = 600) -> str:
+    """What is said aloud: plain sentences, no code or links, at most about `limit` characters."""
+    t = re.sub(r"```[\s\S]*?```", " ", text)
+    t = re.sub(r"`([^`]+)`", r"\1", t)
+    t = re.sub(r"!\[[^\]]*\]\([^)]+\)", " ", t)
+    t = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", t)
+    t = re.sub(r"https?://\S+", " ", t)
+    t = re.sub(r"^\s*[-*+]\s+", "", t, flags=re.M)
+    t = re.sub(r"[#*_>|~]", " ", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    if len(t) <= limit:
+        return t
+    cut = t[:limit]
+    end = max(cut.rfind(p) for p in (". ", "? ", "! ", "۔ ", "؟ "))
+    cut = cut[: end + 1] if end > limit // 3 else cut.rsplit(" ", 1)[0]
+    return cut + (" باقی جواب اسکرین پر ہے۔" if is_urdu(cut) else " The rest is on screen.")
+
+
+def wav_bytes(pcm: bytes, rate: int, channels: int = 1) -> bytes:
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(channels)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(pcm)
+    return buf.getvalue()
+
+
+def _rate(mime: str) -> int:
+    m = re.search(r"rate=(\d+)", mime or "")
+    return int(m.group(1)) if m else 24000
+
+
+def _version(name: str) -> float:
+    m = _VERSION.search(name.split("/")[-1])
+    return float(m.group(1)) if m else 0.0
+
+
+def pick_models(models: list[dict[str, Any]]) -> tuple[str, str]:
+    """(speech-to-text model, text-to-speech model) from the models this key can use.
+
+    Speech-to-text: the newest general "flash" model (fast, understands audio). Voice: the newest "flash" TTS
+    model, else any TTS model. Names are read from the API, so new model versions are picked up by themselves.
+    """
+    usable = [m["name"].split("/")[-1] for m in models
+              if "generateContent" in (m.get("supportedGenerationMethods") or [])]
+    skip = ("tts", "image", "live", "audio", "embed", "thinking", "robotics", "computer", "exp")
+    general = [n for n in usable if "flash" in n and not any(s in n for s in skip)]
+    stable = [n for n in general if "preview" not in n] or general
+    stt = (sorted(stable, key=lambda n: (_version(n), "lite" not in n), reverse=True) or [""])[0]
+    tts_all = [n for n in usable if "tts" in n]
+    tts = (sorted(tts_all, key=lambda n: ("flash" in n, _version(n)), reverse=True) or [""])[0]
+    return stt, tts
+
+
+class GeminiVoice:
+    def __init__(self, api_key: str, *, stt_model: str = "", tts_model: str = "", transport=None,
+                 timeout: float = 60):
+        self.key = api_key.strip()
+        self.stt_model, self.tts_model = stt_model.strip(), tts_model.strip()
+        self.transport, self.timeout = transport, timeout
+        self._models: tuple[float, str, str] | None = None
+
+    def configured(self) -> bool:
+        return bool(self.key)
+
+    def _client(self) -> httpx.AsyncClient:
+        return httpx.AsyncClient(base_url=API, timeout=self.timeout, transport=self.transport,
+                                 headers={"x-goog-api-key": self.key})
+
+    @staticmethod
+    def _check(r: httpx.Response, what: str) -> dict[str, Any]:
+        if r.status_code == 429:
+            raise VoiceError("The Gemini free limit is reached for now. Wait a minute and try again.")
+        if r.status_code in (400, 401, 403) and "key" in r.text.lower():
+            raise VoiceError("Gemini did not accept the API key. Check it in Settings.")
+        if r.status_code != 200:
+            raise VoiceError(f"Gemini could not {what} ({r.status_code}).")
+        try:
+            return r.json()
+        except ValueError:
+            raise VoiceError(f"Gemini could not {what} (unexpected answer).") from None
+
+    async def models(self) -> tuple[str, str]:
+        if self.stt_model and self.tts_model:
+            return self.stt_model, self.tts_model
+        if not self._models or time.time() - self._models[0] > MODELS_TTL_S:
+            async with self._client() as c:
+                data = self._check(await c.get("/models", params={"pageSize": 1000}), "list its models")
+            stt, tts = pick_models(data.get("models") or [])
+            self._models = (time.time(), stt, tts)
+        _, stt, tts = self._models
+        stt, tts = self.stt_model or stt, self.tts_model or tts
+        if not stt or not tts:
+            raise VoiceError("This Gemini key has no speech model available.")
+        return stt, tts
+
+    async def transcribe(self, audio: bytes, mime: str = "audio/wav", language: str = "auto",
+                         urdu_script: str = "urdu") -> str:
+        if not self.configured():
+            raise VoiceError("Add your Gemini API key in Settings to use STARK voice.")
+        if not audio:
+            return ""
+        stt, _ = await self.models()
+        lang = {"en": "The speaker uses English.", "ur": "The speaker uses Urdu."}.get(
+            language, "The speaker uses English, Urdu or a mix of both.")
+        script = ("Write Urdu words in Urdu script." if urdu_script != "roman"
+                  else "Write Urdu words in Roman Urdu (Latin letters).")
+        prompt = (f"Transcribe this recording exactly as spoken. {lang} {script} Keep names such as Vision and "
+                  "Wanda as they are. Return only the words that were said, with no notes. If nothing was said, "
+                  "return an empty answer.")
+        body = {"contents": [{"role": "user", "parts": [
+                    {"text": prompt}, {"inline_data": {"mime_type": mime, "data": base64.b64encode(audio).decode()}}]}],
+                "generationConfig": {"temperature": 0}}
+        async with self._client() as c:
+            data = self._check(await c.post(f"/models/{stt}:generateContent", json=body), "understand the recording")
+        parts = ((data.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []
+        text = " ".join(str(p.get("text", "")) for p in parts).strip()
+        return text.strip('"').strip()
+
+    async def speak(self, text: str, voice: str, style: str = "") -> tuple[bytes, int]:
+        """Return (16-bit mono PCM, sample rate)."""
+        if not self.configured():
+            raise VoiceError("Add your Gemini API key in Settings to use STARK voice.")
+        _, tts = await self.models()
+        said = f"{style.strip()}: {text}" if style.strip() else text
+        body = {"contents": [{"role": "user", "parts": [{"text": said}]}],
+                "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {
+                    "voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice or "Charon"}}}}}
+        async with self._client() as c:
+            data = self._check(await c.post(f"/models/{tts}:generateContent", json=body), "speak")
+        for part in ((data.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []:
+            inline = part.get("inlineData") or part.get("inline_data")
+            if inline and inline.get("data"):
+                return base64.b64decode(inline["data"]), _rate(inline.get("mimeType") or inline.get("mime_type", ""))
+        raise VoiceError("Gemini returned no audio.")

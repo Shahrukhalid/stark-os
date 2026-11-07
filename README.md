@@ -49,6 +49,7 @@ Each agent has its own free model with automatic fallback, its own prompt, memor
 
 ### Create
 - **Command**: talk to any agent by text or voice.
+- **STARK voice**: hold to talk to Vision and Wanda in English or Urdu; each answers in their own voice. Uses your own free Gemini key; approvals stay on screen. [How it works](docs/VOICE.md)
 - **Compose**: live preview per platform, character counter, engagement score (0–100) with tips.
 - **12 platforms**: Bluesky, Mastodon, X, Threads, LinkedIn, Instagram, Facebook, TikTok, YouTube, Telegram, Discord, Slack.
 - **Translate** into 13 languages.

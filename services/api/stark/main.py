@@ -357,7 +357,7 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
     from .core.observability import register_secret
 
     register_secret(settings.api_token)
-    for secret in (settings.openrouter_api_key, settings.bluesky_app_password, settings.mastodon_access_token,
+    for secret in (settings.openrouter_api_key, settings.gemini_api_key, settings.bluesky_app_password, settings.mastodon_access_token,
                    settings.tavily_api_key, settings.brave_api_key, settings.telegram_bot_token,
                    settings.discord_webhook_url, settings.webhook_secret, *settings.webhook_urls,
                    settings.threads_access_token, settings.discord_post_webhook_url, settings.slack_webhook_url,
@@ -476,6 +476,10 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         return {"status": "ok", "version": __version__}
 
     api = Depends(auth)
+
+    from .voice.routes import register as register_voice
+
+    register_voice(app, api, kernel, settings)
 
     # ---------------------------------------------------------- system
     @app.get("/api/system/status", dependencies=[api])
