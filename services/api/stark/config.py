@@ -71,6 +71,10 @@ class Settings:
     openrouter_models: dict[str, str] = field(default_factory=dict)
     openrouter_allow_paid: bool = False  # safety net: never call a model that costs money
 
+    ollama_base_url: str = ""  # opt-in literal loopback only
+    ollama_model: str = ""
+    default_provider: str = "openrouter"
+
     # budgets & limits
     task_token_budget: int = 200_000
     max_delegation_depth: int = 2
@@ -142,6 +146,9 @@ class Settings:
             agents_dir=Path(_env("STARK_AGENTS_DIR", str(REPO_ROOT / "agents"))),
             workspace_roots=[Path(r).expanduser().resolve() for r in roots],
             data_dir=data_dir,
+            ollama_base_url=_env("STARK_OLLAMA_URL"),
+            ollama_model=_env("STARK_OLLAMA_MODEL"),
+            default_provider=_env("STARK_DEFAULT_PROVIDER", "openrouter"),
             openrouter_api_key=_env("OPENROUTER_API_KEY"),
             openrouter_base_url=_env("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
             openrouter_models={

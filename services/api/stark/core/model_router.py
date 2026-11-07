@@ -35,6 +35,9 @@ class ModelRouter:
             "openrouter": OpenRouterProvider(settings.openrouter_api_key, base_url=settings.openrouter_base_url,
                                              app_url=settings.web_origin,
                                              allow_paid=settings.openrouter_allow_paid)}
+        if providers is None and settings.ollama_base_url:
+            from ..providers.ollama import OllamaProvider
+            self.providers["ollama"] = OllamaProvider(settings.ollama_base_url, settings.ollama_model)
         self.pins = {t: m for t, m in (settings.openrouter_models or {}).items() if m}
 
     @property
@@ -56,7 +59,7 @@ class ModelRouter:
             raise NoModelAvailable("No model is configured. Add OPENROUTER_API_KEY to .env (free key at "
                                    "https://openrouter.ai/keys) and restart the API.")
         tier = tier_hint or agent.model.tier
-        requested = agent.model.provider
+        requested = agent.model.provider or (self.settings.default_provider if self.settings.default_provider != "openrouter" else None)
         if requested and requested not in available:
             raise NoModelAvailable("The agent's selected provider is unavailable. Configure it or explicitly "
                                    "change the agent provider; no cross-provider fallback was attempted.")
@@ -65,6 +68,11 @@ class ModelRouter:
         pinned = agent.model.model or (self.pins.get(tier) if name == "openrouter" else None)
         if isinstance(provider, OpenRouterProvider):
             candidates = provider.candidates(tier, pinned, preferred=agent.model.preferred)
+        elif name == "ollama":
+            model = pinned or provider.default_model
+            if not model:
+                raise NoModelAvailable("Choose a local model with STARK_OLLAMA_MODEL or the agent model setting")
+            candidates = [model]
         else:  # test doubles / future providers
             candidates = [pinned or f"{provider.name}-{tier}"]
         if not candidates:
