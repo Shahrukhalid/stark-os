@@ -143,7 +143,7 @@ def test_scheduler_skips_when_paused_or_late(client, settings):
     time.sleep(1.2)
     assert client.portal.call(social.run_scheduler_once, k, sc, settings) == []
     client.post("/api/social/queue/pause?paused=false")
-    with k.db.session() as s:  # pretend STARK OS was off for a day
+    with k.db.session() as s:  # pretend STARK AI was off for a day
         s.get(ContentItem, item_id).scheduled_for = datetime.now(timezone.utc) - timedelta(hours=30)
     out = client.portal.call(social.run_scheduler_once, k, sc, settings)
     assert out == [{"id": item_id, "outcome": "missed"}]

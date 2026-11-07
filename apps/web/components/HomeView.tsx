@@ -11,7 +11,7 @@ const STEPS = [
   { icon: MessageSquare, title: "1. Ask", text: "Type what you want in Command, like “EDITH, write a post about my new video”. Address an agent by name, or just talk to J.A.R.V.I.S." },
   { icon: Users, title: "2. The team works", text: "Agents draft, check rules and brand safety, research facts and stress-test the post. Every draft lands in Content." },
   { icon: ShieldCheck, title: "3. You approve", text: "In Content, read the exact text and choose Publish now, Schedule, or Copy text. Nothing is posted without you." },
-  { icon: Send, title: "4. It goes out", text: "Bluesky and Mastodon post for real. Approved scheduled posts go out on their own at the right time while STARK OS is running." },
+  { icon: Send, title: "4. It goes out", text: "Bluesky and Mastodon post for real. Approved scheduled posts go out on their own at the right time while STARK AI is running." },
 ];
 
 const QUICK = [
@@ -23,7 +23,7 @@ const QUICK = [
   { agent: "ultron", label: "Could this backfire?", text: "Ultron, how could this post backfire: " },
 ];
 
-/** Start page: how STARK OS works, what's left to set up, and one-click starting points. */
+/** Start page: how STARK AI works, what's left to set up, and one-click starting points. */
 export function HomeView({ talkTo, go }: { talkTo: (agentId: string, text?: string) => void; go: (view: "content" | "models" | "team") => void }) {
   const { client, status, agents } = useStark();
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
@@ -133,7 +133,7 @@ export function HomeView({ talkTo, go }: { talkTo: (agentId: string, text?: stri
         {scheduled.length > 0 && (
           <p className="mt-3 text-xs text-[var(--color-mute)]">
             <CalendarClock size={12} className="mr-1 inline" />
-            {scheduled.length} post(s) scheduled. Keep STARK OS running (make dev) so approved posts go out on time.
+            {scheduled.length} post(s) scheduled. Keep STARK AI running (make dev) so approved posts go out on time.
           </p>
         )}
       </Section>

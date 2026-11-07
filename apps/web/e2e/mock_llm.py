@@ -53,7 +53,7 @@ def respond(body: dict) -> dict:
         msg = call("social__check", {"platform": "bluesky", "text": "Hello world"}, n)
     elif has_tools and "draft a launch post" in low and "social__draft" in tool_names:
         if n == 0:
-            msg = call("social__draft", {"platform": "bluesky", "text": "STARK OS is live: seven agents, one "
+            msg = call("social__draft", {"platform": "bluesky", "text": "STARK AI is live: seven agents, one "
                                          "social team. https://example.com/launch #launch"}, n)
         else:
             d = last["data"]

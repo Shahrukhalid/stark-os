@@ -33,7 +33,7 @@ for _ in $(seq 1 40); do  # wait until the API answers, so a startup error is vi
   sleep 0.5
 done
 if curl -fsS "http://127.0.0.1:$API_PORT/api/health" >/dev/null 2>&1; then
-  echo "STARK OS ready: open http://localhost:$WEB_PORT  (API http://127.0.0.1:$API_PORT)"
+  echo "STARK AI ready: open http://localhost:$WEB_PORT  (API http://127.0.0.1:$API_PORT)"
 else
   echo "The API did not start on port $API_PORT. See the error above, or run: make api"
 fi

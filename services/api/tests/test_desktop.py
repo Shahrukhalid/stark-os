@@ -133,18 +133,18 @@ def test_diagnostics(env):
 
 
 def _release(sha: str | None):
-    base = desktop.DOWNLOAD_PREFIX + "v9.0.0/"
+    base = desktop.DOWNLOAD_PREFIXES[0] + "v9.0.0/"
     return {"tag_name": "v9.0.0", "html_url": "u", "body": "What's new", "assets": [
         {"name": n, "size": 5, "browser_download_url": base + n, "digest": f"sha256:{sha}" if sha else None}
-        for n in ("STARK-OS-macOS-AppleSilicon.dmg", "STARK-OS-macOS-Intel.dmg", "STARK-OS-Windows-Setup.exe")]}
+        for n in ("STARK-AI-macOS-AppleSilicon.dmg", "STARK-AI-macOS-Intel.dmg", "STARK-AI-Windows-Setup.exe")]}
 
 
 def test_update_picks_installer_for_this_computer(monkeypatch):
     monkeypatch.setattr(desktop.httpx, "get", lambda url, **kw: httpx.Response(
         200, json=_release("ab"), request=httpx.Request("GET", url)))
-    monkeypatch.setattr(desktop, "asset_name", lambda: "STARK-OS-Windows-Setup.exe")
+    monkeypatch.setattr(desktop, "asset_name", lambda: "STARK-AI-Windows-Setup.exe")
     info = desktop.check_update("1.0.0")
-    assert info["notes"] == "What's new" and info["asset"]["name"] == "STARK-OS-Windows-Setup.exe"
+    assert info["notes"] == "What's new" and info["asset"]["name"] == "STARK-AI-Windows-Setup.exe"
     assert info["asset"]["sha256"] == "ab"
     monkeypatch.setattr(desktop, "asset_name", lambda: None)
     assert desktop.check_update("1.0.0")["asset"] is None

@@ -30,7 +30,7 @@ export function PhoneSettings() {
           <li>In Telegram, talk to <span className="font-mono">@BotFather</span>, send <span className="font-mono">/newbot</span> and copy the token.</li>
           <li>Send your new bot any message, then open <span className="font-mono break-anywhere">https://api.telegram.org/bot&lt;token&gt;/getUpdates</span> and copy <span className="font-mono">chat.id</span>.</li>
           <li>
-            Add <span className="font-mono">TELEGRAM_BOT_TOKEN</span> and <span className="font-mono">TELEGRAM_CHAT_ID</span> (or <span className="font-mono">DISCORD_WEBHOOK_URL</span>) to <span className="font-mono">.env</span> and restart STARK OS.
+            Add <span className="font-mono">TELEGRAM_BOT_TOKEN</span> and <span className="font-mono">TELEGRAM_CHAT_ID</span> (or <span className="font-mono">DISCORD_WEBHOOK_URL</span>) to <span className="font-mono">.env</span> and restart STARK AI.
           </li>
         </ol>
       )}
@@ -43,7 +43,7 @@ export function PhoneSettings() {
         </button>
       </div>
       <p className="mt-3 text-xs text-[var(--color-mute)]">
-        Install the dashboard as an app: in Chrome or Edge choose <i>Install STARK OS</i> in the address bar; in Safari choose <i>Add to Dock</i> or <i>Add to Home Screen</i>.
+        Install the dashboard as an app: in Chrome or Edge choose <i>Install STARK AI</i> in the address bar; in Safari choose <i>Add to Dock</i> or <i>Add to Home Screen</i>.
       </p>
     </Section>
   );

@@ -1,4 +1,4 @@
-# STARK OS - local deployment.
+# STARK AI - local deployment.
 # Ports are bound to 127.0.0.1 only.
 #
 # First-time startup (no .env required):

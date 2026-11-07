@@ -13,7 +13,7 @@ const toForm = (b: Brand): Form => ({
   hashtags: b.hashtags.join(", "), blocked_terms: b.blocked_terms.join(", "), platforms: b.platforms.join(", "),
 });
 
-/** Several brands or clients in one STARK OS: the active brand steers every agent and tags new content. */
+/** Several brands or clients in one STARK AI: the active brand steers every agent and tags new content. */
 export function BrandsView() {
   const { client, notify } = useStark();
   const [brands, setBrands] = useState<Brand[]>([]);

@@ -1,7 +1,7 @@
 """Keeps social logins alive so scheduled posts don't fail when a token runs out.
 
 * Instagram and Threads long-lived tokens last 60 days. Meta lets you swap one for a fresh 60-day token once it
-  is at least a day old, so every token saved in STARK OS is renewed about once a week.
+  is at least a day old, so every token saved in STARK AI is renewed about once a week.
 * Pinterest access tokens last 30 days. When "Log in with Pinterest" returned a refresh token, a new access token
   is fetched through STARK Connect before the old one expires.
 * LinkedIn tokens can't be renewed by ordinary apps; account health warns 10 days before the 60 days are up.

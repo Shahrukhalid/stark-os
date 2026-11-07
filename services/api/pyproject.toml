@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "stark-os-api"
+name = "stark-ai-api"
 version = "1.11.0"
-description = "STARK OS - Project Genesis: governed multi-agent social media team on free models (API)"
+description = "STARK AI - Project Genesis: governed multi-agent social media team on free models (API)"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [

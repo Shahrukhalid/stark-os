@@ -10,7 +10,7 @@ import { Empty, Section } from "./ui";
 const KINDS = [
   { id: "template", label: "Templates", icon: PenLine, hint: "A post skeleton, e.g. “New video: {title}. {one-line hook} {link}”" },
   { id: "hashtags", label: "Hashtag groups", icon: Hash, hint: "#BuildInPublic #OpenSource #AI" },
-  { id: "signature", label: "Signatures", icon: Signature, hint: "— The STARK OS team · stark.example" },
+  { id: "signature", label: "Signatures", icon: Signature, hint: "— The STARK AI team · stark.example" },
   { id: "reply", label: "Saved replies", icon: Copy, hint: "Thanks for asking! Here's how it works: …" },
 ] as const;
 
@@ -74,7 +74,7 @@ export function LibraryView() {
 
   const copy = (text: string) => navigator.clipboard?.writeText(text).then(() => notify("success", "Copied"), () => {});
   const meta = KINDS.find((k) => k.id === kind)!;
-  const mcpConfig = JSON.stringify({ mcpServers: { "stark-os": { command: "<STARK OS folder>/services/api/.venv/bin/python", args: ["-m", "stark.mcp_server"], cwd: "<STARK OS folder>/services/api" } } }, null, 2);
+  const mcpConfig = JSON.stringify({ mcpServers: { "stark-ai": { command: "<STARK AI folder>/services/api/.venv/bin/python", args: ["-m", "stark.mcp_server"], cwd: "<STARK AI folder>/services/api" } } }, null, 2);
 
   return (
     <div className="mx-auto max-w-7xl space-y-4">

@@ -24,9 +24,10 @@ from pydantic import BaseModel
 from . import __version__
 from .credential_store import CredentialStoreError, EncryptedJSON, LOCK
 
-SERVICE = "STARK OS"
+SERVICE = "STARK OS"  # keychain service name kept from STARK OS so saved keys stay readable
 RESTART_CODE = 75
-RELEASES = "https://api.github.com/repos/Shahrukhalid/stark-os/releases/latest"
+RELEASES = ("https://api.github.com/repos/Shahrukhalid/stark-ai/releases/latest",
+            "https://api.github.com/repos/Shahrukhalid/stark-os/releases/latest")  # former repository name
 
 # Secret values: authenticated encryption on disk; encryption key in the OS vault.
 SECRETS = {
@@ -75,7 +76,7 @@ PLATFORMS = [
      "how": "Create a LinkedIn developer app, add the free products Share on LinkedIn and Sign In with LinkedIn "
             "using OpenID Connect, then create a token with openid, profile and w_member_social (lasts 60 days)."},
     {"id": "x", "name": "X (Twitter)", "publish": False, "fields": [],
-     "how": "X charges for every post through its API, so STARK OS prepares drafts you post yourself."},
+     "how": "X charges for every post through its API, so STARK AI prepares drafts you post yourself."},
     {"id": "instagram", "name": "Instagram (Business or Creator)", "publish": True,
      "fields": ["INSTAGRAM_USER_ID", "INSTAGRAM_ACCESS_TOKEN"],
      "how": "Meta developer app with the Instagram use case: generate a token with instagram_business_basic and "
@@ -267,13 +268,14 @@ def _apple_silicon() -> bool:
 def asset_name() -> str | None:
     """The installer that fits this computer."""
     if sys.platform == "darwin":
-        return "STARK-OS-macOS-AppleSilicon.dmg" if _apple_silicon() else "STARK-OS-macOS-Intel.dmg"
+        return "STARK-AI-macOS-AppleSilicon.dmg" if _apple_silicon() else "STARK-AI-macOS-Intel.dmg"
     if sys.platform == "win32":
-        return "STARK-OS-Windows-Setup.exe"
+        return "STARK-AI-Windows-Setup.exe"
     return None
 
 
-DOWNLOAD_PREFIX = "https://github.com/Shahrukhalid/stark-os/releases/download/"
+DOWNLOAD_PREFIXES = ("https://github.com/Shahrukhalid/stark-ai/releases/download/",
+                     "https://github.com/Shahrukhalid/stark-os/releases/download/")  # former repository name
 
 
 def _version_tuple(s: str) -> list[int]:
@@ -282,16 +284,23 @@ def _version_tuple(s: str) -> list[int]:
 
 def check_update(current: str = __version__, timeout: float = 8.0) -> dict[str, Any]:
     try:
-        r = httpx.get(RELEASES, timeout=timeout, headers={"accept": "application/vnd.github+json"})
-        r.raise_for_status()
-        data = r.json()
+        data = None
+        for url in RELEASES:  # the new repository name first; the old one keeps working until the rename
+            r = httpx.get(url, timeout=timeout, headers={"accept": "application/vnd.github+json"}, follow_redirects=True)
+            if r.status_code == 404:
+                continue
+            r.raise_for_status()
+            data = r.json()
+            break
+        if data is None:
+            raise ValueError("no release found")
         latest = str(data.get("tag_name", "")).lstrip("v")
         newer = bool(latest) and _version_tuple(latest) > _version_tuple(current)
         want = asset_name()
         asset = next(({"name": a["name"], "size": a.get("size", 0), "url": a["browser_download_url"],
                        "sha256": str(a.get("digest") or "").removeprefix("sha256:") or None}
                       for a in data.get("assets", []) if a.get("name") == want
-                      and str(a.get("browser_download_url", "")).startswith(DOWNLOAD_PREFIX)), None)
+                      and str(a.get("browser_download_url", "")).startswith(DOWNLOAD_PREFIXES)), None)
         return {"current": current, "latest": latest, "update": newer, "url": data.get("html_url", ""),
                 "notes": str(data.get("body") or "")[:4000], "published": data.get("published_at"), "asset": asset}
     except (httpx.HTTPError, ValueError, KeyError):
@@ -307,8 +316,8 @@ class Updater:
         self._lock = threading.Lock()
 
     def start(self, asset: dict[str, Any], dest_dir: Path | None = None, open_file: bool = True) -> dict[str, Any]:
-        if not str(asset.get("url", "")).startswith(DOWNLOAD_PREFIX) or "/" in asset.get("name", "/"):
-            raise ValueError("not a STARK OS release file")
+        if not str(asset.get("url", "")).startswith(DOWNLOAD_PREFIXES) or "/" in asset.get("name", "/"):
+            raise ValueError("not a STARK AI release file")
         with self._lock:
             if self.state["status"] == "downloading":
                 return dict(self.state)
@@ -353,7 +362,7 @@ def open_installer(path: Path) -> None:
     if sys.platform == "darwin":
         subprocess.Popen(["open", str(path)])  # mounts the disk image and shows it in Finder
     elif sys.platform == "win32":
-        os.startfile(str(path))  # type: ignore[attr-defined]  # the installer closes STARK OS itself
+        os.startfile(str(path))  # type: ignore[attr-defined]  # the installer closes STARK AI itself
 
 
 UPDATER = Updater()

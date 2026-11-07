@@ -1,4 +1,4 @@
-# STARK OS setup for Windows (PowerShell 5.1 or 7). Does what `make setup` does on macOS / Linux:
+# STARK AI setup for Windows (PowerShell 5.1 or 7). Does what `make setup` does on macOS / Linux:
 # creates the API's Python environment, installs the dashboard, and creates .env with a random API token.
 # Run from the repository folder:  powershell -ExecutionPolicy Bypass -File scripts\setup.ps1
 $ErrorActionPreference = "Stop"
@@ -62,5 +62,5 @@ try {
 if ($LASTEXITCODE -ne 0) { throw "Creating .env failed." }
 
 Write-Host ""
-Write-Host "Setup complete. Start STARK OS with:  powershell -ExecutionPolicy Bypass -File scripts\dev.ps1"
+Write-Host "Setup complete. Start STARK AI with:  powershell -ExecutionPolicy Bypass -File scripts\dev.ps1"
 Write-Host "Optional for browser.render:  services\api\.venv\Scripts\python.exe -m playwright install chromium"

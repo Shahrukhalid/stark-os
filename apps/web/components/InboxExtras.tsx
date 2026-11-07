@@ -151,7 +151,7 @@ export function OwnFeeds() {
   const save = (next: typeof feeds) => client.put<{ feeds: typeof feeds }>("/api/feeds", { feeds: next }).then((r) => (setFeeds(r.feeds), notify("success", "Saved. The first check only remembers what is already there."), true), (e) => (notify("error", e.message), false));
   return (
     <Section title="Your channels → drafts" right={<MessageSquareText size={15} className="text-cyan-300" />}>
-      <p className="mb-2 text-xs text-[var(--color-mute)]">When you publish a new YouTube video, podcast episode or blog post, STARK OS drafts an announcement for your platforms (checked every hour). You still approve each one.</p>
+      <p className="mb-2 text-xs text-[var(--color-mute)]">When you publish a new YouTube video, podcast episode or blog post, STARK AI drafts an announcement for your platforms (checked every hour). You still approve each one.</p>
       <ul className="mb-2 space-y-1 text-xs">
         {feeds.map((f, i) => (
           <li key={f.url} className="flex items-center gap-2">

@@ -14,11 +14,11 @@ jobs:
       matrix:
         include:
           - os: macos-15
-            asset: STARK-OS-macOS-AppleSilicon.dmg
+            asset: STARK-AI-macOS-AppleSilicon.dmg
           - os: macos-15-intel
-            asset: STARK-OS-macOS-Intel.dmg
+            asset: STARK-AI-macOS-Intel.dmg
           - os: windows-latest
-            asset: STARK-OS-Windows-Setup.exe
+            asset: STARK-AI-Windows-Setup.exe
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     defaults:
@@ -46,13 +46,13 @@ jobs:
           STARK_DESKTOP_DATA: ${{ runner.temp }}/stark-selftest
           PYTHON_KEYRING_BACKEND: keyring.backends.fail.Keyring
         run: |
-          if [ "$RUNNER_OS" = "macOS" ]; then "dist/STARK OS.app/Contents/MacOS/STARK OS" --self-test
-          else "dist/STARK OS/STARK OS.exe" --self-test; fi
+          if [ "$RUNNER_OS" = "macOS" ]; then "dist/STARK AI.app/Contents/MacOS/STARK AI" --self-test
+          else "dist/STARK AI/STARK AI.exe" --self-test; fi
       - name: macOS disk image
         if: runner.os == 'macOS'
         run: |
-          mkdir -p dmg && cp -R "dist/STARK OS.app" dmg/ && ln -s /Applications dmg/Applications
-          hdiutil create -volname "STARK OS" -srcfolder dmg -ov -format UDZO "dist/${{ matrix.asset }}"
+          mkdir -p dmg && cp -R "dist/STARK AI.app" dmg/ && ln -s /Applications dmg/Applications
+          hdiutil create -volname "STARK AI" -srcfolder dmg -ov -format UDZO "dist/${{ matrix.asset }}"
       - name: Windows installer
         if: runner.os == 'Windows'
         run: |
@@ -66,5 +66,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "STARK OS ${GITHUB_REF_NAME#v}" --notes "Desktop installers for macOS and Windows: download, install, open STARK OS and follow the setup." || true
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "STARK AI ${GITHUB_REF_NAME#v}" --notes "Desktop installers for macOS and Windows: download, install, open STARK AI and follow the setup." || true
           gh release upload "$GITHUB_REF_NAME" "dist/${{ matrix.asset }}" --clobber
+          # Apps from before the rename look for the old file names: keep a copy under that name so they update too.
+          OLD="${{ matrix.asset }}"; OLD="${OLD/STARK-AI-/STARK-OS-}"
+          cp "dist/${{ matrix.asset }}" "dist/$OLD"
+          gh release upload "$GITHUB_REF_NAME" "dist/$OLD" --clobber

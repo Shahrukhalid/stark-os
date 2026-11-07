@@ -6,7 +6,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-PRODID = "-//STARK OS//Posting schedule//EN"
+PRODID = "-//STARK AI//Posting schedule//EN"
 EVENT_MINUTES = 15
 _CTRL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
@@ -52,7 +52,7 @@ def build_calendar(items: list[dict[str, Any]], now: datetime | None = None) -> 
     """Build a VCALENDAR with one VEVENT per item that has a scheduled_for time."""
     stamp = utc_stamp(now or datetime.now(timezone.utc))
     lines = ["BEGIN:VCALENDAR", "VERSION:2.0", f"PRODID:{PRODID}", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
-             "X-WR-CALNAME:STARK OS posting schedule"]
+             "X-WR-CALNAME:STARK AI posting schedule"]
     for it in items:
         raw = it.get("scheduled_for")
         if not raw:
@@ -66,7 +66,7 @@ def build_calendar(items: list[dict[str, Any]], now: datetime | None = None) -> 
             text = "\n\n".join([text, *thread])
         lines += [
             "BEGIN:VEVENT",
-            f"UID:{escape_text(str(it['id']))}@stark-os",
+            f"UID:{escape_text(str(it['id']))}@stark-os",  # kept from STARK OS so calendars update events, not duplicate them
             f"DTSTAMP:{stamp}",
             f"DTSTART:{utc_stamp(start)}",
             f"DTEND:{utc_stamp(start + timedelta(minutes=EVENT_MINUTES))}",

@@ -154,7 +154,7 @@ Three independent reviews (backend security, dashboard/CSS/accessibility, infras
 | Automatic posting at the scheduled time, for posts you approved (exact-text approval; edits cancel it; missed >6 h asks again; E-STOP/pause stop it) | ✅ |
 | Connect Bluesky / Mastodon from the dashboard (verified on save; stored only locally, mode 600; app-password check) | ✅ (tested with recorded API shapes) |
 | Start page (how it works, setup checklist, quick actions); one-click Publish / Schedule / Copy / Discard in Content | ✅ |
-| Image / video generation and upload | ⛔ STARK OS writes briefs only |
+| Image / video generation and upload | ⛔ STARK AI writes briefs only |
 | Delegation limits, parallel team review + Ultron challenge, retries, cancellation, E-STOP | ✅ |
 | Free-model pool: catalogue, tier preferences, failover with cooldowns, quota display, ping | ✅ |
 | Token streaming of replies | 📋 |

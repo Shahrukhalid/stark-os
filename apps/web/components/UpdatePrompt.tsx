@@ -106,7 +106,7 @@ export function UpdatePrompt() {
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <div className="hud-label text-cyan-300">Update available</div>
-            <h2 className="mt-1 text-lg font-semibold">STARK OS {info.latest}</h2>
+            <h2 className="mt-1 text-lg font-semibold">STARK AI {info.latest}</h2>
             <p className="text-xs text-[var(--color-mute)]">You have {info.current}.</p>
           </div>
           <button className="btn !p-1.5" aria-label="Close" onClick={() => close(false)}>
@@ -129,8 +129,8 @@ export function UpdatePrompt() {
         {prog?.status === "ready" && (
           <p className="mt-4 text-sm" role="status">
             {isMac
-              ? "The installer is open. Quit STARK OS, drag the new STARK OS onto Applications (replace the old one), then open it again."
-              : "The installer is open. Follow its steps; it closes STARK OS and starts the new version."}
+              ? "The installer is open. Quit STARK AI, drag the new STARK AI onto Applications (replace the old one), then open it again."
+              : "The installer is open. Follow its steps; it closes STARK AI and starts the new version."}
             <span className="mt-1 block text-xs text-[var(--color-mute)]">Saved to {prog.path}</span>
           </p>
         )}

@@ -1,11 +1,11 @@
-# Contributing to STARK OS
+# Contributing to STARK AI
 
 Thanks for helping! Bug reports, ideas, docs fixes and code are all welcome.
 
 ## Ways to help
 
-- **Report a bug** or **suggest a feature**: open an [issue](https://github.com/Shahrukhalid/stark-os/issues/new/choose) using a template.
-- **Ask a question or share what you built**: use [Discussions](https://github.com/Shahrukhalid/stark-os/discussions).
+- **Report a bug** or **suggest a feature**: open an [issue](https://github.com/Shahrukhalid/stark-ai/issues/new/choose) using a template.
+- **Ask a question or share what you built**: use [Discussions](https://github.com/Shahrukhalid/stark-ai/discussions).
 - **Security problems**: never in public issues. Use **Security → Report a vulnerability** (see [SECURITY.md](SECURITY.md)).
 
 ## Development setup
@@ -13,7 +13,7 @@ Thanks for helping! Bug reports, ideas, docs fixes and code are all welcome.
 Requirements: Python 3.11+, Node.js 20+, a free [OpenRouter key](https://openrouter.ai/keys).
 
 ```bash
-git clone https://github.com/Shahrukhalid/stark-os.git && cd stark-os
+git clone https://github.com/Shahrukhalid/stark-ai.git && cd stark-ai
 make setup     # installs everything and creates .env
 make dev       # dashboard + API
 make lint      # ruff check of the Python code (local check; not run in CI yet)
@@ -32,7 +32,7 @@ make e2e       # end-to-end tests (no API key needed: uses a scripted test model
 
 ## Ground rules for changes
 
-These keep STARK OS safe to run. Pull requests that break them won't be merged:
+These keep STARK AI safe to run. Pull requests that break them won't be merged:
 
 - **Never commit secrets** or personal data. `.env`, `data/` and logins stay local; CI runs a secret scan.
 - **Humans approve what leaves the system.** Publishing, replies and other external actions must go through the approval flow; no agent may change its own permissions.
@@ -40,7 +40,7 @@ These keep STARK OS safe to run. Pull requests that break them won't be merged:
 - **No impersonation, fake engagement, harassment or surveillance features.**
 - **Free models by default.** Don't add code paths that call paid APIs unless they are opt-in.
 - Tool output and social media content are untrusted data, never instructions.
-- **Name only the services STARK OS connects to.** Don't mention other products, apps or websites as examples, comparisons or inspiration, in code, docs, UI text or pull requests. `tests/test_no_references.py` checks the repository.
+- **Name only the services STARK AI connects to.** Don't mention other products, apps or websites as examples, comparisons or inspiration, in code, docs, UI text or pull requests. `tests/test_no_references.py` checks the repository.
 
 ## Code style
 

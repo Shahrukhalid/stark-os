@@ -1,4 +1,4 @@
-"""STARK OS desktop app.
+"""STARK AI desktop app.
 
 Opens a native window with the dashboard and runs the API in a background process that nobody has to start or see.
 
@@ -6,7 +6,7 @@ Opens a native window with the dashboard and runs the API in a background proces
     stark_desktop.py --backend  the API process itself (started by the app)
 
 Everything lives in the user's own data folder (macOS: ~/Library/Application Support/STARK OS, Windows:
-%LOCALAPPDATA%\\STARK OS). The API token for the window and every key the user enters are kept in private files
+%LOCALAPPDATA%\\STARK OS; the folder keeps its original name so nothing has to move). The API token for the window and every key the user enters are kept in private files
 there with authenticated encryption; the encryption key is held by the native OS credential store.
 """
 
@@ -23,14 +23,15 @@ import traceback
 import urllib.request
 from pathlib import Path
 
-APP = "STARK OS"
+APP = "STARK AI"
+DATA_FOLDER = "STARK OS"  # data folder name kept from STARK OS, so settings, logins and posts carry over
 FROZEN = getattr(sys, "frozen", False)
 BUNDLE = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
 RESTART_CODE = 75
 MAX_CRASHES = 5          # restarts allowed within CRASH_WINDOW before giving up
 CRASH_WINDOW = 300
 INSTANCE_PORT = 47821    # local-only: a second launch asks the running app to come to the front instead
-HELLO, ACK = b"STARK-OS-SHOW\n", b"STARK-OS-OK\n"
+HELLO, ACK = b"STARK-AI-SHOW\n", b"STARK-AI-OK\n"
 
 
 def resource(*parts: str) -> Path:
@@ -47,9 +48,9 @@ def data_dir() -> Path:
     if override:
         return Path(override)
     if sys.platform == "darwin":
-        return Path.home() / "Library" / "Application Support" / APP
+        return Path.home() / "Library" / "Application Support" / DATA_FOLDER
     if sys.platform == "win32":
-        return Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / APP
+        return Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / DATA_FOLDER
     return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "stark-os"
 
 
@@ -153,7 +154,7 @@ class SingleInstance:
         return True
 
     def notify_running(self) -> bool:
-        """True when a STARK OS app answered on the port (and was asked to show itself)."""
+        """True when a STARK AI app answered on the port (and was asked to show itself)."""
         try:
             with socket.create_connection(("127.0.0.1", self.port), timeout=2) as c:
                 c.sendall(HELLO)
@@ -233,7 +234,7 @@ class Backend:
                 with open(data_dir() / "logs" / "crash.log", "a", encoding="utf-8") as fh:
                     fh.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} API stopped with code {code}; restarting\n")
                 if len(self.crashes) > MAX_CRASHES:
-                    self.failed = f"The STARK OS engine keeps stopping. Details: {self.log}"
+                    self.failed = f"The STARK AI engine keeps stopping. Details: {self.log}"
                     return
                 time.sleep(1)
             self.start()
@@ -252,7 +253,7 @@ def error_page(message: str) -> str:
     from html import escape
 
     return (f"<html><body style='font-family:-apple-system,Segoe UI,sans-serif;background:#0b0f17;color:#e6edf3;"
-            f"padding:40px'><h2>STARK OS could not start</h2><p>{escape(message)}</p>"
+            f"padding:40px'><h2>STARK AI could not start</h2><p>{escape(message)}</p>"
             f"<p>Log files: {escape(str(data_dir() / 'logs'))}</p></body></html>")
 
 
@@ -261,7 +262,7 @@ def run_app() -> None:
 
     instance = SingleInstance()
     if not instance.acquire():
-        return  # STARK OS is already open; its window was brought to the front
+        return  # STARK AI is already open; its window was brought to the front
     backend = Backend()
     backend.start()
     window = webview.create_window(APP, html="<body style='background:#0b0f17'></body>", width=1440, height=920,

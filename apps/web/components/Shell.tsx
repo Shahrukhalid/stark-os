@@ -157,7 +157,7 @@ export function Shell({ onSignOut }: { onSignOut: () => void }) {
             <AgentGlyph icon="core" color="#22d3ee" size={20} active={activity > 0} />
           </span>
           <div className="leading-tight">
-            <div className="holo-text text-sm font-semibold tracking-[0.3em]">STARK OS</div>
+            <div className="holo-text text-sm font-semibold tracking-[0.3em]">STARK AI</div>
             <div className="hud-label text-[var(--color-mute)]">Project Genesis</div>
           </div>
         </div>

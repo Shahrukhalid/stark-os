@@ -1,6 +1,6 @@
 # Accessibility
 
-STARK OS should be usable by everyone, and it helps your audience too: E.D.I.T.H. and U write alt text and captions, and the rule check warns about images without alt text.
+STARK AI should be usable by everyone, and it helps your audience too: E.D.I.T.H. and U write alt text and captions, and the rule check warns about images without alt text.
 
 ## What the dashboard supports
 
@@ -18,4 +18,4 @@ STARK OS should be usable by everyone, and it helps your audience too: E.D.I.T.H
 
 ## Report a barrier
 
-Open an [issue](https://github.com/Shahrukhalid/stark-os/issues/new/choose) and choose **Bug report** with area "Dashboard". Describe what you were trying to do and which assistive technology you use. Accessibility bugs are treated as high priority.
+Open an [issue](https://github.com/Shahrukhalid/stark-ai/issues/new/choose) and choose **Bug report** with area "Dashboard". Describe what you were trying to do and which assistive technology you use. Accessibility bugs are treated as high priority.

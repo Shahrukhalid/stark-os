@@ -46,7 +46,7 @@ def _env_list(name: str, default: list[str]) -> list[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
-# STARK OS runs exclusively on free OpenRouter models. Model choice is automatic
+# STARK AI runs exclusively on free OpenRouter models. Model choice is automatic
 # (see providers/openrouter.py); OPENROUTER_MODEL / OPENROUTER_MODEL_<TIER> pin one.
 
 
@@ -94,7 +94,7 @@ class Settings:
     mastodon_access_token: str = ""
     brand_blocked_terms: list[str] = field(default_factory=list)
     scheduler_interval_s: float = 30.0  # how often approved scheduled posts are checked
-    scheduler_grace_h: float = 6.0  # an approved post more than this late (STARK OS was off) needs re-approval
+    scheduler_grace_h: float = 6.0  # an approved post more than this late (STARK AI was off) needs re-approval
     allow_private_fetch: bool = False  # tests only; never enable in production
     telegram_bot_token: str = ""  # from @BotFather; buttons work without a public URL (long polling)
     telegram_chat_id: str = ""  # only this chat may press Approve / Publish

@@ -1,4 +1,4 @@
-"""OpenRouter free-model pool: the only model provider STARK OS uses.
+"""OpenRouter free-model pool: the only model provider STARK AI uses.
 
 How it works
 - At startup the catalogue (GET /models) is fetched and every **free** model is
@@ -145,7 +145,7 @@ class OpenRouterProvider(OpenAICompatProvider):
 
     def _client(self) -> httpx.AsyncClient:
         client = super()._client()
-        client.headers["X-Title"] = "STARK OS"
+        client.headers["X-Title"] = "STARK AI"
         if self._app_url:
             client.headers["HTTP-Referer"] = self._app_url
         return client

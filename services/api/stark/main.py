@@ -372,7 +372,7 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         holder["k"] = build_kernel(settings, providers)
         app.state.kernel = holder["k"]
         await holder["k"].router.prepare()
-        log.info("STARK OS API ready", extra={"ctx": {"agents": holder["k"].registry.ids(),
+        log.info("STARK AI API ready", extra={"ctx": {"agents": holder["k"].registry.ids(),
                                                       "providers": holder["k"].router.configured_providers()}})
         social = holder["k"].tools.get("social.publish").social
         holder["k"].autopilot = ap.Autopilot(holder["k"], social, settings)
@@ -445,7 +445,7 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
                 if job is not None:
                     job.cancel()
 
-    app = FastAPI(title="STARK OS API", version=__version__, lifespan=lifespan)
+    app = FastAPI(title="STARK AI API", version=__version__, lifespan=lifespan)
     app.add_middleware(CORSMiddleware, allow_origins=[settings.web_origin], allow_methods=["*"],
                        allow_headers=["authorization", "content-type"], allow_credentials=False)
 
@@ -640,7 +640,7 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
 
         from fastapi.responses import HTMLResponse
 
-        return HTMLResponse(f"<!doctype html><meta charset=utf-8><title>STARK OS</title><body style='font:16px "
+        return HTMLResponse(f"<!doctype html><meta charset=utf-8><title>STARK AI</title><body style='font:16px "
                             f"system-ui;background:#0b0f17;color:#e5e7eb;padding:48px'><h2>{escape(title)}</h2>"
                             f"<p>{escape(text)}</p>{extra}</body>", status_code=status)
 
@@ -687,7 +687,7 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
             return _oauth_page("Could not connect", _public(exc) if not isinstance(exc, httpx.HTTPError)
                                else "Could not reach the platform.", 400)
         k.obs.audit("user", "social.connect", "ok", target=platform)
-        return _oauth_page("Connected", f"STARK OS is connected to {who}. You can close this tab and return to STARK OS.")
+        return _oauth_page("Connected", f"STARK AI is connected to {who}. You can close this tab and return to STARK AI.")
 
     @app.get("/api/oauth/{platform}/callback", include_in_schema=False)
     async def oauth_callback(platform: str, state: str = "", code: str = "", error: str = "",
@@ -721,10 +721,10 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
                              f"&id={quote(str(o['id']), safe='')}", quote=True)
                     + f"'>{escape(str(o['name']))}</a></li>" for o in result["choose"])
                 what = "Facebook Page" if platform == "facebook" else "Pinterest board"
-                return page(f"Choose a {what}", f"Pick the {what} STARK OS should post to:", extra=f"<ul>{links}</ul>")
+                return page(f"Choose a {what}", f"Pick the {what} STARK AI should post to:", extra=f"<ul>{links}</ul>")
             k.obs.audit("user", "social.connect", "ok", target=platform)
-            return page("Connected", f"STARK OS is connected to {result['who']}. You can close this tab and return to "
-                                     "STARK OS.")
+            return page("Connected", f"STARK AI is connected to {result['who']}. You can close this tab and return to "
+                                     "STARK AI.")
         if platform not in oauth.PROVIDERS:
             return page("Unknown platform", "This sign-in link is not valid.", 404)
         if error or not code:
@@ -738,7 +738,7 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
             return page("Could not connect", _public(exc) if not isinstance(exc, httpx.HTTPError)
                         else "Could not reach the platform.", 400)
         k.obs.audit("user", "social.connect", "ok", target=platform)
-        return page("Connected", f"STARK OS is connected to {who}. You can close this tab and return to STARK OS.")
+        return page("Connected", f"STARK AI is connected to {who}. You can close this tab and return to STARK AI.")
 
     @app.delete("/api/social/accounts/{platform}", dependencies=[api])
     async def disconnect(platform: str, k: Kernel = Depends(kernel)):
@@ -928,7 +928,7 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         n = k.notifier
         if not (n.telegram or n.discord):
             raise HTTPException(409, "Set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID or DISCORD_WEBHOOK_URL in .env first.")
-        await n.send("✅ STARK OS is connected. Approvals, new drafts and urgent mentions will arrive here.")
+        await n.send("✅ STARK AI is connected. Approvals, new drafts and urgent mentions will arrive here.")
         return {"ok": True}
 
     @app.post("/api/notify/digest", dependencies=[api])
@@ -1311,7 +1311,7 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         if not k.webhooks.urls:
             raise HTTPException(409, "Add STARK_WEBHOOK_URLS (https://…) to .env first.")
         ok = await k.webhooks.send({"event": "test", "at": datetime.now(timezone.utc).isoformat(),
-                                    "data": {"message": "STARK OS webhook test"}})
+                                    "data": {"message": "STARK AI webhook test"}})
         return {"delivered": ok, "of": len(k.webhooks.urls)}
 
     # ---------------------------------------------------------- automations

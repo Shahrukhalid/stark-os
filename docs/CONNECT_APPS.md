@@ -1,6 +1,6 @@
 # "Log in with …": Nexonic's official apps
 
-STARK OS shows **Log in with Facebook / Instagram / Threads / LinkedIn / TikTok / YouTube / Pinterest** when it knows
+STARK AI shows **Log in with Facebook / Instagram / Threads / LinkedIn / TikTok / YouTube / Pinterest** when it knows
 the address of a **STARK Connect** server (`STARK_CONNECT_URL`, or `DEFAULT_CONNECT_URL` in
 `services/api/stark/config.py` for release builds). STARK Connect (`services/connect/worker.js`) keeps the app secrets,
 sends the browser back to the user's own computer after sign-in and swaps the code for tokens. It stores nothing.
@@ -43,7 +43,7 @@ Every redirect URI is `<PUBLIC_ORIGIN>/cb/<platform>`, e.g. `https://connect.you
 | Pinterest | Pinterest Developers → Create app | `boards:read`, `pins:read`, `pins:write`, `user_accounts:read` | Standard access (request with a demo video; until then Pins are visible only to you) |
 
 Every review asks for a privacy policy URL, a terms URL, an app icon and a screen recording of the log in and a
-post being published. Record them in STARK OS with a tester account.
+post being published. Record them in STARK AI with a tester account.
 
 ## 3. Ship it
 
@@ -52,7 +52,7 @@ set `STARK_CONNECT_URL` in `.env` (self-hosting) to use their own STARK Connect.
 
 ## Notes
 
-- Instagram and Threads tokens last about 60 days; STARK OS renews them about once a week, so they don't expire
+- Instagram and Threads tokens last about 60 days; STARK AI renews them about once a week, so they don't expire
   while the app runs at least every few weeks. Pinterest (30 days) is renewed through STARK Connect when the login
   returned a refresh token. LinkedIn tokens can't be renewed by ordinary apps: Account health warns 10 days before
   the 60 days are up. TikTok and YouTube refresh themselves.

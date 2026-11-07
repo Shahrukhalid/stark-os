@@ -1,4 +1,4 @@
-"""Automations: "when this happens, do that" recipes that run inside STARK OS.
+"""Automations: "when this happens, do that" recipes that run inside STARK AI.
 
 trigger  → an event (post.published, mention.found, …), a schedule (daily / weekly) or an incoming webhook
 conditions → all must match (equals, contains, greater than, …) on fields of the event
@@ -36,7 +36,7 @@ ACTIONS = ("ask_agent", "create_draft", "label_mention", "add_utm", "notify", "w
 AGENTS = ("jarvis", "friday", "edith", "ultron", "jocasta", "dum_e", "u")
 RATE_LIMIT = 20  # runs per automation per hour
 MAX_ACTIONS = 6
-PAUSE_AFTER = 3  # failed runs in a row before STARK OS pauses an automation
+PAUSE_AFTER = 3  # failed runs in a row before STARK AI pauses an automation
 RETRY_ERRORS = (httpx.HTTPError, asyncio.TimeoutError)  # network hiccups: a step is tried once more
 TEMPLATE = re.compile(r"\{\{\s*([\w.]+)\s*\}\}")
 

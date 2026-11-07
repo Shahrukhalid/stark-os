@@ -54,7 +54,7 @@ class EncryptedJSON:
         self.path = legacy.with_suffix(legacy.suffix + ".encrypted")
         self.backup = legacy.with_suffix(legacy.suffix + ".backup.encrypted")
         identity = hashlib.sha256(str(legacy.parent.resolve()).encode()).hexdigest()[:32]
-        self.service = "STARK OS credentials " + identity
+        self.service = "STARK OS credentials " + identity  # keychain entry name kept from STARK OS: existing keys stay readable
         self.account = "aes256-v1"
         self.aad = ("stark-credentials-v1/" + legacy.name).encode()
 

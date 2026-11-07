@@ -8,7 +8,7 @@ Stop the old application and API. Back up the complete application data director
 
 ## Forward migration
 
-Desktop `secrets.json` and `social_accounts.json` each gain `.encrypted` files. The random encryption key is stored in the native credential vault, under `STARK OS credentials <hash of resolved data directory>`, account `aes256-v1`. New installs with no saved credentials do not touch the vault until saving.
+Desktop `secrets.json` and `social_accounts.json` each gain `.encrypted` files. The random encryption key is stored in the native credential vault, under `STARK AI credentials <hash of resolved data directory>`, account `aes256-v1`. New installs with no saved credentials do not touch the vault until saving.
 
 The first read validates legacy JSON, stores and reads back the native key, writes an encrypted `.backup.encrypted` snapshot, decrypts and compares it, writes/decrypts/compares the live encrypted file, then removes the legacy plaintext file. An interrupted migration retries safely. An existing conflicting encrypted/plaintext pair stops for manual recovery. No schema or directory move occurs.
 

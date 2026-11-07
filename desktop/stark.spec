@@ -1,4 +1,4 @@
-# PyInstaller build of the STARK OS desktop app:  pyinstaller desktop/stark.spec --noconfirm
+# PyInstaller build of the STARK AI desktop app:  pyinstaller desktop/stark.spec --noconfirm
 # Needs the static dashboard first:  cd apps/web && STARK_DESKTOP_BUILD=1 npm run build
 import re
 import sys
@@ -36,14 +36,14 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 icon = str(ROOT / "desktop/assets" / ("icon.icns" if sys.platform == "darwin" else "icon.ico"))
-exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="STARK OS", console=False, icon=icon,
+exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="STARK AI", console=False, icon=icon,
           disable_windowed_traceback=False)
-coll = COLLECT(exe, a.binaries, a.datas, name="STARK OS")
+coll = COLLECT(exe, a.binaries, a.datas, name="STARK AI")
 if sys.platform == "darwin":
     app = BUNDLE(
-        coll, name="STARK OS.app", icon=icon, bundle_identifier="com.nexonic.starkos", version=VERSION,
+        coll, name="STARK AI.app", icon=icon, bundle_identifier="com.nexonic.starkos", version=VERSION,
         info_plist={
-            "CFBundleName": "STARK OS", "CFBundleDisplayName": "STARK OS", "CFBundleShortVersionString": VERSION,
+            "CFBundleName": "STARK AI", "CFBundleDisplayName": "STARK AI", "CFBundleShortVersionString": VERSION,
             "CFBundleVersion": VERSION, "LSMinimumSystemVersion": "11.0", "NSHighResolutionCapable": True,
             "LSApplicationCategoryType": "public.app-category.productivity",
             "NSHumanReadableCopyright": "© 2026 Shahrukh Khalid. MIT License.",

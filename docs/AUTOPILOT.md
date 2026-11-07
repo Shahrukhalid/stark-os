@@ -1,6 +1,6 @@
 # Autopilot: set-and-forget social media, with guard rails
 
-Autopilot runs a **campaign** for you. You describe it once: what to post about, where to find stories, which platforms, when, and how much to trust it. Then STARK OS researches, picks keywords and hashtags, writes, fact-checks, schedules and learns from engagement, every few hours, while it's running.
+Autopilot runs a **campaign** for you. You describe it once: what to post about, where to find stories, which platforms, when, and how much to trust it. Then STARK AI researches, picks keywords and hashtags, writes, fact-checks, schedules and learns from engagement, every few hours, while it's running.
 
 ![Autopilot campaign page](screenshots/autopilot.png)
 
@@ -20,7 +20,7 @@ Autopilot runs a **campaign** for you. You describe it once: what to post about,
 |---|---|---|
 | Research | Reads every source. It skips stories it has seen (same link or a near-identical headline) and scores the rest by relevance to your topics and keywords, freshness, popularity (Hacker News points, Reddit votes) and how well their keywords did before. Stories below the threshold are kept as "skipped" so you can see why. | Code |
 | SEO | Picks the campaign keywords that appear in the story. Ranks them by the average engagement they earned on earlier posts, and gives new keywords a fair chance. Turns them into CamelCase hashtags (`#AiAgents`, which screen readers can read) within each platform's limit: 2 on X, 3 on Bluesky/LinkedIn, 4 on Mastodon. | Code |
-| Writing | One request writes a version for every platform in the campaign, within each platform's character budget. The model writes the text only. **STARK OS adds the source link and hashtags**, and removes any link or hashtag the model invented. | E.D.I.T.H. (free model) |
+| Writing | One request writes a version for every platform in the campaign, within each platform's character budget. The model writes the text only. **STARK AI adds the source link and hashtags**, and removes any link or hashtag the model invented. | E.D.I.T.H. (free model) |
 | Fact-check | One more request compares every version with the source article, which is fetched if its robots.txt allows. | JOCASTA (free model) |
 | Quality gate | Platform policy check (length, leaked keys, personal data, disclosure, bait...), numbers that are not in the source, links other than the source, @mentions, near-duplicates of earlier posts, sensitive news topics, the fact-check verdict, and your "never post about" words. | Code |
 | Scheduling | Fills your posting times within the next 36 hours, with a maximum number of posts per platform per day and a minimum gap between posts. | Code |
@@ -73,7 +73,7 @@ There is no Google Trends source because Google has no public API for it.
 Autopilot writes text posts for **Bluesky, Mastodon, X, Threads, LinkedIn and Facebook Pages**.
 
 - **Bluesky and Mastodon** post for real once connected (**Content → Your accounts**).
-- **The other platforms** are published as labelled simulations, the same as everywhere else in STARK OS. Copy the text and post it yourself.
+- **The other platforms** are published as labelled simulations, the same as everywhere else in STARK AI. Copy the text and post it yourself.
 - **Instagram, TikTok and YouTube** need images or video, so Autopilot doesn't support them.
 
 ## Learning from results
@@ -105,4 +105,4 @@ Every Autopilot endpoint needs the API token.
 - `POST /api/autopilot/items/{id}/veto`
 - `GET /api/autopilot/digest?hours=24`
 
-STARK OS must be running (`make dev`) for campaigns to run and scheduled posts to go out.
+STARK AI must be running (`make dev`) for campaigns to run and scheduled posts to go out.

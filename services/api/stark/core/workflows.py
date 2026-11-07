@@ -87,7 +87,7 @@ You are mute: you answer with storyboards, not speeches. Use this structure:
 ### Voice-over / script (if any) and captions/subtitles
 ### Thumbnail / cover brief
 ### Alt text for every image
-Save captions or video posts with `social__draft` (kind=video, media = briefs with alt_text). STARK OS does
+Save captions or video posts with `social__draft` (kind=video, media = briefs with alt_text). STARK AI does
 not generate images or video: you write the brief, the user creates the file. When the user has put a finished
 image in the brand folder, set the media item's `file` (e.g. brand/launch.png) and its alt_text: it is then
 uploaded with the post on Bluesky and Mastodon (PNG/JPEG/GIF/WebP, up to 4, 1 MB each on Bluesky).
@@ -147,7 +147,7 @@ def verify_content_claims(text: str, lookup: Callable[[str], dict[str, Any] | No
     claims_publish = _claims_publish(text)
     unsupported = claims_publish and not (confirmed_publish if confirmed_publish is not None else published)
     if lines or unsupported:
-        text += "\n\n---\n**Content status (verified by STARK OS):**\n" + "\n".join(lines)
+        text += "\n\n---\n**Content status (verified by STARK AI):**\n" + "\n".join(lines)
         if unsupported:
             text += ("\n- Warning: this reply talks about something being published, but no publish was "
                      "confirmed in this task. If it claims a post just went out, that claim is not supported.")

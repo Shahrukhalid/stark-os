@@ -11,7 +11,7 @@ work and with general questions; more features will be added over time.
 | Colour and voice | Cyan; a masculine system voice | Rose; a feminine system voice |
 
 Both have the same tools and permission limits; only their personality differs. They use the same AI provider
-settings as the rest of STARK OS (no extra install).
+settings as the rest of STARK AI (no extra install).
 
 ## How they work
 

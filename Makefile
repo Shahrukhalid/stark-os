@@ -1,4 +1,4 @@
-# STARK OS developer commands (macOS / Linux). Requires Python 3.11+, Node 20+, uv (or pip).
+# STARK AI developer commands (macOS / Linux). Requires Python 3.11+, Node 20+, uv (or pip).
 PY ?= services/api/.venv/bin/python
 
 .PHONY: setup api web dev lint test test-api test-web e2e docker

@@ -20,7 +20,7 @@ SKIP_UTM_HOSTS = ("bsky.app", "mastodon.social", "x.com", "twitter.com", "youtub
 
 
 def slug(text: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:60] or "stark-os"
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:60] or "stark-ai"
 
 
 def add_utm(text: str, platform: str, campaign: str = "") -> str:
@@ -36,7 +36,7 @@ def add_utm(text: str, platform: str, campaign: str = "") -> str:
         query = parse_qsl(parts.query, keep_blank_values=True)
         if any(k.startswith("utm_") for k, _ in query):
             return url
-        query += [("utm_source", platform), ("utm_medium", "social"), ("utm_campaign", slug(campaign or "stark-os"))]
+        query += [("utm_source", platform), ("utm_medium", "social"), ("utm_campaign", slug(campaign or "stark-ai"))]
         return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
     return social_tools.URL_RE.sub(tag, text)

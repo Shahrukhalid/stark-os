@@ -25,7 +25,7 @@ class MetricsInput(BaseModel):
 class SystemMetrics(Tool):
     id = "system.metrics"
     category = "diagnostics"
-    description = ("Collect real metrics from the machine running the STARK OS API: CPU, memory, disk, load, "
+    description = ("Collect real metrics from the machine running the STARK AI API: CPU, memory, disk, load, "
                    "uptime and the most resource-intensive processes.")
     Input = MetricsInput
     risk = Risk.READ

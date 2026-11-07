@@ -34,7 +34,7 @@ export function ConnectScreen({ onConnect }: { onConnect: (c: Connection) => voi
             <AgentGlyph icon="core" color="#22d3ee" size={44} />
           </div>
           <div>
-            <h1 className="text-xl font-semibold tracking-[0.25em]">STARK OS</h1>
+            <h1 className="text-xl font-semibold tracking-[0.25em]">STARK AI</h1>
             <p className="hud-label text-[var(--color-mute)]">Project Genesis · secure link</p>
           </div>
         </div>

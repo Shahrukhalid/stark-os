@@ -69,7 +69,7 @@ export function StarkProvider({ conn, children, onAuthError }: { conn: Connectio
         return v;
       } catch (e: any) {
         if (e?.status === 401) onAuthError();
-        setError(e?.message || "Cannot reach the STARK OS API");
+        setError(e?.message || "Cannot reach the STARK AI API");
         return undefined;
       }
     },
