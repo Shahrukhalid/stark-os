@@ -18,7 +18,7 @@ async def test_local_chat_and_tool_response():
             return httpx.Response(200, json={'capabilities': ['tools']})
         body = json.loads(req.content)
         assert body['model'] == 'local:latest'
-        return httpx.Response(200, json={'choices': [{'message': {'content': 'Offline answer'}, 'finish_reason': 'stop'}]})
+        return httpx.Response(200, json={'message': {'content': 'Offline answer'}, 'done_reason': 'stop'})
     p = OllamaProvider('http://127.0.0.1:11434', transport=httpx.MockTransport(handle))
     result = await p.complete(ModelRequest('local:latest', 'System', [{'role': 'user', 'content': 'Hello'}]))
     assert result.text == 'Offline answer' and len(calls) == 2
@@ -43,11 +43,35 @@ async def test_real_installed_local_model_opt_in():
         pytest.skip('requires an explicitly configured local Ollama acceptance server and installed model')
     p = OllamaProvider(url, model)
     assert (await p.health())[0]
-    result = await p.complete(ModelRequest(model, 'Answer briefly. /no_think',
-        [{'role':'user','content':'What is two plus two? Reply with the number only. /no_think'}], max_tokens=128, temperature=0))
+    result = await p.complete(ModelRequest(model, 'You are a helpful assistant.',
+        [{'role':'user','content':'Compute 2 + 2.'}], max_tokens=128, temperature=0))
     assert '4' in result.text and result.provider == 'ollama'
     tools = [{'name':'local_test_answer','description':'Return the requested numeric answer',
               'input_schema':{'type':'object','properties':{'answer':{'type':'integer'}},'required':['answer']}}]
-    result = await p.complete(ModelRequest(model, 'Use local_test_answer to answer. /no_think',
-        [{'role':'user','content':'Use the tool with answer 4. /no_think'}], tools=tools, max_tokens=256, temperature=0))
+    result = await p.complete(ModelRequest(model, 'Use the provided tool.',
+        [{'role':'user','content':'Call local_test_answer with answer 4.'}], tools=tools, max_tokens=256, temperature=0))
     assert any(c['name']=='local_test_answer' and c['input'].get('answer')==4 for c in result.tool_calls)
+
+async def test_native_tool_result_replay_and_empty_response_rejected():
+    seen = []
+    def handle(req):
+        if req.url.path == '/api/show':
+            return httpx.Response(200, json={'capabilities':['tools']})
+        body = json.loads(req.content)
+        seen.append(body)
+        assert body['think'] is False
+        call = body['messages'][1]['tool_calls'][0]
+        assert call['function']['arguments'] == {'answer':4}
+        assert body['messages'][2]['tool_name'] == 'answer'
+        return httpx.Response(200, json={'message':{'content':'Done'},'prompt_eval_count':12,'eval_count':3})
+    p = OllamaProvider('http://127.0.0.1:11434', transport=httpx.MockTransport(handle))
+    request = ModelRequest('local', 'System', [
+        {'role':'assistant','content':[{'type':'tool_use','id':'c1','name':'answer','input':{'answer':4}}]},
+        {'role':'user','content':[{'type':'tool_result','tool_use_id':'c1','content':'ok'}]}])
+    result = await p.complete(request)
+    assert result.text == 'Done' and result.input_tokens == 12 and result.output_tokens == 3
+    assert len(seen) == 1
+    p = OllamaProvider('http://127.0.0.1:11434', transport=httpx.MockTransport(
+        lambda r: httpx.Response(200, json={'capabilities':[], 'message':{'content':''}})))
+    with pytest.raises(ProviderError, match='no text or tool calls'):
+        await p.complete(ModelRequest('local','System',[]))

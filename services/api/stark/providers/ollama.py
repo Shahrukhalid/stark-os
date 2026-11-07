@@ -73,10 +73,31 @@ class OllamaProvider(OpenAICompatProvider):
         info = await self.inspect_model(request.model)
         if request.tools and 'tools' not in info.get('capabilities', []):
             raise ProviderError('The selected local model does not advertise tool support')
-        body = {'model': request.model, 'messages': to_openai_messages(request.system, request.messages),
-                'stream': False, 'max_tokens': request.max_tokens, 'temperature': request.temperature}
+        messages = to_openai_messages(request.system, request.messages)
+        names = {}
+        import json
+        for message in messages:
+            for call in message.get('tool_calls', []):
+                names[call['id']] = call['function']['name']
+                arguments = call['function'].get('arguments', '{}')
+                if isinstance(arguments, str):
+                    call['function']['arguments'] = json.loads(arguments)
+            if message['role'] == 'tool':
+                message['tool_name'] = names.get(message.get('tool_call_id'), '')
+        body = {'model': request.model, 'messages': messages, 'think': False,
+                'stream': False, 'options': {'num_predict': request.max_tokens, 'temperature': request.temperature}}
         if request.tools:
             body['tools'] = to_openai_tools(request.tools)
         async with asyncio.timeout(180):
             async with self._generation_slots:
-                return from_openai_response(await self._json('POST', '/v1/chat/completions', body), self.name, request.model)
+                data = await self._json('POST', '/api/chat', body)
+        if not isinstance(data.get('message'), dict):
+            raise ProviderError('Ollama returned no chat message')
+        converted = {'choices': [{'message': data['message'],
+                                  'finish_reason': 'length' if data.get('done_reason') == 'length' else 'stop'}],
+                     'usage': {'prompt_tokens': data.get('prompt_eval_count', 0),
+                               'completion_tokens': data.get('eval_count', 0)}}
+        result = from_openai_response(converted, self.name, request.model)
+        if not result.content:
+            raise ProviderError('Local model returned no text or tool calls')
+        return result

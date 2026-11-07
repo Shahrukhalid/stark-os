@@ -15,3 +15,11 @@ The Models screen now includes installed local models, explicit per-agent select
 Management endpoints under `/api/models/local` require owner bearer authentication. Agents receive no model-download or selection tool. Download names cannot specify registry hostnames. Generation permits two concurrent local requests and bounded time/body sizes. Downloads are internet operations explicitly approved through the UI, while inference uses the loopback server.
 
 Focused tests: 38 passed. Full backend regression before the final added cancellation tests: 339 passed, 9 skipped. TypeScript passed. Browser coverage checks that the local configuration panel remains available alongside OpenRouter. Actual inference remains pending while a local runtime is prepared. No milestone-complete claim is made.
+
+## Real local acceptance — 2026-11-07
+
+An isolated Ollama 0.40.15 server on Apple M5, bound to 127.0.0.1:11439 with OLLAMA_NO_CLOUD=1, downloaded Qwen3 0.6B through the model manager into a temporary store. Layer declarations totaled 522,653,767 bytes, below its approved 1 GiB limit. The manager reported done only after model inspection. The upstream Qwen3 0.6B model card declares Apache-2.0: https://huggingface.co/Qwen/Qwen3-0.6B.
+
+Real text and structured tool inference acceptance passed using the native /api/chat interface with thinking disabled. The initial compatibility-endpoint tool probe returned no content, and an arithmetic prompt containing repeated thinking-control tokens produced an incorrect answer. Ordinary prompts through native chat returned 2 + 2 = 4 and invoked local_test_answer with answer=4. This tiny model is a protocol acceptance fixture, not a production quality recommendation. Added regression coverage for native tool-result replay, token accounting and rejecting empty responses.
+
+Runtime/provider/model-manager regression: 65 passed, 1 opt-in skip before the final replay fixture. All-local team reviews now skip OpenRouter quota checks. No external model provider was registered in the real acceptance kernel, and cloud functionality was disabled in the test daemon. This does not prove every supported operating system's offline/package behavior. Windows real inference, desktop first-run local configuration and full milestone acceptance remain pending.

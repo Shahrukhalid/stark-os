@@ -693,8 +693,11 @@ class Kernel:
         if not chosen:
             raise DelegationError("no eligible reviewers")
         # Each reviewer answers at least once, Ultron challenges once, and the requester writes the summary.
-        needed = len(chosen) + (1 if "ultron" in sender.delegation.can_delegate_to else 0) + 1
-        left = await self.free_requests_left()
+        participants = [self.registry.get(a) for a in chosen] + [sender]
+        if "ultron" in sender.delegation.can_delegate_to:
+            participants.append(self.registry.get("ultron"))
+        needed = sum(self.router.select(a).provider.name == "openrouter" for a in participants)
+        left = await self.free_requests_left() if needed else None
         if left is not None and left < needed:
             raise DelegationError(
                 f"This review needs about {needed} free model requests; you have {left} left today "

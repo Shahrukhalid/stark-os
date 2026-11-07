@@ -220,3 +220,21 @@ def test_router_reports_empty_candidate_pool(settings, monkeypatch):
     monkeypatch.setattr(provider, 'candidates', lambda *a, **kw: [])
     with pytest.raises(NoModelAvailable, match='No eligible models'):
         ModelRouter(settings, {'openrouter': provider}).select(k.registry.get('jarvis'))
+
+async def test_local_team_review_does_not_request_cloud_quota(settings, monkeypatch):
+    from .conftest import ScriptedProvider
+    from stark.core.runtime import ToolContext
+    from stark.main import build_kernel
+    local = ScriptedProvider(lambda *_: [{'type':'text','text':'Reviewed.'}], name='local')
+    k = build_kernel(settings, {'local':local})
+    for a in k.registry.all():
+        a.model.provider = 'local'
+    async def forbidden():
+        pytest.fail('local team review must not query cloud quota')
+    monkeypatch.setattr(k, 'free_requests_left', forbidden)
+    sender = k.registry.get('jarvis')
+    task = k._create_task(agent_id='jarvis', instruction='Review locally')
+    k._transition(task['id'], 'thinking')
+    context = ToolContext(kernel=k, agent=sender, task_id=task['id'], root_id=task['id'], settings=settings)
+    result = await k.team_review(context, 'Review this draft', reviewers=['edith'])
+    assert result and local.requests
