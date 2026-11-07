@@ -99,7 +99,12 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
     (agentId: string, text: string) => {
       const a = agents.find((x) => x.id === agentId);
       if (!a || a.voice.muted) return;
-      if (engineVoice) voiceSpeak(client, agentId, text).catch((e: any) => notify("error", e.message));
+      // If STARK voice is busy or over its free limit, the computer's own voice answers instead.
+      if (engineVoice)
+        voiceSpeak(client, agentId, text).catch((e: any) => {
+          notify("warn", `${e.message} Using this computer's voice.`);
+          speak(text, a.voice);
+        });
       else speak(text, a.voice);
     },
     [agents, client, engineVoice, notify],

@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import base64
 import io
+import json
 import re
 import time
 import wave
-from typing import Any
+from typing import Any, AsyncIterator
 
 import httpx
 
@@ -16,9 +17,46 @@ MODELS_TTL_S = 6 * 3600
 _URDU = re.compile(r"[؀-ۿ]")
 _VERSION = re.compile(r"(\d+(?:\.\d+)?)")
 
+# The prebuilt voices and their character, so users can pick the one they like for each assistant.
+VOICES = {
+    "Achernar": "soft", "Achird": "friendly", "Algenib": "gravelly", "Algieba": "smooth", "Alnilam": "firm",
+    "Aoede": "breezy", "Autonoe": "bright", "Callirrhoe": "easy-going", "Charon": "informative",
+    "Despina": "smooth", "Enceladus": "breathy", "Erinome": "clear", "Fenrir": "excitable", "Gacrux": "mature",
+    "Iapetus": "clear", "Kore": "firm", "Laomedeia": "upbeat", "Leda": "youthful", "Orus": "firm",
+    "Puck": "upbeat", "Pulcherrima": "forward", "Rasalgethi": "informative", "Sadachbia": "lively",
+    "Sadaltager": "knowledgeable", "Schedar": "even", "Sulafat": "warm", "Umbriel": "easy-going",
+    "Vindemiatrix": "gentle", "Zephyr": "bright", "Zubenelgenubi": "casual",
+}
+# How a line is said (sent with the text). Free text also works in agent.toml.
+STYLES = {
+    "calm": "Say in a calm, clear and precise voice",
+    "warm": "Say in a warm, lively and friendly voice",
+    "energetic": "Say in an energetic, upbeat voice",
+    "professional": "Say in a confident, professional voice",
+    "gentle": "Say in a soft, gentle voice",
+    "natural": "",
+}
+
+
+# Everything a user may see about a voice failure. Endpoints show only these fixed texts.
+MESSAGES = {
+    "limit": "The Gemini free limit is reached for now. Wait a minute and try again.",
+    "key": "Gemini did not accept the API key. Check it in Settings.",
+    "no_key": "Add your Gemini API key in Settings to use STARK voice.",
+    "timeout": "Gemini took too long to answer. Try again.",
+    "network": "Gemini could not be reached. Check your internet connection.",
+    "no_model": "This Gemini key has no speech model available.",
+    "no_audio": "Gemini returned no audio.",
+    "provider": "Gemini could not handle the request right now. Try again.",
+}
+
 
 class VoiceError(RuntimeError):
-    """A failure that is safe to show (never contains the key or a full provider reply)."""
+    """A voice failure; `kind` selects the fixed text that may be shown."""
+
+    def __init__(self, kind: str, detail: str = ""):
+        self.kind = kind if kind in MESSAGES else "provider"
+        super().__init__(f"{MESSAGES[self.kind]}{f' ({detail})' if detail else ''}")
 
 
 def is_urdu(text: str) -> bool:
@@ -26,12 +64,12 @@ def is_urdu(text: str) -> bool:
     return bool(letters) and sum(1 for c in letters if _URDU.match(c)) / len(letters) > 0.4
 
 
-def spoken(text: str, limit: int = 600) -> str:
+def spoken(text: str, limit: int = 400) -> str:
     """What is said aloud: plain sentences, no code or links, at most about `limit` characters."""
-    t = re.sub(r"```[\s\S]*?```", " ", text)
-    t = re.sub(r"`([^`]+)`", r"\1", t)
-    t = re.sub(r"!\[[^\]]*\]\([^)]+\)", " ", t)
-    t = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", t)
+    t = re.sub(r"```[\s\S]*?```", " ", text[:20000])
+    t = re.sub(r"`([^`\n]{1,500})`", r"\1", t)
+    t = re.sub(r"!\[[^\]\n]{0,300}\]\([^()\s]{0,1000}\)", " ", t)
+    t = re.sub(r"\[([^\[\]\n]{1,300})\]\([^()\s]{0,1000}\)", r"\1", t)
     t = re.sub(r"https?://\S+", " ", t)
     t = re.sub(r"^\s*[-*+]\s+", "", t, flags=re.M)
     t = re.sub(r"[#*_>|~]", " ", t)
@@ -108,24 +146,24 @@ class GeminiVoice:
     @staticmethod
     def _check(r: httpx.Response, what: str) -> dict[str, Any]:
         if r.status_code == 429:
-            raise VoiceError("The Gemini free limit is reached for now. Wait a minute and try again.")
+            raise VoiceError("limit")
         if r.status_code in (400, 401, 403) and "key" in r.text.lower():
-            raise VoiceError("Gemini did not accept the API key. Check it in Settings.")
+            raise VoiceError("key")
         if r.status_code != 200:
-            raise VoiceError(f"Gemini could not {what} ({r.status_code}).")
+            raise VoiceError("provider", f"{what}: {r.status_code}")
         try:
             return r.json()
         except ValueError:
-            raise VoiceError(f"Gemini could not {what} (unexpected answer).") from None
+            raise VoiceError("provider", f"{what}: unexpected answer") from None
 
     async def _send(self, method: str, path: str, what: str, **kw) -> dict[str, Any]:
         try:
             async with self._client() as c:
                 return self._check(await c.request(method, path, **kw), what)
         except httpx.TimeoutException:
-            raise VoiceError(f"Gemini took too long to {what}. Try again.") from None
+            raise VoiceError("timeout", what) from None
         except httpx.HTTPError:
-            raise VoiceError(f"Gemini could not be reached to {what}. Check your internet connection.") from None
+            raise VoiceError("network", what) from None
 
     async def _candidates(self) -> tuple[list[str], str]:
         if not self._models or time.time() - self._models[0] > MODELS_TTL_S:
@@ -139,7 +177,7 @@ class GeminiVoice:
         stts = [self.stt_model] if self.stt_model else stts
         tts = self.tts_model or tts
         if not stts or not tts:
-            raise VoiceError("This Gemini key has no speech model available.")
+            raise VoiceError("no_model")
         return stts, tts
 
     async def models(self) -> tuple[str, str]:
@@ -149,7 +187,7 @@ class GeminiVoice:
     async def transcribe(self, audio: bytes, mime: str = "audio/wav", language: str = "auto",
                          urdu_script: str = "urdu") -> str:
         if not self.configured():
-            raise VoiceError("Add your Gemini API key in Settings to use STARK voice.")
+            raise VoiceError("no_key")
         if not audio:
             return ""
         stts, _ = await self._candidates()
@@ -162,11 +200,11 @@ class GeminiVoice:
                   "return an empty answer.")
         body = {"contents": [{"role": "user", "parts": [
                     {"text": prompt}, {"inline_data": {"mime_type": mime, "data": base64.b64encode(audio).decode()}}]}],
-                "generationConfig": {"temperature": 0}}
+                "generationConfig": {"temperature": 0, "maxOutputTokens": 512}}  # no runaway repetition
         for i, stt in enumerate(stts):  # a slow or busy model falls back to the next one
             try:
                 data = await self._send("POST", f"/models/{stt}:generateContent", "understand the recording",
-                                        json=body)
+                                        json=body, timeout=15)
                 break
             except VoiceError:
                 if i == len(stts) - 1:
@@ -175,19 +213,67 @@ class GeminiVoice:
         text = " ".join(str(p.get("text", "")) for p in parts).strip()
         return text.strip('"').strip()
 
-    async def speak(self, text: str, voice: str, style: str = "") -> tuple[bytes, int]:
-        """Return (16-bit mono PCM, sample rate)."""
-        if not self.configured():
-            raise VoiceError("Add your Gemini API key in Settings to use STARK voice.")
-        _, tts = await self._candidates()
+    @staticmethod
+    def _tts_body(text: str, voice: str, style: str) -> dict[str, Any]:
         said = f"{style.strip()}: {text}" if style.strip() else text
-        body = {"contents": [{"role": "user", "parts": [{"text": said}]}],
+        return {"contents": [{"role": "user", "parts": [{"text": said}]}],
                 "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {
-                    "voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice or "Charon"}}}}}
-        data = await self._send("POST", f"/models/{tts}:generateContent", "speak", json=body,
-                                timeout=max(self.timeout, 60))
+                    "voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice if voice in VOICES else "Charon"}}}}}
+
+    @staticmethod
+    def _audio_parts(data: dict[str, Any]) -> list[tuple[bytes, int]]:
+        out = []
         for part in ((data.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []:
             inline = part.get("inlineData") or part.get("inline_data")
             if inline and inline.get("data"):
-                return base64.b64decode(inline["data"]), _rate(inline.get("mimeType") or inline.get("mime_type", ""))
-        raise VoiceError("Gemini returned no audio.")
+                out.append((base64.b64decode(inline["data"]),
+                            _rate(inline.get("mimeType") or inline.get("mime_type", ""))))
+        return out
+
+    async def speak(self, text: str, voice: str, style: str = "") -> tuple[bytes, int]:
+        """Return (16-bit mono PCM, sample rate) for the whole line."""
+        pcm, rate = bytearray(), 24000
+        async for chunk, rate in self.speak_stream(text, voice, style):  # noqa: B007 - last rate is kept
+            pcm.extend(chunk)
+        return bytes(pcm), rate
+
+    async def speak_stream(self, text: str, voice: str, style: str = "") -> AsyncIterator[tuple[bytes, int]]:
+        """Yield audio as it is made, so playback can start before the whole line is ready (one request)."""
+        if not self.configured():
+            raise VoiceError("no_key")
+        _, tts = await self._candidates()
+        body = self._tts_body(text, voice, style)
+        got = False
+        try:
+            async with self._client() as c, c.stream(
+                    "POST", f"/models/{tts}:streamGenerateContent", params={"alt": "sse"}, json=body,
+                    timeout=max(self.timeout, 60)) as r:
+                if r.status_code == 200:
+                    async for line in r.aiter_lines():
+                        if not line.startswith("data:"):
+                            continue
+                        try:
+                            event = json.loads(line[5:])
+                        except ValueError:
+                            continue
+                        for chunk in self._audio_parts(event):
+                            got = True
+                            yield chunk
+                else:
+                    await r.aread()
+                    if r.status_code in (429, 401, 403) or (r.status_code == 400 and "key" in r.text.lower()):
+                        self._check(r, "speak")  # raises the matching message
+        except httpx.TimeoutException:
+            raise VoiceError("timeout", "speak") from None
+        except httpx.HTTPError:
+            raise VoiceError("network", "speak") from None
+        if got:
+            return
+        # streaming not offered for this model: one plain request
+        data = await self._send("POST", f"/models/{tts}:generateContent", "speak", json=body,
+                                timeout=max(self.timeout, 60))
+        parts = self._audio_parts(data)
+        if not parts:
+            raise VoiceError("no_audio")
+        for chunk in parts:
+            yield chunk

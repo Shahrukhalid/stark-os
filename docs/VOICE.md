@@ -11,7 +11,8 @@ Talk to Vision and Wanda in **English or Urdu** and hear them answer, each in th
 3. In **Command**, turn on **Speak replies**, hold **Hold to talk** (or Space/Enter on the button) and speak.
    Start with a name to choose who answers: "Vision, how did yesterday's posts do?", "وانڈا، تین پوسٹس لکھو".
 
-Use **Hear Vision / Hear Wanda** in Settings to check the voices.
+In **Settings → STARK voice → Voices** pick any of the 30 voices and a speaking style (calm, warm, energetic,
+professional, gentle, natural) for each assistant, and press **Hear** to listen. Choices are saved at once.
 
 ## How it works
 
@@ -19,6 +20,8 @@ Use **Hear Vision / Hear Wanda** in Settings to check the voices.
   itself). When you let go, the recording is turned into text with your Gemini key.
 - The text goes to the assistant exactly like a typed message: the same tools, approvals, modes and emergency stop.
 - The reply is shortened for speaking (no code or links; "the rest is on screen") and said in the assistant's voice.
+  Audio is streamed, so the assistant starts talking while the rest is still being made.
+- If Gemini is slow or the free limit is reached, the computer's own voice reads the reply instead.
 - **Voice never approves anything.** When an action needs approval, the assistant says so and the approval card
   waits on screen.
 - Nothing is recorded or sent unless you hold the button. Recordings stop by themselves after 60 seconds.
@@ -30,7 +33,7 @@ Use **Hear Vision / Hear Wanda** in Settings to check the voices.
 | Vision | Charon | calm, clear, precise |
 | Wanda | Sulafat | warm, lively, friendly |
 
-Change `voice` and `style` in `agents/<id>/agent.toml` (`[voice]` section). Any Gemini prebuilt voice name works.
+These are the defaults (`voice` and `style` in `agents/<id>/agent.toml`); your choices in Settings override them.
 Urdu is written in Urdu script by default; choose Roman Urdu in Settings. Speech models are picked automatically
 from what your key can use; `STARK_VOICE_STT_MODEL` and `STARK_VOICE_TTS_MODEL` override them.
 

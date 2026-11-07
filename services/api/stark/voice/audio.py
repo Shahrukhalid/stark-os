@@ -6,6 +6,7 @@ user holds the talk button; recording stops by itself after MAX_SECONDS.
 
 from __future__ import annotations
 
+import queue
 import threading
 from typing import Any
 
@@ -92,24 +93,48 @@ class Audio:
                 pass
             self._stream = None
 
-    def play(self, pcm: bytes, rate: int) -> None:
-        """Play in the background; a new reply or stop_playing() cuts the current one off."""
+    def player(self, rate: int) -> "Player":
+        """Start a player that plays audio as it is fed; a new reply or stop_playing() cuts it off."""
         sd = self._module()
         self.stop_playing()
         self._stop_play = stop = threading.Event()
+        return Player(sd, rate, stop)
+
+    def play(self, pcm: bytes, rate: int) -> None:
+        p = self.player(rate)
+        p.feed(pcm)
+        p.close()
+
+    def stop_playing(self) -> None:
+        self._stop_play.set()
+
+
+class Player:
+    def __init__(self, sd: Any, rate: int, stop: threading.Event):
+        self._q: queue.Queue[bytes | None] = queue.Queue()
+        self._stop = stop
 
         def run() -> None:
             try:
                 with sd.RawOutputStream(samplerate=rate, channels=1, dtype="int16") as out:
                     step = rate // 10 * 2  # 100 ms
-                    for i in range(0, len(pcm), step):
-                        if stop.is_set():
+                    while not stop.is_set():
+                        pcm = self._q.get()
+                        if pcm is None:
                             break
-                        out.write(pcm[i:i + step])
+                        for i in range(0, len(pcm), step):
+                            if stop.is_set():
+                                break
+                            out.write(pcm[i:i + step])
             except Exception:  # noqa: BLE001 - a missing speaker must not crash the engine
                 pass
 
-        threading.Thread(target=run, name="stark-voice-play", daemon=True).start()
+        self.thread = threading.Thread(target=run, name="stark-voice-play", daemon=True)
+        self.thread.start()
 
-    def stop_playing(self) -> None:
-        self._stop_play.set()
+    def feed(self, pcm: bytes) -> None:
+        if not self._stop.is_set():
+            self._q.put(pcm)
+
+    def close(self) -> None:
+        self._q.put(None)

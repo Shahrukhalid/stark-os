@@ -196,5 +196,42 @@ async def test_a_slow_model_falls_back_and_timeouts_are_explained():
                                                           "gemini-2.5-flash:generateContent"]
     down = GeminiVoice("gem-key", stt_model="a", tts_model="b",
                        transport=httpx.MockTransport(lambda r: (_ for _ in ()).throw(httpx.ConnectError("x"))))
-    with pytest.raises(VoiceError, match="internet"):
+    with pytest.raises(VoiceError, match="internet connection"):
         await down.speak("hi", "Charon")
+
+
+async def test_voice_streams_so_playback_starts_early():
+    calls = []
+    part = {"candidates": [{"content": {"parts": [{"inlineData": {
+        "mimeType": "audio/L16;codec=pcm;rate=24000", "data": base64.b64encode(PCM).decode()}}]}}]}
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        calls.append(req.url.path.rsplit(":", 1)[-1])
+        assert req.url.params.get("alt") == "sse"
+        return httpx.Response(200, text=f"data: {json.dumps(part)}\r\n\r\ndata: {json.dumps(part)}\r\n\r\n",
+                              headers={"content-type": "text/event-stream"})
+
+    v = GeminiVoice("gem-key", stt_model="s", tts_model="t-tts", transport=httpx.MockTransport(handler))
+    chunks = [c async for c in v.speak_stream("Hello there", "Aoede")]
+    assert chunks == [(PCM, 24000), (PCM, 24000)] and calls == ["streamGenerateContent"]
+
+
+def test_users_pick_any_voice_and_style(voice_client):
+    from stark.voice.gemini import STYLES, VOICES
+
+    c, seen = voice_client
+    data = c.get("/api/voice/voices").json()
+    assert len(data["voices"]) == len(VOICES) == 30 and "u" not in data["agents"]  # U. is mute
+    assert data["agents"]["vision"]["voice"] == "Charon" and data["agents"]["wanda"]["voice"] == "Sulafat"
+    assert c.put("/api/voice/prefs", json={"agent_id": "wanda", "voice": "Aoede", "style": "energetic"}).json() == {
+        "agent_id": "wanda", "voice": "Aoede"}
+    c.post("/api/voice/speak", json={"agent_id": "wanda", "text": "Hi"})
+    body = json.loads(seen[-1].content)
+    assert body["generationConfig"]["speechConfig"]["voiceConfig"]["prebuiltVoiceConfig"]["voiceName"] == "Aoede"
+    assert body["contents"][0]["parts"][0]["text"] == f"{STYLES['energetic']}: Hi"
+    c.post("/api/voice/speak", json={"agent_id": "wanda", "text": "Hi", "voice": "Puck"})  # preview only
+    assert json.loads(seen[-1].content)["generationConfig"]["speechConfig"]["voiceConfig"][
+        "prebuiltVoiceConfig"]["voiceName"] == "Puck"
+    assert c.get("/api/voice/voices").json()["agents"]["wanda"]["voice"] == "Aoede"
+    assert c.put("/api/voice/prefs", json={"agent_id": "wanda", "voice": "Nope"}).status_code == 400
+    assert c.put("/api/voice/prefs", json={"agent_id": "wanda"}).json()["voice"] == "Sulafat"  # reset

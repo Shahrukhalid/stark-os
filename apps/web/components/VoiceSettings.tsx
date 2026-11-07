@@ -3,18 +3,18 @@
 import { useEffect, useState } from "react";
 import { isDesktop } from "@/lib/api";
 import { useStark } from "@/lib/store";
-import { voiceSpeak, type VoiceStatus } from "@/lib/voice";
+import { voiceSpeak, type VoiceChoices, type VoiceStatus } from "@/lib/voice";
+import { AgentGlyph } from "./ui";
 import { Section } from "./ui";
 
 const KEEP = "__keep__";
-const SAMPLES: Record<string, string> = {
-  vision: "Hello, I'm Vision. السلام علیکم، میں وژن ہوں۔",
-  wanda: "Hi, I'm Wanda. السلام علیکم، میں وانڈا ہوں۔",
-};
+const sample = (name: string) => `Hello, I'm ${name}. السلام علیکم، آپ کی آج کی پوسٹس تیار ہیں۔`;
+const STYLE_LABEL: Record<string, string> = { "": "Assistant's own", calm: "Calm", warm: "Warm", energetic: "Energetic", professional: "Professional", gentle: "Gentle", natural: "Natural" };
 
 /** STARK voice: talk to Vision and Wanda in English or Urdu with your own Gemini key. */
 export function VoiceSettings() {
-  const { client, notify } = useStark();
+  const { client, notify, agents } = useStark();
+  const [choices, setChoices] = useState<VoiceChoices | null>(null);
   const [st, setSt] = useState<VoiceStatus | null>(null);
   const [key, setKey] = useState("");
   const [engine, setEngine] = useState("gemini");
@@ -31,6 +31,7 @@ export function VoiceSettings() {
         setScript(s.urdu_script || "urdu");
       })
       .catch(() => setSt(null));
+    client.get<VoiceChoices>("/api/voice/voices").then(setChoices).catch(() => setChoices(null));
     if (isDesktop())
       client
         .get<{ secrets: Record<string, boolean>; settings: Record<string, string> }>("/api/desktop/status")
@@ -56,10 +57,20 @@ export function VoiceSettings() {
     }
   }
 
-  async function test(agentId: string) {
+  async function choose(agentId: string, voice: string, style: string) {
+    try {
+      await client.put("/api/voice/prefs", { agent_id: agentId, voice, style });
+      setChoices((c) => (c ? { ...c, agents: { ...c.agents, [agentId]: { ...c.agents[agentId], voice: voice || c.agents[agentId].default, style } } } : c));
+    } catch (e: any) {
+      notify("error", e.message);
+    }
+  }
+
+  async function test(agentId: string, name: string) {
+    const pick = choices?.agents[agentId];
     setBusy(agentId);
     try {
-      await voiceSpeak(client, agentId, SAMPLES[agentId]);
+      await voiceSpeak(client, agentId, sample(name), pick ? { voice: pick.voice, style: pick.style } : undefined);
     } catch (e: any) {
       notify("error", e.message);
     } finally {
@@ -123,13 +134,35 @@ export function VoiceSettings() {
           Set <code className="font-mono">GEMINI_API_KEY</code> (and optionally <code className="font-mono">STARK_VOICE_LANGUAGE=ur</code>) in .env and restart the API.
         </p>
       )}
-      {st?.engine === "gemini" && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {Object.keys(SAMPLES).map((id) => (
-            <button key={id} type="button" className="btn" disabled={!!busy} onClick={() => test(id)}>
-              {busy === id ? "Speaking…" : `Hear ${id === "vision" ? "Vision" : "Wanda"}`}
-            </button>
-          ))}
+      {st?.engine === "gemini" && choices && (
+        <div className="mt-4 space-y-2">
+          <p className="hud-label text-[var(--color-mute)]">Voices: pick one for each assistant and press Hear</p>
+          {agents
+            .filter((a) => choices.agents[a.id])
+            .map((a) => {
+              const pick = choices.agents[a.id];
+              return (
+                <div key={a.id} className="flex flex-wrap items-center gap-2 text-sm">
+                  <AgentGlyph icon={a.icon} color={a.color} size={16} />
+                  <span className="w-24 truncate" style={{ color: a.color }}>{a.name}</span>
+                  <select className="input min-w-0 flex-1" aria-label={`${a.name} voice`} value={pick.voice}
+                    onChange={(e) => choose(a.id, e.target.value === pick.default ? "" : e.target.value, pick.style)}>
+                    {choices.voices.map((v) => (
+                      <option key={v.name} value={v.name}>{v.name} · {v.character}{v.name === pick.default ? " (default)" : ""}</option>
+                    ))}
+                  </select>
+                  <select className="input w-36" aria-label={`${a.name} speaking style`} value={pick.style}
+                    onChange={(e) => choose(a.id, pick.voice === pick.default ? "" : pick.voice, e.target.value)}>
+                    {["", ...choices.styles].map((s) => (
+                      <option key={s} value={s}>{STYLE_LABEL[s] ?? s}</option>
+                    ))}
+                  </select>
+                  <button type="button" className="btn" disabled={!!busy} onClick={() => test(a.id, a.name)}>
+                    {busy === a.id ? "Speaking…" : "Hear"}
+                  </button>
+                </div>
+              );
+            })}
         </div>
       )}
     </Section>

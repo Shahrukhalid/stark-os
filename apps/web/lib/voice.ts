@@ -239,8 +239,8 @@ export async function voiceListenStop(client: Client, st: VoiceStatus): Promise<
 }
 
 /** Say a reply in the assistant's own voice. */
-export async function voiceSpeak(client: Client, agentId: string, text: string): Promise<void> {
-  const r = await client.post<{ played: boolean; audio?: string; mime?: string }>("/api/voice/speak", { agent_id: agentId, text, play: true });
+export async function voiceSpeak(client: Client, agentId: string, text: string, preview?: { voice?: string; style?: string }): Promise<void> {
+  const r = await client.post<{ played: boolean; audio?: string; mime?: string }>("/api/voice/speak", { agent_id: agentId, text, play: true, ...preview });
   if (r.played || !r.audio) return;
   playing?.pause();
   playing = new Audio(`data:${r.mime || "audio/wav"};base64,${r.audio}`);
@@ -251,4 +251,10 @@ export function voiceStopSpeaking(client: Client, st: VoiceStatus | null): void 
   playing?.pause();
   playing = null;
   if (st?.local_audio) client.post("/api/voice/stop").catch(() => undefined);
+}
+
+export interface VoiceChoices {
+  voices: { name: string; character: string }[];
+  styles: string[];
+  agents: Record<string, { voice: string; style: string; default: string }>;
 }

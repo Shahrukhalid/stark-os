@@ -11,11 +11,11 @@ from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from .audio import Audio, AudioUnavailable
-from .gemini import GeminiVoice, VoiceError, spoken, wav_bytes
+from .gemini import MESSAGES, STYLES, VOICES, GeminiVoice, VoiceError, spoken, wav_bytes
 
 MAX_UPLOAD = 10 * 1024 * 1024
-DEFAULT_VOICES = {"vision": ("Charon", "Say in a calm, clear and precise voice"),
-                  "wanda": ("Sulafat", "Say in a warm, lively and friendly voice")}
+MIC_HELP = "The microphone could not be opened. Allow microphone access for STARK AI in your system settings."
+PREFS = "voice_prefs"
 
 
 class TranscribeIn(BaseModel):
@@ -27,6 +27,14 @@ class SpeakIn(BaseModel):
     agent_id: str = Field(max_length=40)
     text: str = Field(max_length=20000)
     play: bool = True
+    voice: str = Field("", max_length=40)  # preview another voice without saving it
+    style: str = Field("", max_length=40)
+
+
+class PrefIn(BaseModel):
+    agent_id: str = Field(max_length=40)
+    voice: str = Field("", max_length=40)  # empty: back to the assistant's default
+    style: str = Field("", max_length=40)
 
 
 def register(app: FastAPI, api: Any, kernel: Callable[[], Any], settings: Any, audio: Audio | None = None) -> None:
@@ -43,7 +51,10 @@ def register(app: FastAPI, api: Any, kernel: Callable[[], Any], settings: Any, a
         return audio.available()
 
     def fail(exc: Exception) -> HTTPException:
-        return HTTPException(502 if isinstance(exc, VoiceError) else 409, str(exc))
+        """Only fixed texts are shown; details stay in the engine."""
+        if isinstance(exc, VoiceError):
+            return HTTPException(502, MESSAGES[exc.kind])
+        return HTTPException(409, MIC_HELP)
 
     @app.get("/api/voice/status", dependencies=[api])
     def status() -> dict[str, Any]:
@@ -90,29 +101,72 @@ def register(app: FastAPI, api: Any, kernel: Callable[[], Any], settings: Any, a
             raise HTTPException(413, "recording too long")
         return await _text(data, body.mime.split(";")[0])
 
+    def chosen(k: Any, agent_id: str) -> tuple[str, str]:
+        """(voice, style text) for an assistant: the user's choice, else agent.toml, else a default."""
+        profile = k.registry.get(agent_id).voice
+        pref = (k.db.get_setting(PREFS) or {}).get(agent_id) or {}
+        name = pref.get("voice") or profile.voice or "Charon"
+        style = STYLES.get(pref.get("style", ""), None)
+        return name, profile.style if style is None else style
+
+    @app.get("/api/voice/voices", dependencies=[api])
+    def voices(k: Any = Depends(kernel)) -> dict[str, Any]:
+        agents = {a.id: {"voice": chosen(k, a.id)[0], "style": ((k.db.get_setting(PREFS) or {}).get(a.id) or {})
+                         .get("style", ""), "default": a.voice.voice or "Charon"}
+                  for a in k.registry.all() if not a.voice.muted}
+        return {"voices": [{"name": n, "character": c} for n, c in VOICES.items()],
+                "styles": list(STYLES), "agents": agents}
+
+    @app.put("/api/voice/prefs", dependencies=[api])
+    def save_pref(body: PrefIn, k: Any = Depends(kernel)) -> dict[str, Any]:
+        if body.agent_id not in k.registry:
+            raise HTTPException(404, "unknown agent")
+        if (body.voice and body.voice not in VOICES) or (body.style and body.style not in STYLES):
+            raise HTTPException(400, "unknown voice or style")
+        prefs = dict(k.db.get_setting(PREFS) or {})
+        if body.voice or body.style:
+            prefs[body.agent_id] = {"voice": body.voice, "style": body.style}
+        else:
+            prefs.pop(body.agent_id, None)
+        k.db.set_setting(PREFS, prefs)
+        return {"agent_id": body.agent_id, "voice": chosen(k, body.agent_id)[0]}
+
     @app.post("/api/voice/speak", dependencies=[api])
     async def speak(body: SpeakIn, k: Any = Depends(kernel)) -> dict[str, Any]:
         if body.agent_id not in k.registry:
             raise HTTPException(404, "unknown agent")
-        profile = k.registry.get(body.agent_id).voice
-        if profile.muted:
+        if k.registry.get(body.agent_id).voice.muted:
             return {"played": False, "muted": True}
-        name, style = DEFAULT_VOICES.get(body.agent_id, ("Charon", ""))
+        name, style = chosen(k, body.agent_id)
+        if body.voice in VOICES:
+            name = body.voice
+        if body.style in STYLES:
+            style = STYLES[body.style]
         text = spoken(body.text)
         if not text:
             return {"played": False}
+        player = None
+        pcm, rate = bytearray(), 24000
         try:
-            pcm, rate = await voice.speak(text, profile.voice or name, profile.style or style)
+            async for chunk, rate in voice.speak_stream(text, name, style):
+                if body.play and player is None and local_audio()[0]:
+                    try:
+                        player = audio.player(rate)  # starts with the first piece of audio
+                    except AudioUnavailable:
+                        body.play = False
+                if player is not None:
+                    player.feed(chunk)
+                else:
+                    pcm.extend(chunk)
         except VoiceError as exc:
+            if player is not None:
+                player.close()
             raise fail(exc) from None
-        if body.play and local_audio()[0]:
-            try:
-                audio.play(pcm, rate)
-                return {"played": True, "text": text}
-            except AudioUnavailable:
-                pass
+        if player is not None:
+            player.close()
+            return {"played": True, "text": text}
         return {"played": False, "text": text, "mime": "audio/wav",
-                "audio": base64.b64encode(wav_bytes(pcm, rate)).decode()}
+                "audio": base64.b64encode(wav_bytes(bytes(pcm), rate)).decode()}
 
     @app.post("/api/voice/stop", dependencies=[api])
     def stop() -> dict[str, Any]:
