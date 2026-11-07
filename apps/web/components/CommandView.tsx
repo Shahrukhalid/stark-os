@@ -9,6 +9,8 @@ import { Markdown } from "./Markdown";
 import { createRecognizer, isSpeaking, isUrdu, speak, stopSpeaking, sttSupported, ttsSupported, voiceListenStart, voiceListenStop, voiceSpeak, voiceStopSpeaking, type Recognizer, type VoiceStatus } from "@/lib/voice";
 import { ApprovalCard } from "./ApprovalCard";
 import { AgentGlyph, StateBadge, STATE_META, TaskStatus } from "./ui";
+import { ParticlePresence } from "./ParticlePresence";
+import type { AvatarState } from "@/lib/particles";
 
 const ACTIVE = new Set(["thinking", "executing", "waiting_approval", "collaborating", "listening"]);
 const TERMINAL = new Set(["completed", "failed", "cancelled"]);
@@ -29,39 +31,16 @@ function writePref(key: string, v: boolean) {
   }
 }
 
-function CoreOrb({ agent, state }: { agent?: Agent; state: string }) {
-  const active = ACTIVE.has(state);
-  const color = agent?.color || "#22d3ee";
+function CoreOrb({ agent, state, speaking }: { agent?: Agent; state: string; speaking: boolean }) {
+  const presence: AvatarState = speaking ? "speaking" : state === "listening" ? "listening" : ACTIVE.has(state) ? "thinking" : "idle";
   return (
-    <div className="relative mx-auto aspect-square w-full max-w-[260px]">
-      <svg viewBox="0 0 200 200" className="absolute inset-0 h-full w-full">
-        <defs>
-          <radialGradient id="orb" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor={color} stopOpacity={active ? 0.35 : 0.15} />
-            <stop offset="70%" stopColor={color} stopOpacity="0.03" />
-            <stop offset="100%" stopColor={color} stopOpacity="0" />
-          </radialGradient>
-        </defs>
-        <circle cx="100" cy="100" r="96" fill="url(#orb)" />
-        <g className={active ? "anim-spin" : ""} style={{ transformOrigin: "100px 100px" }}>
-          <circle cx="100" cy="100" r="86" fill="none" stroke={color} strokeOpacity="0.35" strokeWidth="1" strokeDasharray="2 6" />
-          {[0, 60, 120, 180, 240, 300].map((a) => (
-            <rect key={a} x="99" y="10" width="2" height="9" fill={color} opacity="0.6" transform={`rotate(${a} 100 100)`} />
-          ))}
-        </g>
-        <g className={active ? "anim-spin-fast" : ""} style={{ transformOrigin: "100px 100px", animationDirection: "reverse" }}>
-          <circle cx="100" cy="100" r="68" fill="none" stroke={color} strokeOpacity="0.55" strokeWidth="1.5" strokeDasharray="70 30 10 30" />
-        </g>
-        <circle cx="100" cy="100" r="50" fill="none" stroke={color} strokeOpacity="0.25" strokeWidth="8" />
-      </svg>
-      <div className={`absolute inset-[30%] flex flex-col items-center justify-center rounded-full border ${active ? "anim-breathe" : ""}`} style={{ borderColor: `${color}66` }}>
-        {agent && <AgentGlyph icon={agent.icon} color={color} size={40} active={active} />}
-        <div className="mt-1 text-[11px] font-semibold tracking-[0.2em]" style={{ color }}>
+    <div className="relative mx-auto w-full max-w-[300px]">
+      <ParticlePresence agent={agent} state={presence} />
+      <div className="mt-3 flex items-center justify-center gap-2">
+        <span className="text-[11px] font-semibold tracking-[0.25em]" style={{ color: agent?.color || "#22d3ee" }}>
           {agent?.name || "—"}
-        </div>
-      </div>
-      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2">
-        <StateBadge state={state} />
+        </span>
+        <StateBadge state={speaking ? "speaking" : state} />
       </div>
     </div>
   );
@@ -87,6 +66,14 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
   const scrollRef = useRef<HTMLDivElement>(null);
   const spokenFor = useRef<string | null>(null);
   const [vstatus, setVstatus] = useState<VoiceStatus | null>(null);
+  const [speaking, setSpeaking] = useState(false);
+  const speakTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The presence pulses while a reply is read aloud (about 14 characters a second, at most the spoken part).
+  const showSpeaking = useCallback((text: string) => {
+    if (speakTimer.current) clearTimeout(speakTimer.current);
+    setSpeaking(true);
+    speakTimer.current = setTimeout(() => setSpeaking(false), Math.max(2000, Math.min(text.length, 420) * 70));
+  }, []);
   const engineVoice = vstatus?.engine === "gemini";
 
   useEffect(() => {
@@ -99,6 +86,7 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
     (agentId: string, text: string) => {
       const a = agents.find((x) => x.id === agentId);
       if (!a || a.voice.muted) return;
+      showSpeaking(text);
       // If STARK voice is busy or over its free limit, the computer's own voice answers instead.
       if (engineVoice)
         voiceSpeak(client, agentId, text).catch((e: any) => {
@@ -107,9 +95,11 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
         });
       else speak(text, a.voice);
     },
-    [agents, client, engineVoice, notify],
+    [agents, client, engineVoice, notify, showSpeaking],
   );
   const hush = useCallback(() => {
+    if (speakTimer.current) clearTimeout(speakTimer.current);
+    setSpeaking(false);
     stopSpeaking();
     voiceStopSpeaking(client, vstatus);
   }, [client, vstatus]);
@@ -280,7 +270,7 @@ export function CommandView({ agentId, setAgentId, openTask, prefill = "" }: { a
     <div className="grid gap-4 [&>*]:min-w-0 xl:grid-cols-[340px_1fr]">
       <div className="flex flex-col gap-4">
         <div className="panel p-5">
-          <CoreOrb agent={agent} state={liveState} />
+          <CoreOrb agent={agent} state={liveState} speaking={speaking} />
           <p className="mt-6 text-center text-xs text-[var(--color-mute)]">{agent?.role}</p>
           {agent && (
             <p className="mt-1 text-center font-mono text-[11px] text-[var(--color-mute)]">

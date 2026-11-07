@@ -24,6 +24,9 @@ settings as the rest of STARK AI (no extra install).
   started, write a short handoff in the Command view; only what you write is passed on.
 - **Personal notes.** They remember personal things only with your consent. Personal notes are kept apart from
   your brand workspaces and from the other assistant.
+- **Presence.** In Command each assistant appears as a particle presence (Core, Female or Male, your choice)
+  that gathers in while listening, sparks while thinking and pulses while speaking. It is original artwork drawn
+  from simple shapes; with reduced motion turned on in your system it stays still.
 - **Voices.** With STARK voice (your own free Gemini key) you hold the talk button and speak English or Urdu;
   each assistant answers in their own voice. Without a key, the voices installed on your computer are used.
   Details: [VOICE.md](VOICE.md).
