@@ -658,6 +658,9 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
     async def oauth_pick(platform: str, token: str = "", id: str = "", k: Kernel = Depends(kernel)):
         from . import oauth
 
+        if platform not in ("facebook", "pinterest"):
+            return _oauth_page("Unknown platform", "This link is not valid.", 404)
+
         try:
             who = await _social(k).pick(platform, oauth.take_pick(platform, token, id))
         except (oauth.OAuthError, social_tools.AdapterError, httpx.HTTPError) as exc:
@@ -674,6 +677,9 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
         from urllib.parse import quote
 
         from . import oauth
+
+        if platform not in oauth.PROVIDERS and platform not in oauth.OFFICIAL:
+            return _oauth_page("Unknown platform", "This sign-in link is not valid.", 404)
 
         page = _oauth_page
         if oauth.is_official(state):
