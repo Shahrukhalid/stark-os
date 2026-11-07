@@ -38,7 +38,7 @@ export interface Connection {
   remember?: boolean;
 }
 
-/** True inside the STARK OS desktop app (it opens the dashboard with ?desktop=1). */
+/** True inside the STARK AI desktop app (it opens the dashboard with ?desktop=1). */
 export function isDesktop(): boolean {
   if (typeof window === "undefined") return false;
   if (new URLSearchParams(window.location.search).has("desktop")) safeSetSession("stark.desktop", "1");

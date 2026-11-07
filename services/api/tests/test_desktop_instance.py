@@ -25,7 +25,7 @@ def test_port_used_by_another_program_does_not_block_the_app():
     d = load()
     other = socket.socket()
     other.bind(("127.0.0.1", 0))
-    other.listen(1)  # something that is not STARK OS: never answers the handshake
+    other.listen(1)  # something that is not STARK AI: never answers the handshake
     try:
         inst = d.SingleInstance(other.getsockname()[1])
         assert inst.acquire() is True and inst.sock is None

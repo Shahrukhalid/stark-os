@@ -1,4 +1,4 @@
-"""Brands: run several brands or clients from one STARK OS.
+"""Brands: run several brands or clients from one STARK AI.
 
 Each brand has its own voice, audience, guidelines, preferred hashtags, words it never uses and target platforms.
 The active brand is given to every agent as authoritative context, its blocked words are enforced by the post

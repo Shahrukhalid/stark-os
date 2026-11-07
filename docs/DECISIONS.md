@@ -58,7 +58,7 @@ Each agent has its own first-choice free models (`[model] preferred`), prompt, t
 - **Kept:** brand-folder file tools, web research, memory, delegation, the permission engine.
 
 ### D12b. Real publishing only where the API is free
-Bluesky (AT Protocol, app password) and Mastodon (access token) have free, open APIs, so they publish for real. X, Threads, LinkedIn, Instagram, Facebook, TikTok and YouTube need paid tiers, app review or business accounts; STARK OS drafts, checks and schedules for them, and publishing is an explicit SIMULATION. Simulated posts never get engagement numbers.
+Bluesky (AT Protocol, app password) and Mastodon (access token) have free, open APIs, so they publish for real. X, Threads, LinkedIn, Instagram, Facebook, TikTok and YouTube need paid tiers, app review or business accounts; STARK AI drafts, checks and schedules for them, and publishing is an explicit SIMULATION. Simulated posts never get engagement numbers.
 
 ### D12c. Policy checks in code, approvals for every publish
 The check (`tools/social.py: check_post`) is deterministic so it cannot be talked out of a FAIL. Publishing is `EXTERNAL` risk: always approval, never covered by a grant, D.U.M.-E. only. Scheduling does not auto-publish (no unattended posting until the scheduled mode exists with its own safeguards).

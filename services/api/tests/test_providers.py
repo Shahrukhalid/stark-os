@@ -99,7 +99,7 @@ async def test_ping_and_key_info_and_headers():
     seen: dict = {}
     p = OpenRouterProvider("sk-or-test", transport=_transport(seen))
     res = await p.ping("cohere/north-mini-code:free")
-    assert res["ok"] and res["tool_calling"] and seen["auth"] == "Bearer sk-or-test" and seen["title"] == "STARK OS"
+    assert res["ok"] and res["tool_calling"] and seen["auth"] == "Bearer sk-or-test" and seen["title"] == "STARK AI"
     info = await p.key_info()
     assert info["free_model_daily_requests"]["remaining"] == 41 and "sk-or-test" not in json.dumps(info)
     bad = OpenRouterProvider("sk-or-test", transport=_transport({}, {"x/y:free": (404, "No endpoints found for x/y")}))

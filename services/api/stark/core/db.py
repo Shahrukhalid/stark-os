@@ -255,7 +255,7 @@ class Automation(Base):
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     consecutive_failures: Mapped[int] = mapped_column(Integer, default=0)
-    paused_reason: Mapped[str] = mapped_column(String(300), default="")  # set when STARK OS paused it after failures
+    paused_reason: Mapped[str] = mapped_column(String(300), default="")  # set when STARK AI paused it after failures
     brand: Mapped[str] = mapped_column(String(80), default=_active_brand_name, index=True)  # "" = shared by all brands
 
 

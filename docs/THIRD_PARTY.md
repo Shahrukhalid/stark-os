@@ -10,7 +10,7 @@
 | [pywebview](https://github.com/r0x0r/pywebview) | Native window | BSD-3-Clause |
 | [PyInstaller](https://pyinstaller.org) | Packaging | GPL v2 with bootloader exception |
 
-FFmpeg runs as a separate program; STARK OS calls it with command-line arguments and does not link to it.
+FFmpeg runs as a separate program; STARK AI calls it with command-line arguments and does not link to it.
 FFmpeg source code: https://ffmpeg.org/download.html · build details: https://github.com/imageio/imageio-binaries
 
 ## Desktop credential protection

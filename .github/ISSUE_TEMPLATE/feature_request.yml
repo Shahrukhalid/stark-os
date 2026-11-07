@@ -13,7 +13,7 @@ body:
     id: idea
     attributes:
       label: Your idea
-      description: What should STARK OS do? Which agent would handle it?
+      description: What should STARK AI do? Which agent would handle it?
     validations:
       required: true
   - type: textarea

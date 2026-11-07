@@ -140,7 +140,7 @@ test("README screenshots", async ({ page }) => {
   await shot(page, "automations");
 
   await page.getByRole("button", { name: "Compose", exact: true }).click();
-  await page.getByLabel("Post text").fill("We just shipped a drag-and-drop calendar for STARK OS. Which feature should we build next? #opensource");
+  await page.getByLabel("Post text").fill("We just shipped a drag-and-drop calendar for STARK AI. Which feature should we build next? #opensource");
   await page.getByLabel("Who can reply").selectOption("followers");
   await page.evaluate(() => window.scrollTo(0, 0));
   await shot(page, "compose");
@@ -161,7 +161,7 @@ function sampleMentions() {
     id, watch_id: watch, platform, external_id: id, url: null, author, text, posted_at: ago(mins), likes: 2, reposts: 0, replies: 1, category, status: "new", created_at: ago(mins),
   });
   return [
-    m("m1", "w1", "bluesky", "@curious-sample.example", "Does STARK OS work with Mastodon too, or only Bluesky?", "question", 4),
+    m("m1", "w1", "bluesky", "@curious-sample.example", "Does STARK AI work with Mastodon too, or only Bluesky?", "question", 4),
     m("m2", "w1", "mastodon", "@user-sample@social.example", "Scheduled posts didn't go out last night, anyone else seeing this?", "complaint", 31),
     m("m3", "w2", "bluesky", "@maker-sample.example", "Day 12 of #BuildInPublic: our open-source scheduler now has a calendar.", "general", 58),
   ];

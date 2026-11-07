@@ -2,7 +2,7 @@
 hashtag groups, signatures), outgoing webhooks for automation apps, and the analytics report.
 
 Every path here creates drafts or schedules without auto-publish: publishing still needs the owner's approval
-of the exact text, as everywhere else in STARK OS.
+of the exact text, as everywhere else in STARK AI.
 """
 
 from __future__ import annotations
@@ -281,7 +281,7 @@ class Webhooks:
 
     async def send(self, payload: dict[str, Any]) -> int:
         body = json.dumps(payload, default=str).encode()
-        headers = {"content-type": "application/json", "user-agent": "STARK-OS-webhook"}
+        headers = {"content-type": "application/json", "user-agent": "STARK-AI-webhook"}
         if self.settings.webhook_secret:
             headers["x-stark-signature"] = sign(self.settings.webhook_secret, body)
         ok = 0

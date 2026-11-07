@@ -54,7 +54,7 @@ export function UsageView() {
           <>
             <div className="flex items-end gap-3">
               <div className="text-3xl font-semibold">{q.remaining}</div>
-              <div className="pb-1 text-sm text-[var(--color-mute)]">of {q.limit} free-model requests left today · {data.requests_today} made by STARK OS since midnight UTC</div>
+              <div className="pb-1 text-sm text-[var(--color-mute)]">of {q.limit} free-model requests left today · {data.requests_today} made by STARK AI since midnight UTC</div>
             </div>
             <div className="mt-3 h-2 rounded-full bg-white/5">
               <div className="h-2 rounded-full" style={{ width: `${pct}%`, background: pct > 80 ? "#f87171" : "#22d3ee" }} />

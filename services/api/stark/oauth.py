@@ -84,7 +84,7 @@ _PKCE = {"tiktok": "hex", "youtube": "b64"}
 
 def official_start(connect_url: str, platform: str, port: int) -> str:
     if not connect_url:
-        raise OAuthError("Log in is not set up in this copy of STARK OS (STARK_CONNECT_URL is empty).")
+        raise OAuthError("Log in is not set up in this copy of STARK AI (STARK_CONNECT_URL is empty).")
     now = time.time()
     for k in [k for k, v in PENDING.items() if v["created"] < now - TTL_S]:
         PENDING.pop(k, None)

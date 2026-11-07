@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://shahrukhalid.github.io/stark-os/sitemap.xml
+Sitemap: https://shahrukhalid.github.io/stark-ai/sitemap.xml

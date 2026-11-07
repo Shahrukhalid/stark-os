@@ -6,7 +6,7 @@ import { ThemeSync } from "@/components/ThemeSync";
 const THEME_INIT = `try{var t=localStorage.getItem('stark-theme')||'system';if(t==='system')t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t}catch(e){}`;
 
 export const metadata: Metadata = {
-  title: "STARK OS",
+  title: "STARK AI",
   description: "Project Genesis: a governed multi-agent social media team",
 };
 

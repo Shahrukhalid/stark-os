@@ -33,7 +33,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: STARK OS version
+      label: STARK AI version
       placeholder: "0.4.0 (shown in Settings / /api/health)"
   - type: dropdown
     id: os

@@ -15,7 +15,7 @@ from .conftest import make_kernel
 from .test_social import _draft
 
 BSKY_POST = {"uri": "at://did:plc:a/app.bsky.feed.post/3abc", "author": {"handle": "fan.bsky.social"},
-             "record": {"text": "Does STARK OS work with Mastodon?", "createdAt": "2026-10-30T10:00:00Z"},
+             "record": {"text": "Does STARK AI work with Mastodon?", "createdAt": "2026-10-30T10:00:00Z"},
              "likeCount": 3, "repostCount": 1, "replyCount": 0}
 MASTO_POST = {"uri": "https://m.example/statuses/1", "id": "1", "url": "https://m.example/@a/1",
               "account": {"acct": "angry@m.example"}, "content": "<p>Your app leaked my data, this is a scam</p>",

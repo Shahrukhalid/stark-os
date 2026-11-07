@@ -1,4 +1,4 @@
-# Start the STARK OS API and dashboard together on Windows (what `make dev` does on macOS / Linux).
+# Start the STARK AI API and dashboard together on Windows (what `make dev` does on macOS / Linux).
 # Ports come from .env: STARK_WEB_PORT (dashboard, default 3000) and STARK_PORT (API, default 8000).
 # Press Ctrl+C to stop both.  Run:  powershell -ExecutionPolicy Bypass -File scripts\dev.ps1
 $ErrorActionPreference = "Stop"
@@ -45,7 +45,7 @@ try {
     for ($i = 0; $i -lt 40; $i++) {  # wait until the API answers, so a startup error is visible right away
         try { Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 "http://127.0.0.1:$ApiPort/api/health" | Out-Null; $ready = $true; break } catch { Start-Sleep -Milliseconds 500 }
     }
-    if ($ready) { Write-Host "STARK OS ready: open http://localhost:$WebPort  (API http://127.0.0.1:$ApiPort)" }
+    if ($ready) { Write-Host "STARK AI ready: open http://localhost:$WebPort  (API http://127.0.0.1:$ApiPort)" }
     else { Write-Host "The API did not start on port $ApiPort. See the error above." }
     if ($env:STARK_DEV_EXIT_WHEN_READY -eq "1") { exit ([int](-not $ready)) }  # used by CI
     Wait-Process -Id $api.Id, $web.Id

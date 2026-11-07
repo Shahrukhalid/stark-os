@@ -1,8 +1,8 @@
-# STARK OS — Architecture
+# STARK AI — Architecture
 
 > Status of every capability: see [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md). Rationale for choices: [DECISIONS.md](DECISIONS.md).
 
-STARK OS is a **governed multi-agent social media team**: seven software agents, each with its own brain (first-choice free models, temperature, prompt), tools, permissions, private memory and workflow, coordinated by a kernel that enforces one security policy for all of them. Their roles follow the AI personas in Vision's Mindspace in VisionQuest (2026). Agents are LLM-driven programs, not minds.
+STARK AI is a **governed multi-agent social media team**: seven software agents, each with its own brain (first-choice free models, temperature, prompt), tools, permissions, private memory and workflow, coordinated by a kernel that enforces one security policy for all of them. Their roles follow the AI personas in Vision's Mindspace in VisionQuest (2026). Agents are LLM-driven programs, not minds.
 
 Core invariant: **the model proposes, a policy-controlled tool executes, and a human approves anything that leaves the system.** No agent — including J.A.R.V.I.S. the orchestrator — can bypass permission checks, change modes, create grants, or edit its own configuration. No tool for any of that exists.
 
@@ -15,7 +15,7 @@ flowchart LR
     Voice["Voice (Web Speech API)<br/>push-to-talk · wake word · per-agent TTS"]
   end
 
-  subgraph API["STARK OS API (FastAPI, services/api)"]
+  subgraph API["STARK AI API (FastAPI, services/api)"]
     HTTP["REST + SSE<br/>bearer-token auth"]
     Kernel["Kernel (core/runtime.py)<br/>task engine · agent loop · delegation · e-stop"]
     Reg["Agent registry<br/>agents/*/agent.toml + system_prompt.md"]

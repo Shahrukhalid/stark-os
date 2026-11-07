@@ -338,7 +338,7 @@ def test_visionquest_roles_and_u_is_mute(settings):
     assert u.voice.muted and all(not a.voice.muted for a in k.registry.all() if a.id != "u")
     for a in k.registry.all():
         if a.id in {"vision", "wanda"}:
-            assert "Original STARK OS" in a.canon_notes[0]
+            assert "Original STARK AI" in a.canon_notes[0]
             continue
         assert any("[established]" in c for c in a.canon_notes)
         assert any("VisionQuest" in c for c in a.canon_notes)
@@ -615,7 +615,7 @@ async def test_bluesky_uploads_images_with_alt_text(settings):
         return inner(req)
 
     k, _ = make_kernel(settings)
-    item = await _draft(k, thread=["Part two"], media=[{"description": "Launch banner", "alt_text": "STARK OS logo on blue",
+    item = await _draft(k, thread=["Part two"], media=[{"description": "Launch banner", "alt_text": "STARK AI logo on blue",
                                                        "file": name}])
     assert item["media"][0]["sha256"] and item["media"][0]["mime"] == "image/png"
     sc = Social(settings, httpx.MockTransport(handler))
@@ -624,7 +624,7 @@ async def test_bluesky_uploads_images_with_alt_text(settings):
     assert seen["blobs"] == [PNG]
     first, second = seen["records"]
     assert first["embed"] == {"$type": "app.bsky.embed.images",
-                              "images": [{"alt": "STARK OS logo on blue",
+                              "images": [{"alt": "STARK AI logo on blue",
                                           "image": {"$type": "blob", "ref": {"$link": "bafyimg"},
                                                     "mimeType": "image/png", "size": len(PNG)}}]}
     assert "embed" not in second  # images only on the first post of a thread

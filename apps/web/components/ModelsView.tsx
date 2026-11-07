@@ -74,7 +74,7 @@ export function ModelsView() {
         }
       >
         <p className="text-sm">
-          STARK OS uses only <b>free</b> models. Agents try their tier's models in order and automatically fail over when one is rate-limited or unavailable.
+          STARK AI uses only <b>free</b> models. Agents try their tier's models in order and automatically fail over when one is rate-limited or unavailable.
         </p>
         <p className="mt-1 text-xs text-[var(--color-mute)]">
           {q ? `${q.remaining} of ${q.limit} free requests left today (resets 00:00 UTC). ` : ""}

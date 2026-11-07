@@ -104,7 +104,7 @@ export function SettingsView({ onSignOut }: { onSignOut: () => void }) {
       )}
       <Section title="Appearance">
         <div className="space-y-3">
-          <p className="text-sm text-[var(--color-mute)]">Choose how STARK OS looks. Your preference is saved in this browser.</p>
+          <p className="text-sm text-[var(--color-mute)]">Choose how STARK AI looks. Your preference is saved in this browser.</p>
           <div className="grid grid-cols-3 gap-2" role="group" aria-label="Color theme">
             {([
               ["light", "Light", Sun],

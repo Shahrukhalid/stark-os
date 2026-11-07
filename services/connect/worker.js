@@ -1,4 +1,4 @@
-// STARK Connect: the Nexonic token server behind "Log in with ..." in STARK OS.
+// STARK Connect: the Nexonic token server behind "Log in with ..." in STARK AI.
 // Holds each platform's app secret, so the desktop app never ships one. It only relays the sign-in back to
 // the user's own computer (http://127.0.0.1:<port>) and exchanges codes for tokens; it stores nothing.
 // Deploy: see docs/CONNECT_APPS.md.

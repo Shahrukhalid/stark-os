@@ -1,26 +1,37 @@
-# STARK OS
+# STARK AI
 
-[![CI](https://github.com/Shahrukhalid/stark-os/actions/workflows/ci.yml/badge.svg)](https://github.com/Shahrukhalid/stark-os/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/Shahrukhalid/stark-os?color=22d3ee)](https://github.com/Shahrukhalid/stark-os/releases/latest) [![License: MIT](https://img.shields.io/badge/License-MIT-22d3ee.svg)](LICENSE) [![Website](https://img.shields.io/badge/website-stark--os-22d3ee)](https://shahrukhalid.github.io/stark-os/)
+[![CI](https://github.com/Shahrukhalid/stark-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/Shahrukhalid/stark-ai/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/Shahrukhalid/stark-ai?color=22d3ee)](https://github.com/Shahrukhalid/stark-ai/releases/latest) [![License: MIT](https://img.shields.io/badge/License-MIT-22d3ee.svg)](LICENSE) [![Website](https://img.shields.io/badge/website-stark--ai-22d3ee)](https://shahrukhalid.github.io/stark-ai/)
 
-Free, self-hosted AI social media manager. Seven AI agents write, check, schedule and publish your posts. Nothing goes out without your approval. Runs on your computer with free AI models.
+Free, self-hosted AI social media manager. Talk to two assistants, Vision and Wanda, and a team of seven specialist agents that write, check, schedule and publish your posts. Nothing goes out without your approval. Runs on your computer with free AI models.
 
-![STARK OS demo](docs/demo.gif)
+![STARK AI demo](docs/demo.gif)
 
 ## Download
 
 | Computer | Installer |
 |---|---|
-| Mac (Apple silicon) | [STARK-OS-macOS-AppleSilicon.dmg](https://github.com/Shahrukhalid/stark-os/releases/latest/download/STARK-OS-macOS-AppleSilicon.dmg) |
-| Mac (Intel) | [STARK-OS-macOS-Intel.dmg](https://github.com/Shahrukhalid/stark-os/releases/latest/download/STARK-OS-macOS-Intel.dmg) |
-| Windows 10 / 11 | [STARK-OS-Windows-Setup.exe](https://github.com/Shahrukhalid/stark-os/releases/latest/download/STARK-OS-Windows-Setup.exe) |
+| Mac (Apple silicon) | [STARK-AI-macOS-AppleSilicon.dmg](https://github.com/Shahrukhalid/stark-ai/releases/latest/download/STARK-AI-macOS-AppleSilicon.dmg) |
+| Mac (Intel) | [STARK-AI-macOS-Intel.dmg](https://github.com/Shahrukhalid/stark-ai/releases/latest/download/STARK-AI-macOS-Intel.dmg) |
+| Windows 10 / 11 | [STARK-AI-Windows-Setup.exe](https://github.com/Shahrukhalid/stark-ai/releases/latest/download/STARK-AI-Windows-Setup.exe) |
 
-1. Install and open STARK OS. No Python, Node.js or terminal needed.
+1. Install and open STARK AI. No Python, Node.js or terminal needed.
 2. Paste a free AI key ([openrouter.ai/keys](https://openrouter.ai/keys)) and press **Test connection**.
 3. Connect your accounts, press **Save and start**.
 
 First launch: Mac, right-click → **Open**. Windows, **More info → Run anyway** (installers are not signed yet).
 
-## The team
+Updating from version 1.11 or older? Download the installer above once; it installs over the old app and keeps your settings, accounts and posts. Later updates arrive inside the app.
+
+## Your assistants
+
+| Assistant | Social media | Everything else |
+|---|---|---|
+| **Vision** | Strategy, analytics, account health | Technical questions, projects, planning |
+| **Wanda** | Posts, captions, campaigns, replies | Writing, research, everyday tasks |
+
+Say "Vision, how did last week's posts do?" or "Hey Wanda, draft three posts about the launch". They draft and check posts and read analytics themselves, and call in the specialists below when needed (you approve what they share). Separate histories, personal notes only with your consent. [More](docs/ASSISTANTS.md)
+
+## The specialist team
 
 | Agent | Job | Limit |
 |---|---|---|
@@ -47,7 +58,7 @@ Each agent has its own free model with automatic fallback, its own prompt, memor
   - Platform sizes (9:16, 1:1, 4:5, 16:9; bars or crop), several sizes in one go, MP4, WebM or GIF.
   - **Speech to text** with timestamps (whisper.cpp). The speech model (75–466 MB) is downloaded once when you ask, then works offline.
   - Captions timed to the speech, a script or your own SRT: burned in with size, colour, position and box, as a switchable track or as an .srt file.
-  - **Shorts package**: from a long video, U picks the best moments from the transcript (a clear rule does it when no AI model is connected), then STARK OS makes vertical clips with animated captions and thumbnails and writes a title, hook, description and hashtags as drafts for each platform you choose. Every draft still waits for your approval.
+  - **Shorts package**: from a long video, U picks the best moments from the transcript (a clear rule does it when no AI model is connected), then STARK AI makes vertical clips with animated captions and thumbnails and writes a title, hook, description and hashtags as drafts for each platform you choose. Every draft still waits for your approval.
   - Caption animations (fade, pop, word-by-word) and 9 transitions between joined videos.
   - **Clips for Shorts, Reels and TikTok**: the transcript is split into short clips at sentence ends; export them all at once, or ask U for the best moments.
   - Progress bars, cancel, uploads up to 2 GB streamed to disk, thumbnails into the media library.
@@ -87,6 +98,7 @@ Each agent has its own free model with automatic fallback, its own prompt, memor
 ![Brands](docs/screenshots/brands.png)
 
 ### Accounts
+- **Logins that don't run out**: Instagram and Threads logins are renewed about once a week, Pinterest through STARK Connect; LinkedIn (which can't be renewed) warns you 10 days before it ends.
 - **Account health**: connected accounts checked every 6 hours without posting (expired login, revoked token, bot removed, deleted webhook, failed posts).
 - **Reconnect** button on Start and a phone alert when an account breaks.
 
@@ -99,7 +111,7 @@ Each agent has its own free model with automatic fallback, its own prompt, memor
 - **Bluesky messages**, saved replies, inbox labels.
 
 ### Measure
-- **Analytics**: real likes, reposts, replies, 30-day chart, best-time heatmap, top posts, per campaign and brand, CSV.
+- **Analytics**: real likes, reposts, replies and views from Bluesky, Mastodon, Threads, Facebook, Instagram, YouTube and Pinterest; 30-day chart, best-time heatmap, top posts, per campaign and brand, CSV.
 - **Report** download, **A/B hook tests**, **learn my voice**.
 - **Growth**: followers, posting streak, top fans, rising hashtags, proven ideas, Bluesky starter packs.
 
@@ -108,7 +120,7 @@ Each agent has its own free model with automatic fallback, its own prompt, memor
 - **E-STOP** cancels everything and pauses the queue.
 - **Modes**: Observe, Assist, Execute approved.
 - **Live** view of the agents working, full task traces, memory and audit log.
-- **Desktop app**: keys in a private file in your data folder (readable only by you), engine restarts on crash, one window at a time.
+- **Desktop app**: logins and keys encrypted on your computer (key kept in the macOS Keychain or Windows Credential Manager), engine restarts on crash, one window at a time.
 
 ### Connect
 - **MCP server** for AI assistants and editors (cannot publish).
@@ -134,7 +146,7 @@ Screenshots use sample data.
 Needs Docker with Compose v2.24 or newer. No `.env` file is required.
 
 ```bash
-git clone https://github.com/Shahrukhalid/stark-os.git && cd stark-os
+git clone https://github.com/Shahrukhalid/stark-ai.git && cd stark-ai
 docker compose up -d --build                     # on Linux: UID=$(id -u) docker compose up -d --build
 docker compose exec api cat /app/data/api-token  # paste this token into the dashboard's Connect screen
 ```
@@ -143,7 +155,7 @@ docker compose exec api cat /app/data/api-token  # paste this token into the das
 - The token is created on first start and kept in the `stark-data` volume, so it survives restarts. A `STARK_API_TOKEN` in `.env` takes precedence; `python scripts/setup.py` still creates a `.env` for you.
 - Add `OPENROUTER_API_KEY` to `.env` for the AI agents.
 - Data: SQLite in the `stark-data` volume, your files in `./sandbox`. Optional PostgreSQL: set `POSTGRES_PASSWORD` and `DATABASE_URL` in `.env`, then `docker compose --profile postgres up -d`.
-- Hardened mode (read-only filesystems, no extra privileges, resource limits): `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`. It does not make STARK OS safe to expose to the internet on its own; put it behind TLS and your own access control first.
+- Hardened mode (read-only filesystems, no extra privileges, resource limits): `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`. It does not make STARK AI safe to expose to the internet on its own; put it behind TLS and your own access control first.
 - Status and logs: `docker compose ps`, `docker compose logs -f`. Stop with `docker compose down` (`down -v` also deletes your data).
 - If startup fails: `docker compose config --quiet`, then `docker compose logs --tail=100 api`, and check that ports 3000 and 8000 are free.
 
@@ -152,7 +164,7 @@ docker compose exec api cat /app/data/api-token  # paste this token into the das
 Needs Python 3.11+, Node.js 20+ and Git.
 
 ```bash
-git clone https://github.com/Shahrukhalid/stark-os.git && cd stark-os
+git clone https://github.com/Shahrukhalid/stark-ai.git && cd stark-ai
 make setup          # creates .env; add OPENROUTER_API_KEY there
 make dev            # open http://localhost:3000, paste STARK_API_TOKEN from .env
 ```

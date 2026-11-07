@@ -492,7 +492,7 @@ class Notifier:
             published = len(s.scalars(select(ContentItem.id).where(ContentItem.status == "published",
                                                                    ContentItem.published_at >= since)).all())
             pending = len(s.scalars(select(Approval.id).where(Approval.status == "pending")).all())
-        return (f"☀️ STARK OS daily digest\n\n• {drafts} draft(s) waiting for you\n• {len(sched)} post(s) scheduled today\n"
+        return (f"☀️ STARK AI daily digest\n\n• {drafts} draft(s) waiting for you\n• {len(sched)} post(s) scheduled today\n"
                 f"• {published} published in the last 24 h\n• {new_mentions} new listening result(s)\n"
                 + (f"• {pending} approval(s) pending\n" if pending else ""))
 

@@ -11,6 +11,6 @@
 ## Safety checklist
 
 - [ ] No secrets, tokens or personal data in the code, tests or screenshots
-- [ ] Anything posted or sent outside STARK OS still needs a human approval
+- [ ] Anything posted or sent outside STARK AI still needs a human approval
 - [ ] Simulated behaviour is labelled SIMULATED
 - [ ] Docs updated if behaviour changed

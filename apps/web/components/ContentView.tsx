@@ -293,7 +293,7 @@ function PostCard({ item: it, account, onChange, talkTo }: { item: ContentItem; 
             <input type="checkbox" className="mt-0.5" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
             <span>
               <b>Publish automatically at this time.</b> I approve this exact text. If anyone changes it, it won&apos;t go out until I approve it again.
-              Leave unticked to just put it on the calendar. STARK OS must be running at that time.
+              Leave unticked to just put it on the calendar. STARK AI must be running at that time.
             </span>
           </label>
           <div className="flex gap-2">
@@ -322,14 +322,14 @@ const HELP: Record<string, { steps: string[]; link: string }> = {
     steps: [
       "Open bsky.app and sign in.",
       "Go to Settings → Privacy and security → App passwords → Add App Password.",
-      "Name it “STARK OS”, then copy the password it shows (xxxx-xxxx-xxxx-xxxx).",
+      "Name it “STARK AI”, then copy the password it shows (xxxx-xxxx-xxxx-xxxx).",
     ],
     link: "https://bsky.app/settings/app-passwords",
   },
   mastodon: {
     steps: [
       "On your Mastodon server, open Preferences → Development → New application.",
-      "Name it “STARK OS”, keep only the read and write:statuses scopes, and save.",
+      "Name it “STARK AI”, keep only the read and write:statuses scopes, and save.",
       "Open the app you created and copy “Your access token”.",
     ],
     link: "",
@@ -440,7 +440,7 @@ function AccountsPanel({ accounts, onChange }: { accounts: SocialAccount[]; onCh
               </div>
             ) : open === a.platform && a.login && waiting === a.platform && !manual ? (
               <div className="mt-2 space-y-2 text-xs text-[var(--color-mute)]">
-                <p>Log in to {a.name} in your browser and allow STARK OS. Then come back here.</p>
+                <p>Log in to {a.name} in your browser and allow STARK AI. Then come back here.</p>
                 <div className="flex flex-wrap gap-2">
                   <a className="btn btn-primary" href={authUrl} target="_blank" rel="noreferrer noopener">
                     <ExternalLink size={13} /> Open {a.name} log in

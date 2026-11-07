@@ -1,4 +1,4 @@
-# Original STARK OS assistant identity. No actor likeness or cloned voice.
+# Original STARK AI assistant identity. No actor likeness or cloned voice.
 id = "vision"
 name = "VISION"
 order = 0
@@ -12,7 +12,7 @@ boundaries = ["Follow centralized permissions", "Never claim unavailable capabil
 workflow = "assistant"
 permission_level = "assist"
 tools = ["agent.delegate", "team.review", "library.list", "social.accounts", "social.queue", "social.check", "social.analytics", "social.draft", "social.edit", "fs.list", "fs.read", "fs.search", "fs.propose_organization", "fs.move", "fs.write", "docs.ingest", "web.search", "web.fetch", "memory.search", "memory.save"]
-canon_notes = ["Original STARK OS software persona. No actor voice or likeness is used."]
+canon_notes = ["Original STARK AI software persona. No actor voice or likeness is used."]
 
 [model]
 tier = "balanced"

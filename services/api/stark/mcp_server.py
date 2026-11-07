@@ -1,7 +1,7 @@
-"""MCP server: lets AI assistants and editors that speak the Model Context Protocol (stdio) work with STARK OS.
+"""MCP server: lets AI assistants and editors that speak the Model Context Protocol (stdio) work with STARK AI.
 
 Run it from the project's virtual environment:  python -m stark.mcp_server
-It talks to the running STARK OS API (STARK_API_URL, default http://127.0.0.1:8000) with STARK_API_TOKEN from
+It talks to the running STARK AI API (STARK_API_URL, default http://127.0.0.1:8000) with STARK_API_TOKEN from
 .env. It can read the queue, analytics and mentions, save drafts, schedule drafts WITHOUT auto-publish, and
 hand work to the agent team. It can never publish: going public always needs your approval in the dashboard
 or on your phone.
@@ -22,7 +22,7 @@ from .config import REPO_ROOT, load_dotenv
 PROTOCOL = "2025-06-18"
 
 TOOLS: list[dict[str, Any]] = [
-    {"name": "stark_status", "description": "STARK OS status: mode, emergency stop, free-model quota, agents.",
+    {"name": "stark_status", "description": "STARK AI status: mode, emergency stop, free-model quota, agents.",
      "inputSchema": {"type": "object", "properties": {}}},
     {"name": "list_queue", "description": "Posts in the content queue (drafts, scheduled, published, failed).",
      "inputSchema": {"type": "object", "properties": {
@@ -39,7 +39,7 @@ TOOLS: list[dict[str, Any]] = [
                                               "on its own: the owner approves it in the dashboard or on the phone.",
      "inputSchema": {"type": "object", "required": ["item_id", "when"], "properties": {
          "item_id": {"type": "string"}, "when": {"type": "string"}}}},
-    {"name": "ask_team", "description": "Give the STARK OS agent team a task in plain language, e.g. 'EDITH, write "
+    {"name": "ask_team", "description": "Give the STARK AI agent team a task in plain language, e.g. 'EDITH, write "
                                         "a LinkedIn post about our launch'. Returns the task id; drafts land in the queue.",
      "inputSchema": {"type": "object", "required": ["message"], "properties": {"message": {"type": "string"}}}},
     {"name": "get_task", "description": "Status and result of a task started with ask_team.",
@@ -63,7 +63,7 @@ class Client:
                 detail = r.json().get("detail")
             except ValueError:
                 detail = r.text[:300]
-            raise RuntimeError(f"STARK OS answered {r.status_code}: {detail}")
+            raise RuntimeError(f"STARK AI answered {r.status_code}: {detail}")
         return r.json()
 
 
@@ -110,7 +110,7 @@ def handle(c: Client, msg: dict[str, Any]) -> dict[str, Any] | None:
         return None
     if method == "initialize":
         result: Any = {"protocolVersion": msg.get("params", {}).get("protocolVersion", PROTOCOL),
-                       "capabilities": {"tools": {}}, "serverInfo": {"name": "stark-os", "version": __version__}}
+                       "capabilities": {"tools": {}}, "serverInfo": {"name": "stark-ai", "version": __version__}}
     elif method == "ping":
         result = {}
     elif method == "tools/list":
@@ -131,7 +131,7 @@ def main() -> None:
     load_dotenv(REPO_ROOT / ".env")
     token = os.environ.get("STARK_API_TOKEN", "")
     if not token:
-        sys.stderr.write("STARK_API_TOKEN is not set (run from the STARK OS folder or set it in the MCP config)\n")
+        sys.stderr.write("STARK_API_TOKEN is not set (run from the STARK AI folder or set it in the MCP config)\n")
         sys.exit(1)
     c = Client(os.environ.get("STARK_API_URL", "http://127.0.0.1:8000"), token)
     for line in sys.stdin:

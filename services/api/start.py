@@ -1,4 +1,4 @@
-"""Initialize a persistent API token before starting STARK OS."""
+"""Initialize a persistent API token before starting STARK AI."""
 
 import fcntl
 import os

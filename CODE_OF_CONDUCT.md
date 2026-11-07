@@ -1,6 +1,6 @@
 # Code of conduct
 
-STARK OS is a friendly, welcoming project. Everyone who takes part (in issues, pull requests, discussions or anywhere else in this project) agrees to these standards.
+STARK AI is a friendly, welcoming project. Everyone who takes part (in issues, pull requests, discussions or anywhere else in this project) agrees to these standards.
 
 ## Our standards
 

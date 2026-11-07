@@ -95,7 +95,7 @@ def test_mcp_server_speaks_the_protocol_and_cannot_publish(client, settings):
         return httpx.Response(r.status_code, content=r.content, headers={"content-type": "application/json"})
     c = mcp_server.Client("http://stark", settings.api_token, transport=httpx.MockTransport(handler))
     init = mcp_server.handle(c, {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-06-18"}})
-    assert init["result"]["serverInfo"]["name"] == "stark-os"
+    assert init["result"]["serverInfo"]["name"] == "stark-ai"
     assert mcp_server.handle(c, {"jsonrpc": "2.0", "method": "notifications/initialized"}) is None
     names = {t["name"] for t in mcp_server.handle(c, {"jsonrpc": "2.0", "id": 2, "method": "tools/list"})["result"]["tools"]}
     assert "create_draft" in names and not any("publish" in n for n in names)

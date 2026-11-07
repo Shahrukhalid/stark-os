@@ -107,7 +107,7 @@ export function DesktopSetup({ conn, onDone, canSkip }: { conn: Connection; onDo
           /* restarting */
         }
       }
-      setError("The engine did not come back. Restart STARK OS.");
+      setError("The engine did not come back. Restart STARK AI.");
     } catch (e: any) {
       setError(String(e?.message || e));
     } finally {
@@ -136,7 +136,7 @@ export function DesktopSetup({ conn, onDone, canSkip }: { conn: Connection; onDo
       {step === 0 && (
         <div className="space-y-4">
           <p className="text-sm text-[var(--color-mute)]">
-            Choose where STARK OS gets its AI. Free models cost nothing; paid models are only used if you allow them below.
+            Choose where STARK AI gets its AI. Free models cost nothing; paid models are only used if you allow them below.
           </p>
           <div className="grid gap-2" role="radiogroup" aria-label="AI provider">
             {st.providers.map((p) => (
@@ -177,7 +177,7 @@ export function DesktopSetup({ conn, onDone, canSkip }: { conn: Connection; onDo
       {step === 1 && (
         <div className="space-y-3">
           <p className="text-sm text-[var(--color-mute)]">
-            Connect the accounts STARK OS may post to. Every post still waits for your approval. You can add more later.
+            Connect the accounts STARK AI may post to. Every post still waits for your approval. You can add more later.
           </p>
           {st.platforms.map((p) => (
             <details key={p.id} className="panel p-3" open={p.fields.some((f) => values[f])}>
@@ -210,10 +210,10 @@ export function DesktopSetup({ conn, onDone, canSkip }: { conn: Connection; onDo
 
       {step === 2 && (
         <div className="space-y-4">
-          <p className="text-sm">STARK OS keeps your keys in this computer&apos;s secure credential store, not in files.</p>
+          <p className="text-sm">STARK AI keeps your keys in this computer&apos;s secure credential store, not in files.</p>
           <p className="text-xs text-[var(--color-mute)]">Your data folder: <span className="font-mono">{st.data_dir}</span></p>
           {error && <p className="text-sm text-red-400">{error}</p>}
-          <Nav back={() => setStep(1)} next={save} nextOk={!saving} nextLabel={saving ? "Starting STARK OS…" : "Save and start"} />
+          <Nav back={() => setStep(1)} next={save} nextOk={!saving} nextLabel={saving ? "Starting STARK AI…" : "Save and start"} />
         </div>
       )}
     </Frame>
@@ -239,7 +239,7 @@ function Frame({ children }: { children: React.ReactNode }) {
         <div className="mb-6 flex items-center gap-3">
           <AgentGlyph icon="core" color="#22d3ee" size={40} />
           <div>
-            <h1 className="text-xl font-semibold tracking-[0.25em]">STARK OS</h1>
+            <h1 className="text-xl font-semibold tracking-[0.25em]">STARK AI</h1>
             <p className="hud-label text-[var(--color-mute)]">Setup</p>
           </div>
         </div>

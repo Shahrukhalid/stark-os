@@ -95,7 +95,7 @@ class Observability:
 
     @staticmethod
     def cost(model: str, input_tokens: int, output_tokens: int, provider: str) -> tuple[float, bool]:
-        """STARK OS only calls free models; anything else is recorded as unknown cost."""
+        """STARK AI only calls free models; anything else is recorded as unknown cost."""
         if model.endswith(":free") or model == "openrouter/free":
             return 0.0, True
         return 0.0, False

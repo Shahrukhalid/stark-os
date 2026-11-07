@@ -1,16 +1,16 @@
 # Automations
 
-STARK OS has its own **Automations** page ("when this happens, do that"). It also connects to other automation apps in both directions:
+STARK AI has its own **Automations** page ("when this happens, do that"). It also connects to other automation apps in both directions:
 
 | Direction | How | Typical use |
 |---|---|---|
-| **Inside STARK OS** | Automations page: trigger → conditions → actions | Thank-you drafts for praise, phone alerts for complaints, daily ideas, weekly recaps, UTM tags |
-| **Other app → STARK OS** | An automation with the trigger *Another app calls a webhook* | Spreadsheet rows, new shop products, feed items or form answers become **drafts** |
-| **STARK OS → other app** | The action *Send to a webhook*, or `STARK_WEBHOOK_URLS` for every event | Log published posts to a spreadsheet or notes database, email a weekly digest, open a help-desk ticket |
+| **Inside STARK AI** | Automations page: trigger → conditions → actions | Thank-you drafts for praise, phone alerts for complaints, daily ideas, weekly recaps, UTM tags |
+| **Other app → STARK AI** | An automation with the trigger *Another app calls a webhook* | Spreadsheet rows, new shop products, feed items or form answers become **drafts** |
+| **STARK AI → other app** | The action *Send to a webhook*, or `STARK_WEBHOOK_URLS` for every event | Log published posts to a spreadsheet or notes database, email a weekly digest, open a help-desk ticket |
 
 Automations never publish on their own. They can draft, label, tag links, notify your phone, ask an agent and call webhooks. Every post still waits for your approval (or for an Autopilot trust level you chose).
 
-## 1. Automations inside STARK OS
+## 1. Automations inside STARK AI
 
 Open **Automations** in the left menu.
 
@@ -34,11 +34,11 @@ Safety limits: at most 20 runs per automation per hour; what an automation creat
 | `autopilot.alert` | `data.campaign`, `data.message` |
 | webhook | whatever JSON the other app sent, as `data.…` |
 
-## 2. Other app → STARK OS (drafts)
+## 2. Other app → STARK AI (drafts)
 
-1. In STARK OS, open **Automations → Recipe gallery** and use **Drafts from other apps**. Edit it if you want another platform, then switch it on.
+1. In STARK AI, open **Automations → Recipe gallery** and use **Drafts from other apps**. Edit it if you want another platform, then switch it on.
 2. Copy the secret address shown on the automation, e.g. `http://127.0.0.1:8000/api/hooks/aut_…/…`. The long last part is the password: keep it private. Deleting the automation, or changing its trigger away from webhook, retires the address.
-3. If the other app runs in the cloud, it cannot reach `127.0.0.1`. Put a tunnel (an HTTPS reverse proxy to your computer) in front of STARK OS and forward **only** paths starting with `/api/hooks/`; answer everything else with 404.
+3. If the other app runs in the cloud, it cannot reach `127.0.0.1`. Put a tunnel (an HTTPS reverse proxy to your computer) in front of STARK AI and forward **only** paths starting with `/api/hooks/`; answer everything else with 404.
    - The `/api/hooks/` endpoints need no API token (the secret in the address is the password), accept at most 64 KB and only run switched-on automations. Every other `/api/…` endpoint still requires your `STARK_API_TOKEN`.
 4. In the other app, add an HTTP request step:
 
@@ -55,14 +55,14 @@ Safety limits: at most 20 runs per automation per hour; what an automation creat
 
 ### Example set-ups
 
-| In the other app | STARK OS automation |
+| In the other app | STARK AI automation |
 |---|---|
 | **New spreadsheet row** → HTTP request with `{"platform": "<platform column>", "text": "<text column>"}` | Webhook trigger → *Create a draft* with `{{data.text}}` (one automation per platform, or a condition on `data.platform`) |
 | **New shop product** → HTTP request with `{"text": "New in the shop: <title> <url>"}` | Webhook trigger → *Ask an agent*: "EDITH, write a launch post for: {{data.text}}" |
 | **New feed item** → HTTP request with `{"text": "<title> <url>"}` | Webhook trigger → *Ask an agent*: "EDITH, write a 4-part thread from {{data.text}}" |
 | **New form answer** → HTTP request | Webhook trigger → *Create a draft* or *Message my phone* |
 
-## 3. STARK OS → other app
+## 3. STARK AI → other app
 
 **Per automation**: add the action **Send to a webhook** with the incoming-webhook address the other app gives you. The recipe **Log every published post to another app** does this for each published post. The body is:
 

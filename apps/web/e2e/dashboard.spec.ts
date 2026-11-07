@@ -43,7 +43,7 @@ test("EDITH drafts; you publish from Content with one click, and the simulation 
   await expect(page.getByText(/Drafted (cnt_[0-9a-f]{16}) for Bluesky\. Check: PASS\./)).toBeVisible({ timeout: 20_000 });
   await page.getByRole("button", { name: "Content", exact: true }).click();
   const item = page.getByTestId("content-item").first();
-  await expect(item.getByText("STARK OS is live: seven agents, one social team.", { exact: false })).toBeVisible();
+  await expect(item.getByText("STARK AI is live: seven agents, one social team.", { exact: false })).toBeVisible();
   await expect(item.getByText("check PASS")).toBeVisible();
   await expect(page.getByText("NOT CONNECTED").first()).toBeVisible();
   await page.screenshot({ path: "e2e/screenshots/content.png", fullPage: true });
@@ -224,7 +224,7 @@ test("Autopilot: create a campaign, it researches and writes, you approve the ba
   const post = page.getByTestId("autopilot-post").first();
   await expect(post).toBeVisible({ timeout: 20_000 });
   await expect(post.getByText("approval checks for AI agents", { exact: false })).toBeVisible();
-  await expect(post.getByText("#AiAgents", { exact: false })).toBeVisible(); // SEO hashtag added by STARK OS
+  await expect(post.getByText("#AiAgents", { exact: false })).toBeVisible(); // SEO hashtag added by STARK AI
   // the test feed links over plain http, so the quality gate asks for a look instead of passing it
   await expect(post.getByText("checks need a look")).toBeVisible();
   await expect(post.getByText("Link is not HTTPS", { exact: false })).toBeVisible();

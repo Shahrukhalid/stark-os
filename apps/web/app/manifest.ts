@@ -5,8 +5,8 @@ export const dynamic = "force-static"; // also works in the static export used b
 /** Lets people install the dashboard as an app (desktop and phone). */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "STARK OS",
-    short_name: "STARK OS",
+    name: "STARK AI",
+    short_name: "STARK AI",
     description: "Your AI social media team: seven agents that ask before they post.",
     start_url: "/",
     display: "standalone",

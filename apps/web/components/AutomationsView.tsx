@@ -255,7 +255,7 @@ export function AutomationsView() {
             <section className="panel p-4 text-xs text-[var(--color-mute)]">
               <div className="hud-label mb-2 text-cyan-300">How it works</div>
               <ol className="list-decimal space-y-1.5 pl-4">
-                <li><b>Trigger:</b> an event in STARK OS, a daily/weekly schedule, or a webhook another app calls.</li>
+                <li><b>Trigger:</b> an event in STARK AI, a daily/weekly schedule, or a webhook another app calls.</li>
                 <li><b>Conditions:</b> all must match. Use fields like <code>data.platform</code>, <code>data.category</code>, <code>data.likes</code>.</li>
                 <li><b>Actions:</b> run in order. Use <code>{"{{data.text}}"}</code> to insert event fields into messages.</li>
                 <li><b>Safety:</b> at most 20 runs per automation per hour, and what an automation creates never triggers automations again.</li>
@@ -344,7 +344,7 @@ function Builder({ value, meta, onChange, onSave, onCancel }: { value: ReturnTyp
             const type = e.target.value as Trigger["type"];
             set({ trigger: type === "event" ? { type, event: "post.published" } : type === "schedule" ? { type, every: "day", time: "09:00", weekday: 0 } : { type } });
           }}>
-            <option value="event">Something happens in STARK OS</option>
+            <option value="event">Something happens in STARK AI</option>
             <option value="schedule">On a schedule</option>
             <option value="webhook">Another app calls a webhook</option>
           </select>
@@ -441,7 +441,7 @@ function ConnectApps() {
   return (
     <div className="grid gap-4 [&>*]:min-w-0 lg:grid-cols-2">
       <section className="panel p-4 text-xs text-[var(--color-mute)]">
-        <div className="hud-label mb-2 text-cyan-300">Other apps → STARK OS</div>
+        <div className="hud-label mb-2 text-cyan-300">Other apps → STARK AI</div>
         <ol className="list-decimal space-y-1.5 pl-4">
           <li>Use the recipe <b>Drafts from other apps</b> (or build an automation with the trigger “Another app calls a webhook”).</li>
           <li>Copy its secret address. Make it reachable from the internet with a tunnel, exposing only <code>/api/hooks/</code>.</li>
@@ -450,7 +450,7 @@ function ConnectApps() {
         </ol>
       </section>
       <section className="panel p-4 text-xs text-[var(--color-mute)]">
-        <div className="hud-label mb-2 text-cyan-300">STARK OS → other apps</div>
+        <div className="hud-label mb-2 text-cyan-300">STARK AI → other apps</div>
         <ol className="list-decimal space-y-1.5 pl-4">
           <li>In Make add a <b>Webhooks → Custom webhook</b> trigger and copy its address.</li>
           <li>Here, add an action <b>Send to a webhook</b> with that address (or use the recipe <b>Log every published post</b>).</li>

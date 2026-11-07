@@ -27,7 +27,7 @@ from pydantic import BaseModel, Field
 from ..core.tool_registry import ApprovalText, Availability, Risk, Tool, ToolResult
 from .filesystem import is_sensitive, rel, resolve_in_roots
 
-USER_AGENT = "StarkOS-Research/0.1 (+personal research assistant; respects robots.txt)"
+USER_AGENT = "StarkAI-Research/0.1 (+personal research assistant; respects robots.txt)"
 MAX_BYTES = 3_000_000
 
 

@@ -1,4 +1,4 @@
-"""House rule: the project text names only the services STARK OS actually connects to. Names of other products
+"""House rule: the project text names only the services STARK AI actually connects to. Names of other products
 and websites (competitors, inspirations, third-party apps used only as examples) are not allowed anywhere.
 
 The blocked names are stored as hashes so this file does not mention them either. Words are compared in lower

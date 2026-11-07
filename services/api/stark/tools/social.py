@@ -5,7 +5,7 @@ Real platform adapters
 - **Mastodon** (free): MASTODON_BASE_URL + MASTODON_ACCESS_TOKEN.
 
 Every other platform (X, Threads, LinkedIn, Instagram, Facebook, TikTok, YouTube) needs a paid API tier,
-an app review or a business account, so STARK OS drafts, checks and schedules for them but publishing is
+an app review or a business account, so STARK AI drafts, checks and schedules for them but publishing is
 an explicit **SIMULATION**: nothing leaves the machine, the item is marked ``simulated`` and the UI shows a
 SIMULATED badge. Simulated publishes never produce engagement numbers.
 
@@ -323,7 +323,7 @@ def check_post(platform: str, text: str, *, thread: list[str] | None = None, med
         add("fail", "reply_target", "A reply needs reply_to (the post being answered).")
     if spec.get("needs_media") and not media:
         add("fail", "needs_media", f"{spec['name']} posts need an image or video. Add a media brief "
-                                   "(STARK OS drafts briefs; you attach the real file).")
+                                   "(STARK AI drafts briefs; you attach the real file).")
     tags = HASHTAG_RE.findall(full)
     if len(tags) > spec["hashtags"]:
         add("fail" if spec.get("hashtags_hard") else "warn", "hashtags",
@@ -356,7 +356,7 @@ def check_post(platform: str, text: str, *, thread: list[str] | None = None, med
         limits = MEDIA_LIMITS.get(platform)
         videos = [m for m in files if m.get("type") == "video"]
         if videos and platform not in VIDEO_PLATFORMS:
-            add("fail", "video_unsupported", f"STARK OS uploads videos to TikTok, YouTube and Instagram; "
+            add("fail", "video_unsupported", f"STARK AI uploads videos to TikTok, YouTube and Instagram; "
                                              f"post an image or text on {spec['name']}.")
         if platform in ("tiktok", "youtube") and files and not videos:
             add("fail", "needs_video", f"{spec['name']} needs a video (MP4 or MOV).")
@@ -987,7 +987,7 @@ class Social:
                                 params={"fields": "id,name,access_token", "limit": 100, "access_token": tok})
                 options = [{"id": x["id"], "name": x.get("name", x["id"]), "secret": x["access_token"]}
                            for x in (r.json().get("data") or [])] if r.status_code == 200 else []
-                empty = "No Facebook Pages found. You must be an admin of a Page and allow STARK OS to use it."
+                empty = "No Facebook Pages found. You must be an admin of a Page and allow STARK AI to use it."
             elif platform == "pinterest":
                 r = await c.get("https://api.pinterest.com/v5/boards", params={"page_size": 100},
                                 headers={"Authorization": f"Bearer {tok}"})
@@ -1583,7 +1583,7 @@ async def run_scheduler_once(kernel, social: "Social", settings) -> list[dict[st
             continue
         if (now - when).total_seconds() > settings.scheduler_grace_h * 3600:
             _update(kernel, item["id"], auto_publish=False, approved_fp=None,
-                    error="Missed its time while STARK OS was off. Approve it again to publish.")
+                    error="Missed its time while STARK AI was off. Approve it again to publish.")
             kernel.obs.audit("scheduler", "social.auto_publish", "missed", target=item["id"])
             done.append({"id": item["id"], "outcome": "missed"})
             continue
