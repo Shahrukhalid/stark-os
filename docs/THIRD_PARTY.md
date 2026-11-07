@@ -8,7 +8,6 @@
 | Whisper models (ggml, downloaded on request) | Speech recognition weights | MIT (OpenAI Whisper) |
 | [NumPy](https://numpy.org) | Audio samples for speech to text | BSD-3-Clause |
 | [pywebview](https://github.com/r0x0r/pywebview) | Native window | BSD-3-Clause |
-| [keyring](https://github.com/jaraco/keyring) | macOS Keychain / Windows Credential Manager | MIT |
 | [PyInstaller](https://pyinstaller.org) | Packaging | GPL v2 with bootloader exception |
 
 FFmpeg runs as a separate program; STARK OS calls it with command-line arguments and does not link to it.

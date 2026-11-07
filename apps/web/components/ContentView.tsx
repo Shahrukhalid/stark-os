@@ -343,6 +343,21 @@ function AccountsPanel({ accounts, onChange }: { accounts: SocialAccount[]; onCh
   const [vals, setVals] = useState<Record<string, string>>({});
   const [waiting, setWaiting] = useState<string | null>(null);
   const [authUrl, setAuthUrl] = useState("");
+  const [manual, setManual] = useState(false);
+
+  async function login(platform: string) {
+    setBusy(true);
+    try {
+      const res = await client.post<{ auth_url: string }>(`/api/oauth/${platform}/login`, {});
+      setAuthUrl(res.auth_url);
+      setWaiting(platform);
+      setOpen(platform);
+    } catch (e: unknown) {
+      notify("error", errorText(e, "Could not start the log in."));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function refresh() {
     try {
@@ -422,6 +437,17 @@ function AccountsPanel({ accounts, onChange }: { accounts: SocialAccount[]; onCh
                 ) : (
                   <span className="ml-auto">set in .env</span>
                 )}
+              </div>
+            ) : open === a.platform && a.login && waiting === a.platform && !manual ? (
+              <div className="mt-2 space-y-2 text-xs text-[var(--color-mute)]">
+                <p>Log in to {a.name} in your browser and allow STARK OS. Then come back here.</p>
+                <div className="flex flex-wrap gap-2">
+                  <a className="btn btn-primary" href={authUrl} target="_blank" rel="noreferrer noopener">
+                    <ExternalLink size={13} /> Open {a.name} log in
+                  </a>
+                  <button type="button" className="btn" onClick={refresh}>I&apos;ve logged in</button>
+                  <button type="button" className="btn" onClick={() => { setOpen(null); setWaiting(null); }}>Cancel</button>
+                </div>
               </div>
             ) : open === a.platform && a.form ? (
               <form
@@ -504,9 +530,21 @@ function AccountsPanel({ accounts, onChange }: { accounts: SocialAccount[]; onCh
             ) : (
               <div className="mt-2 flex items-center gap-2 text-xs text-[var(--color-mute)]">
                 <span className="min-w-0 flex-1">{a.detail}</span>
-                <button className="btn btn-primary !py-1 text-xs" onClick={() => { setOpen(a.platform); setForm({ a: "", b: "" }); setVals({}); }}>
-                  <Link2 size={13} /> Connect
-                </button>
+                {a.login ? (
+                  <>
+                    <button className="btn btn-primary !py-1 text-xs" disabled={busy} onClick={() => { setManual(false); login(a.platform); }}>
+                      <Link2 size={13} /> Log in with {a.name}
+                    </button>
+                    <button className="btn !py-1 text-xs" title="Use your own developer app instead"
+                      onClick={() => { setManual(true); setOpen(a.platform); setForm({ a: "", b: "" }); setVals({}); }}>
+                      Own app
+                    </button>
+                  </>
+                ) : (
+                  <button className="btn btn-primary !py-1 text-xs" onClick={() => { setOpen(a.platform); setForm({ a: "", b: "" }); setVals({}); }}>
+                    <Link2 size={13} /> Connect
+                  </button>
+                )}
               </div>
             )}
           </li>

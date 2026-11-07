@@ -38,6 +38,7 @@ jobs:
         with: { python-version: "3.12" }
       - run: pip install --require-hashes -r services/api/requirements.lock && pip install --no-deps -e "services/api" && cd apps/web && npm ci && npx playwright install --with-deps chromium
       - run: cd apps/web && npx tsc --noEmit && npm test && npm run build
+      - run: node --test services/connect/worker.test.mjs  # STARK Connect token server
       - run: cd apps/web && npx playwright test
         env: { STARK_PYTHON: python }
   windows-setup:

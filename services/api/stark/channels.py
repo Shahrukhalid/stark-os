@@ -491,7 +491,8 @@ class _OAuthAdapter(_Base):
         self._access: tuple[str, float] | None = None
 
     def connected(self) -> bool:
-        return all(getattr(self.settings, f, "") for f in self.fields)
+        cid, secret, refresh = (getattr(self.settings, f, "") for f in self.fields)
+        return bool(refresh and ((cid and secret) or self.settings.connect_url))
 
     def _refresh_body(self) -> dict[str, str]:
         cid, secret, refresh = (getattr(self.settings, f) for f in self.fields)
@@ -504,7 +505,11 @@ class _OAuthAdapter(_Base):
 
         if self._access and self._access[1] > time.time() + 60:
             return self._access[0]
-        r = await client.post(self.token_url, data=self._refresh_body())
+        if getattr(self.settings, self.fields[1], ""):
+            r = await client.post(self.token_url, data=self._refresh_body())
+        else:  # signed in with Nexonic's app: STARK Connect holds the app secret
+            r = await client.post(f"{self.settings.connect_url.rstrip('/')}/refresh/{self.platform}",
+                                  json={"refresh_token": getattr(self.settings, self.fields[2])})
         body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
         if r.status_code != 200 or not body.get("access_token"):
             raise AdapterError(f"{self.platform.title()} sign-in expired or was revoked; connect it again "

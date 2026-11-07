@@ -342,6 +342,7 @@ export interface SocialAccount {
   char_limit: number;
   detail: string;
   can_connect: boolean;
+  login?: boolean;
   form?: { fields: { key: string; label: string; placeholder: string; secret: boolean }[]; steps: string[]; oauth?: boolean } | null;
   connected_as: string | null;
   source: "env" | "dashboard" | null;

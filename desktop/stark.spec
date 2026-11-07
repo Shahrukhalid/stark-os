@@ -24,7 +24,7 @@ for base in {sysconfig.get_paths()["platlib"], sysconfig.get_paths()["purelib"]}
         WHISPER_LIBS += [(p, ".") for p in glob.glob(str(Path(base) / pat)) if Path(p).is_file()]
 print("whisper libraries:", [Path(p).name for p, _ in WHISPER_LIBS])
 
-hidden = ["imageio_ffmpeg", "pywhispercpp", "pywhispercpp.model", "_pywhispercpp", "numpy"] + collect_submodules("stark") + collect_submodules("uvicorn") + ["keyring.backends.macOS", "keyring.backends.Windows"]
+hidden = ["imageio_ffmpeg", "pywhispercpp", "pywhispercpp.model", "_pywhispercpp", "numpy"] + collect_submodules("stark") + collect_submodules("uvicorn")
 a = Analysis(
     [str(ROOT / "desktop/stark_desktop.py")],
     pathex=[str(ROOT / "services/api")],

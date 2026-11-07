@@ -870,6 +870,12 @@ def _form(pid: str) -> dict[str, Any] | None:
             "steps": spec["steps"], "oauth": bool(spec.get("oauth"))}
 
 
+def _login(settings, pid: str) -> bool:
+    from .. import oauth
+
+    return bool(settings.connect_url) and pid in oauth.OFFICIAL
+
+
 class Social:
     """Shared state for the social tools: adapters, the account store and queue access."""
 
@@ -901,6 +907,7 @@ class Social:
                         "detail": (spec.get("note") or spec.get("adapter")) if real else why,
                         "can_connect": pid in ACCOUNT_FIELDS,
                         "form": _form(pid),
+                        "login": _login(self.settings, pid),
                         "connected_as": self.store.connected_as(pid) if real and pid in ACCOUNT_FIELDS else None,
                         "source": ("env" if self.store.from_env.get(pid) else "dashboard") if real else None})
         return out
@@ -929,6 +936,54 @@ class Social:
         ).removesuffix(" is active")
         self.store.save(platform, clean, who)
         return who
+
+    async def finish_login(self, platform: str, tokens: dict[str, Any]) -> dict[str, Any]:
+        """Turn the tokens from "Log in with …" into a connected account. Returns {"who": …} or, when the
+        user must choose a Facebook Page or Pinterest board first, {"choose": [{id, name, …}]}."""
+        tok = str(tokens.get("access_token") or "")
+        if platform in ("tiktok", "youtube"):
+            cid, secret, refresh = ACCOUNT_FIELDS[platform]
+            if not tokens.get("refresh_token"):
+                raise AdapterError("The platform did not grant offline access; log in again and allow it.")
+            return {"who": await self.connect_oauth(platform, {cid: "", secret: "", refresh: tokens["refresh_token"]})}
+        if platform in ("instagram", "threads"):
+            uid = str(tokens.get("user_id") or "")
+            if not uid:
+                async with httpx.AsyncClient(timeout=20, transport=self.transport) as c:
+                    host = "graph.instagram.com/v23.0" if platform == "instagram" else "graph.threads.net/v1.0"
+                    r = await c.get(f"https://{host}/me", params={"fields": "id", "access_token": tok})
+                uid = str(r.json().get("id", "")) if r.status_code == 200 else ""
+            return {"who": await self.connect_generic(platform, {f"{platform}_user_id": uid,
+                                                                   f"{platform}_access_token": tok})}
+        if platform == "linkedin":
+            return {"who": await self.connect_generic("linkedin", {"linkedin_access_token": tok})}
+        async with httpx.AsyncClient(timeout=20, transport=self.transport) as c:
+            if platform == "facebook":
+                r = await c.get("https://graph.facebook.com/v23.0/me/accounts",
+                                params={"fields": "id,name,access_token", "limit": 100, "access_token": tok})
+                options = [{"id": x["id"], "name": x.get("name", x["id"]), "secret": x["access_token"]}
+                           for x in (r.json().get("data") or [])] if r.status_code == 200 else []
+                empty = "No Facebook Pages found. You must be an admin of a Page and allow STARK OS to use it."
+            elif platform == "pinterest":
+                r = await c.get("https://api.pinterest.com/v5/boards", params={"page_size": 100},
+                                headers={"Authorization": f"Bearer {tok}"})
+                options = [{"id": x["id"], "name": x.get("name", x["id"]), "secret": tok}
+                           for x in (r.json().get("items") or [])] if r.status_code == 200 else []
+                empty = "No Pinterest boards found. Create a board on Pinterest first, then log in again."
+            else:
+                raise AdapterError("This platform has no log in.")
+        if not options:
+            raise AdapterError(empty)
+        if len(options) == 1:
+            return {"who": await self.pick(platform, options[0])}
+        return {"choose": options}
+
+    async def pick(self, platform: str, option: dict[str, str]) -> str:
+        if platform == "facebook":
+            return await self.connect_generic("facebook", {"facebook_page_id": option["id"],
+                                                           "facebook_page_token": option["secret"]})
+        return await self.connect_generic("pinterest", {"pinterest_board_id": option["id"],
+                                                        "pinterest_access_token": option["secret"]})
 
     async def connect_oauth(self, platform: str, values: dict[str, str]) -> str:
         """Store the result of a sign-in, after checking it works (nothing is posted)."""

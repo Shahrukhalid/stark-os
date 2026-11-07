@@ -1,0 +1,8 @@
+name = "stark-connect"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+# PUBLIC_ORIGIN must be the address you register as redirect base on every platform, e.g.
+# https://connect.example.com  (then each redirect URI is <PUBLIC_ORIGIN>/cb/<platform>).
+[vars]
+PUBLIC_ORIGIN = ""

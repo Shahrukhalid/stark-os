@@ -50,6 +50,10 @@ def _env_list(name: str, default: list[str]) -> list[str]:
 # (see providers/openrouter.py); OPENROUTER_MODEL / OPENROUTER_MODEL_<TIER> pin one.
 
 
+# Set to Nexonic's STARK Connect address once it is deployed (docs/CONNECT_APPS.md).
+DEFAULT_CONNECT_URL = ""
+
+
 @dataclass
 class Settings:
     api_token: str = ""
@@ -122,6 +126,7 @@ class Settings:
     youtube_client_secret: str = ""
     youtube_refresh_token: str = ""  # from Connect → Sign in with Google
     youtube_privacy: str = "private"  # public / unlisted once Google has audited your app
+    connect_url: str = ""  # STARK Connect server for "Log in with …" (services/connect), e.g. https://connect.example.com
     utm_enabled: bool = False  # tag links in new drafts with utm_source/medium/campaign
 
     @classmethod
@@ -192,6 +197,7 @@ class Settings:
             youtube_client_secret=_env("YOUTUBE_CLIENT_SECRET"),
             youtube_refresh_token=_env("YOUTUBE_REFRESH_TOKEN"),
             youtube_privacy=_env("YOUTUBE_PRIVACY", "private"),
+            connect_url=_env("STARK_CONNECT_URL", DEFAULT_CONNECT_URL),
             utm_enabled=_env_bool("STARK_UTM", False),
         )
 
