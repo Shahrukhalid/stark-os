@@ -1,4 +1,4 @@
-> Historical release notes below contain superseded capability claims. For the 2026-11-07 source audit and current evidence, see [Nexonic repository audit](NEXONIC_REPOSITORY_AUDIT.md), [feature inventory](NEXONIC_FEATURE_MATRIX.md) and [test results](NEXONIC_TEST_MATRIX.md).
+> Historical release notes below contain superseded capability claims. For the 2026-11-07 credential and dependency review, see [security audit](SECURITY_AUDIT.md).
 
 # Implementation status
 

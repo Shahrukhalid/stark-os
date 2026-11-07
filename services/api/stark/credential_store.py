@@ -17,7 +17,7 @@ from pathlib import Path
 
 LOCK = threading.RLock()
 MESSAGE = ("Credential storage is unavailable or damaged. Unlock your OS credential store and restart. "
-           "Keep the data folder and its encrypted backups. See docs/NEXONIC_MIGRATION_PLAN.md.")
+           "Keep the data folder and its encrypted backups. See docs/CREDENTIAL_MIGRATION.md.")
 
 
 class CredentialStoreError(RuntimeError):

@@ -1,6 +1,6 @@
 # Compatibility, credential migration and rollback
 
-M1 changes credential storage only. Python package `stark`, STARK_* environment names, data directories, database tables/records, Mac bundle ID `com.nexonic.starkos`, Windows installer identity, release URLs and all seven agent IDs remain unchanged. Repository renaming and visual rebranding await later gates and explicit authorization.
+This change touches credential storage only. Python package `stark`, STARK_* environment names, data directories, database tables/records, Mac bundle ID `com.nexonic.starkos`, Windows installer identity, release URLs and all seven agent IDs remain unchanged.
 
 ## Before installing a migration build
 
@@ -35,4 +35,4 @@ The automated downgrade test verifies current values (including Unicode), owner-
 
 ## Configuration and database roadmap
 
-Preserve STARK_* aliases throughout rebranding. If NEXONIC_* aliases are later introduced, define explicit precedence and test both. Before any database schema/data-location migration, create a consistent SQLite backup via the backup API or PostgreSQL backup, test forward migration against v1.11.0 fixtures, test rollback/restoration and account/approval/history counts. This PR makes no such database change.
+Before any database schema/data-location migration, create a consistent SQLite backup via the backup API or PostgreSQL backup, test forward migration against v1.11.0 fixtures, test rollback/restoration and account/approval/history counts. This PR makes no such database change.

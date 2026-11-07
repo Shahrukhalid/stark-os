@@ -1,10 +1,10 @@
-# Security audit and foundation changes
+# Security audit: desktop credentials (7 Nov 2026)
 
 ## Threat boundary
 
 Protect credential contents in copied application files and avoid accidental secrets in errors. The OS account and native vault remain trusted. Encryption does not defend against malware running as that user, process-memory access or a fully compromised OS. Application API tokens, plaintext environment files and server-mode credential files require separate controls. Database content is not encrypted by this change.
 
-## M1 changes
+## Changes
 
 - AES-256-GCM, fresh random 96-bit nonce on each write, authenticated version/file identity, random key held only in macOS Keychain or Windows Credential Manager. Keyring auto-discovery and third-party/fallback stores are not used. Native error detail is suppressed. Different credential files cannot be swapped undetected.
 - Migrate complete legacy dictionaries, retaining unknown entries, only after verified encrypted backup and live-file readback. Missing/corrupt keys, modified ciphertext, malformed legacy data and conflicting old-version files fail closed. No automatic stale backup restore. Atomic owner-only temporary files prevent partial plaintext writes.
@@ -19,8 +19,8 @@ Protect credential contents in copied application files and avoid accidental sec
 3. Headless API deployments retain the existing mode-600 social store unless already encrypted. Plan server secret-manager integration separately; do not advertise universal at-rest encryption.
 4. Local API bearer token and databases still depend on filesystem/OS account protection. Harden Windows ACL/installer behavior as part of packaged acceptance.
 5. Require valid release digests before installer execution; current updater accepts missing digest. Sign installers and stage complete releases atomically.
-6. Personal memories must not inherit permissive empty-brand shared visibility. Design and test personal scopes before M3/M6.
-7. Local dependency audit identified vulnerable pypdf 6.21.2; M1 patches its locked version. npm audit and the patched Python environment report no known vulnerabilities. Complete cross-platform reproducible desktop locks. No independent penetration test or live platform permission validation was performed here.
+6. Personal memories must not inherit permissive empty-brand shared visibility. Design and test personal scopes before adding personal memory.
+7. Local dependency audit identified vulnerable pypdf 6.21.2; this change patches its locked version. npm audit and the patched Python environment report no known vulnerabilities. Complete cross-platform reproducible desktop locks. No independent penetration test or live platform permission validation was performed here.
 
 ## Repository governance proposal
 
