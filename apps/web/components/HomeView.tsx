@@ -11,7 +11,7 @@ const STEPS = [
   { icon: MessageSquare, title: "1. Ask", text: "Type what you want in Command, like “EDITH, write a post about my new video”. Address an agent by name, or just talk to J.A.R.V.I.S." },
   { icon: Users, title: "2. The team works", text: "Agents draft, check rules and brand safety, research facts and stress-test the post. Every draft lands in Content." },
   { icon: ShieldCheck, title: "3. You approve", text: "In Content, read the exact text and choose Publish now, Schedule, or Copy text. Nothing is posted without you." },
-  { icon: Send, title: "4. It goes out", text: "Bluesky and Mastodon post for real. Approved scheduled posts go out on their own at the right time while STARK AI is running." },
+  { icon: Send, title: "4. It goes out", text: "Your connected platforms post for real. Approved scheduled posts go out on their own at the right time while STARK AI is running." },
 ];
 
 const QUICK = [
@@ -49,7 +49,7 @@ export function HomeView({ talkTo, go }: { talkTo: (agentId: string, text?: stri
     {
       done: connected.length > 0,
       label: "Connect a social account",
-      hint: connected.length ? `Live: ${connected.map((a) => a.connected_as || a.name).join(", ")}` : "Bluesky or Mastodon, two minutes, free. Other platforms work as drafts you copy.",
+      hint: connected.length ? `Live: ${connected.map((a) => a.connected_as || a.name).join(", ")}` : "Bluesky, Mastodon, Threads, Instagram, LinkedIn, YouTube and more. Platforms you skip work as drafts you copy.",
       action: () => go("content"),
     },
     { done: items.length > 0, label: "Create your first post", hint: items.length ? `${items.length} post(s) so far.` : "Ask E.D.I.T.H. to write one.", action: () => talkTo("edith", QUICK[0].text) },
@@ -63,7 +63,7 @@ export function HomeView({ talkTo, go }: { talkTo: (agentId: string, text?: stri
         <div className="hud-label mb-1 text-cyan-300">Welcome</div>
         <h1 className="holo-text text-xl font-semibold">Your AI social media team</h1>
         <p className="mt-1 max-w-3xl text-sm text-[var(--color-mute)]">
-          Seven agents write, check, research and schedule your posts. You stay in charge: every post is shown to you before it goes out, and everything runs on your computer with free AI models.
+          Talk to Vision or Wanda, or to any of the seven specialist agents: they write, check, research and schedule your posts. You stay in charge: every post is shown to you before it goes out, and everything runs on your computer with free AI models.
         </p>
         <div className="mt-4 grid gap-3 [&>*]:min-w-0 sm:grid-cols-2 lg:grid-cols-4">
           {STEPS.map((s) => (

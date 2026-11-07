@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "STARK AI",
     short_name: "STARK AI",
-    description: "Your AI social media team: seven agents that ask before they post.",
+    description: "Your AI social media team: Vision, Wanda and seven agents that ask before they post.",
     start_url: "/",
     display: "standalone",
     background_color: "#06080b",
