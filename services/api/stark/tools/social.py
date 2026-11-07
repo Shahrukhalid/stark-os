@@ -48,19 +48,19 @@ PLATFORMS: dict[str, dict[str, Any]] = {
     "bluesky": {"name": "Bluesky", "limit": 300, "hashtags": 3, "adapter": "AT Protocol (free)"},
     "mastodon": {"name": "Mastodon", "limit": 500, "hashtags": 5, "adapter": "Mastodon API (free)"},
     "x": {"name": "X", "limit": 280, "hashtags": 2, "url_weight": 23,
-          "why_simulated": "posting needs a paid X API plan"},
+          "why_simulated": "X charges for every post through its API (pay per use), so STARK prepares drafts you post yourself"},
     "threads": {"name": "Threads", "limit": 500, "hashtags": 1, "adapter": "Threads API (free)",
                 "why_simulated": "add THREADS_ACCESS_TOKEN and THREADS_USER_ID to .env to post for real (free)"},
     "linkedin": {"name": "LinkedIn", "limit": 3000, "hashtags": 5,
-                 "why_simulated": "needs LinkedIn Marketing/Community API approval"},
+                 "why_simulated": "add LINKEDIN_ACCESS_TOKEN (free self-serve Share on LinkedIn app, your own profile) to post for real"},
     "instagram": {"name": "Instagram", "limit": 2200, "hashtags": 30, "hashtags_hard": True, "needs_media": True,
-                  "why_simulated": "needs a Business account + Meta Graph API review"},
+                  "why_simulated": "Instagram only accepts images from a public web address and STARK keeps images on this computer, so it prepares the post and image for you to publish"},
     "facebook": {"name": "Facebook Page", "limit": 63206, "hashtags": 3,
-                 "why_simulated": "needs a Meta app with Pages permissions review"},
+                 "why_simulated": "add FACEBOOK_PAGE_ID and FACEBOOK_PAGE_TOKEN (your own Meta app, no review for Pages you manage) to post for real (free)"},
     "tiktok": {"name": "TikTok", "limit": 2200, "hashtags": 5, "needs_media": True,
-               "why_simulated": "needs TikTok Content Posting API audit"},
+               "why_simulated": "TikTok only allows public posts from apps that passed its audit, so STARK prepares the video package for you to upload"},
     "youtube": {"name": "YouTube", "limit": 5000, "hashtags": 15, "needs_media": True,
-                "why_simulated": "needs Google OAuth + a video upload; STARK only drafts scripts/briefs"},
+                "why_simulated": "YouTube uploads need a Google-verified app to be public, so STARK prepares titles, descriptions and Shorts for you to upload"},
     "telegram": {"name": "Telegram channel", "limit": 4096, "hashtags": 5, "adapter": "Telegram Bot API (free)",
                  "why_simulated": "add TELEGRAM_BOT_TOKEN and TELEGRAM_CHANNEL_ID (bot must be a channel admin) to .env"},
     "discord": {"name": "Discord channel", "limit": 2000, "hashtags": 5, "adapter": "Discord webhook (free)",
@@ -734,7 +734,7 @@ class Social:
         self.settings = settings
         self.transport = transport
         self.store = AccountStore(settings)
-        from .. import channels  # Threads, Telegram, Discord, Slack
+        from .. import channels  # Threads, Facebook, LinkedIn, Telegram, Discord, Slack
 
         self.adapters = {"bluesky": BlueskyAdapter(settings, transport),
                          "mastodon": MastodonAdapter(settings, transport), **channels.build(settings, transport)}

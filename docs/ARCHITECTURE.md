@@ -34,7 +34,7 @@ flowchart LR
   end
 
   subgraph World["Things tools touch"]
-    Social["Bluesky · Mastodon (real)<br/>X · Threads · LinkedIn · Instagram · Facebook · TikTok · YouTube (simulated)"]
+    Social["Bluesky · Mastodon · Threads · Facebook Page · LinkedIn (real)<br/>X · Instagram · TikTok · YouTube (drafts)"]
     FS["Brand folders"]
     Web["Public web (fetch, search API, Chromium)"]
   end

@@ -39,6 +39,8 @@ SECRETS = {
     "DISCORD_WEBHOOK_URL": "Discord notification webhook",
     "DISCORD_POST_WEBHOOK_URL": "Discord posting webhook",
     "SLACK_WEBHOOK_URL": "Slack webhook",
+    "FACEBOOK_PAGE_TOKEN": "Facebook Page access token",
+    "LINKEDIN_ACCESS_TOKEN": "LinkedIn access token",
     "TAVILY_API_KEY": "Tavily search key",
     "BRAVE_API_KEY": "Brave search key",
 }
@@ -46,7 +48,7 @@ SECRETS = {
 PLAIN = {
     "OPENROUTER_BASE_URL", "OPENROUTER_MODEL", "OPENROUTER_ALLOW_PAID", "STARK_TASK_TOKEN_BUDGET",
     "BLUESKY_HANDLE", "BLUESKY_SERVICE", "MASTODON_BASE_URL", "THREADS_USER_ID", "TELEGRAM_CHAT_ID",
-    "TELEGRAM_CHANNEL_ID", "STARK_DEFAULT_MODE",
+    "TELEGRAM_CHANNEL_ID", "STARK_DEFAULT_MODE", "FACEBOOK_PAGE_ID", "LINKEDIN_AUTHOR_URN", "LINKEDIN_API_VERSION",
 }
 
 # What each platform supports, shown in the setup wizard.
@@ -64,12 +66,18 @@ PLATFORMS = [
      "how": "Channel settings → Integrations → Webhooks → New webhook → Copy URL."},
     {"id": "slack", "name": "Slack", "publish": True, "fields": ["SLACK_WEBHOOK_URL"],
      "how": "Create an incoming webhook for your workspace and paste its URL."},
+    {"id": "facebook", "name": "Facebook Page", "publish": True, "fields": ["FACEBOOK_PAGE_ID", "FACEBOOK_PAGE_TOKEN"],
+     "how": "Create a Meta developer app (Business type), add yourself, then in the Graph API Explorer get a Page "
+            "access token with pages_manage_posts and pages_read_engagement. Paste the Page ID and token."},
+    {"id": "linkedin", "name": "LinkedIn (your profile)", "publish": True, "fields": ["LINKEDIN_ACCESS_TOKEN"],
+     "how": "Create a LinkedIn developer app, add the free products Share on LinkedIn and Sign In with LinkedIn "
+            "using OpenID Connect, then create a token with openid, profile and w_member_social (lasts 60 days)."},
     {"id": "x", "name": "X (Twitter)", "publish": False, "fields": [],
-     "how": "Publishing needs a paid developer plan, so STARK OS prepares drafts you post yourself."},
-    {"id": "linkedin", "name": "LinkedIn", "publish": False, "fields": [],
-     "how": "Posting needs a LinkedIn partner app, so STARK OS prepares drafts you post yourself."},
-    {"id": "instagram", "name": "Instagram / Facebook", "publish": False, "fields": [],
-     "how": "Publishing needs a reviewed Meta business app, so STARK OS prepares drafts and images for you."},
+     "how": "X charges for every post through its API, so STARK OS prepares drafts you post yourself."},
+    {"id": "instagram", "name": "Instagram", "publish": False, "fields": [],
+     "how": "Instagram only accepts images from a public web address, so STARK OS prepares the post and image for you."},
+    {"id": "tiktok", "name": "TikTok / YouTube", "publish": False, "fields": [],
+     "how": "Public uploads need an audited (TikTok) or verified (YouTube) app, so STARK OS prepares video packages for you."},
 ]
 
 PROVIDERS = [
@@ -189,6 +197,16 @@ def test_social(platform_id: str, v: dict[str, str], timeout: float = 15.0) -> d
                           params={"fields": "id,username", "access_token": v.get("THREADS_ACCESS_TOKEN", "")})
             return {"ok": r.status_code == 200, "message": "Connected to Threads." if r.status_code == 200
                     else "Threads rejected the token."}
+        if platform_id == "facebook":
+            r = httpx.get(f"https://graph.facebook.com/v23.0/{v.get('FACEBOOK_PAGE_ID', '')}", timeout=timeout,
+                          params={"fields": "name", "access_token": v.get("FACEBOOK_PAGE_TOKEN", "")})
+            return {"ok": r.status_code == 200, "message": f"Connected to the Page {r.json().get('name', '')}."
+                    if r.status_code == 200 else "Facebook rejected the Page ID or token."}
+        if platform_id == "linkedin":
+            r = httpx.get("https://api.linkedin.com/v2/userinfo", timeout=timeout,
+                          headers={"Authorization": f"Bearer {v.get('LINKEDIN_ACCESS_TOKEN', '')}"})
+            return {"ok": r.status_code == 200, "message": f"Signed in as {r.json().get('name', 'you')}."
+                    if r.status_code == 200 else "LinkedIn rejected the token (check its scopes; tokens last 60 days)."}
         if platform_id == "telegram":
             r = httpx.get(f"https://api.telegram.org/bot{v.get('TELEGRAM_BOT_TOKEN', '')}/getMe", timeout=timeout)
             ok = r.status_code == 200 and r.json().get("ok")

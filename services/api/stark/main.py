@@ -351,7 +351,8 @@ def create_app(settings: Settings | None = None, providers: dict[str, ModelProvi
     for secret in (settings.openrouter_api_key, settings.bluesky_app_password, settings.mastodon_access_token,
                    settings.tavily_api_key, settings.brave_api_key, settings.telegram_bot_token,
                    settings.discord_webhook_url, settings.webhook_secret, *settings.webhook_urls,
-                   settings.threads_access_token, settings.discord_post_webhook_url, settings.slack_webhook_url):
+                   settings.threads_access_token, settings.discord_post_webhook_url, settings.slack_webhook_url,
+                   settings.facebook_page_token, settings.linkedin_access_token):
         register_secret(secret)
     holder: dict[str, Kernel] = {}
 
